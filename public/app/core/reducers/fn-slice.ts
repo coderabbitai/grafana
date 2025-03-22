@@ -15,6 +15,9 @@ export interface FnGlobalState {
   queryParams: AnyObject;
   hiddenVariables: readonly string[];
   fnGlobalTimeRange: TimeRange | null;
+  metadata: {
+    teams: string[];
+  };
 }
 
 export type UpdateFNGlobalStateAction = PayloadAction<Partial<FnGlobalState>>;
@@ -57,6 +60,9 @@ export const INITIAL_FN_STATE: FnGlobalState = {
   queryParams: {},
   hiddenVariables: [],
   fnGlobalTimeRange: null,
+  metadata: {
+    teams: [],
+  },
 } as const;
 
 const reducers: SliceCaseReducers<FnGlobalState> = {
