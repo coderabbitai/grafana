@@ -1,6 +1,6 @@
 import { ReactNode } from 'react';
 
-import { GrafanaThemeType } from '@grafana/data';
+import { FnGlobalState } from 'app/core/reducers/fn-slice';
 
 export type FailedToMountGrafanaErrorName = 'FailedToMountGrafana';
 
@@ -16,17 +16,9 @@ export type GrafanaMicroFrontendActions = {
 export type AnyObject<K extends string | number | symbol = string, V = any> = {
   [key in K]: V;
 };
-
-export interface FNDashboardProps {
+export interface FNDashboardProps extends FnGlobalState {
   name: string;
-  uid: string;
-  slug: string;
-  version: number;
-  mode: GrafanaThemeType.Dark | GrafanaThemeType.Light;
-  queryParams: Record<string, string>;
   fnError?: ReactNode;
-  pageTitle?: string;
-  controlsContainer: string | null;
   isLoading: (isLoading: boolean) => void;
   setErrors: (errors?: { [K: number | string]: string }) => void;
   hiddenVariables: readonly string[];

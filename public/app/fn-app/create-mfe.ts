@@ -204,8 +204,8 @@ class createMfe {
 
           const initialState: FnGlobalState = {
             ...INITIAL_FN_STATE,
-            FNDashboard: true,
             ...pick(props, ...fnStateProps),
+            FNDashboard: true,
           };
 
           createMfe.logger.info('[FN Grafana] Dispatching initial state.', { initialState });
@@ -280,6 +280,7 @@ class createMfe {
             version: other.version,
             queryParams: other.queryParams,
             controlsContainer: other.controlsContainer,
+            metadata: other.metadata,
           })
         );
       }

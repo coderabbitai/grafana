@@ -7,7 +7,7 @@ import { DashboardRoutes, StoreState, useSelector } from 'app/types';
 
 import { FNDashboardProps } from '../types';
 
-const locationService = locationSrv as HistoryWrapper;
+export const mfeLocationService = locationSrv as HistoryWrapper;
 
 const DEFAULT_DASHBOARD_PAGE_PROPS: Pick<DashboardPageProps, 'history' | 'route'> & {
   match: Pick<DashboardPageProps['match'], 'isExact' | 'path' | 'url'>;
@@ -17,7 +17,7 @@ const DEFAULT_DASHBOARD_PAGE_PROPS: Pick<DashboardPageProps, 'history' | 'route'
     path: '/d/:uid/:slug?',
     url: '',
   },
-  history: {} as DashboardPageProps['history'],
+  history: mfeLocationService.getHistory(),
   route: {
     routeName: DashboardRoutes.Normal,
     path: '/d/:uid/:slug?',
@@ -50,7 +50,7 @@ export const RenderFNDashboard: FC<FNDashboardProps> = (props) => {
   }, [firstError, setErrors]);
 
   useEffect(() => {
-    locationService.fnPathnameChange(window.location.pathname, queryParams);
+    mfeLocationService.fnPathnameChange(window.location.pathname, queryParams);
   }, [queryParams]);
 
   const dashboardPageProps: DashboardPageProps = useMemo(
@@ -62,7 +62,7 @@ export const RenderFNDashboard: FC<FNDashboardProps> = (props) => {
             ...props,
           },
         },
-        location: locationService.getLocation(),
+        location: mfeLocationService.getLocation(),
         queryParams,
         hiddenVariables,
         controlsContainer,
