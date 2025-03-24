@@ -53,7 +53,9 @@ export const optionPickerFactory = <Model extends VariableWithOptions | Variable
       };
     }
 
-    const isMfeTeamFilter = state.fnGlobalState.FNDashboard && state.fnGlobalState.metadata.teams.length;
+    const p = getVariablesState(rootStateKey, state).optionsPicker;
+    const isMfeTeamFilter =
+      state.fnGlobalState.FNDashboard && state.fnGlobalState.metadata.teams.length && p.id === 'team';
 
     const teamFilter = isMfeTeamFilter
       ? state.fnGlobalState.metadata.teams.map((t) => ({
@@ -62,8 +64,6 @@ export const optionPickerFactory = <Model extends VariableWithOptions | Variable
           selected: false,
         }))
       : [];
-
-    const p = getVariablesState(rootStateKey, state).optionsPicker;
 
     return {
       picker: { ...p, ...(teamFilter.length && { options: [...p.options, ...teamFilter] }) },
