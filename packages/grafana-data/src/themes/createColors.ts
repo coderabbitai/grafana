@@ -172,13 +172,13 @@ class LightColors implements ThemeColorsBase<Partial<ThemeRichColor>> {
 
   primary = {
     main: '#FF570AE5',
-    border: '#D9D9C8',
+    border: '#D7D7C7',
     text: '#101828',
   };
 
   text = {
     primary: '#101828',
-    secondary: '#344054',
+    secondary: '#363636',
     disabled: '#9DA7B8',
     link: '#FF4702',
     maxContrast: palette.black,
@@ -220,9 +220,9 @@ class LightColors implements ThemeColorsBase<Partial<ThemeRichColor>> {
   };
 
   background = {
-    primary: '#F5F5F5',
+    primary: '#FFFFFF',
     canvas: '#F5F5F5',
-    secondary: '#F5f5f5',
+    secondary: '#FFFFFF',
   };
 
   action = {

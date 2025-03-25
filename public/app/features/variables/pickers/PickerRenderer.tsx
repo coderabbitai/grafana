@@ -62,10 +62,9 @@ const COMMON_PICKER_LABEL_STYLE: CSSProperties = {
   border: 'none',
   fontWeight: 500,
   fontSize: '14px',
-  padding: '3px 6px',
-  letterSpacing: '0.15px',
-  height: '24px',
-  marginTop: '2px',
+  padding: '12px 6px',
+  display: 'flex',
+  alignItems: 'center',
 };
 
 function PickerLabel({ variable }: PropsWithChildren<Props>): ReactElement | null {
@@ -76,6 +75,7 @@ function PickerLabel({ variable }: PropsWithChildren<Props>): ReactElement | nul
     () => ({
       ...COMMON_PICKER_LABEL_STYLE,
       color: mode === 'light' ? '#2D333E' : '#DBD9D7',
+      backgroundColor: '#F6F6F1',
     }),
     [mode]
   );
