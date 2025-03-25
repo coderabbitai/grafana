@@ -53,8 +53,8 @@ export interface ThemeTypographyInput {
   htmlFontSize?: number;
 }
 
-const defaultFontFamily = '"Poppins", Inter, Satoshi, sans-serif'; //'"Roboto", "Helvetica", "Arial", sans-serif';
-const defaultFontFamilyMonospace = '"SatoshiLight", "FigtreeLight", monospace'; // "'Roboto Mono', monospace";
+const defaultFontFamily = '"Work Sans", Inter, Satoshi, sans-serif';
+const defaultFontFamilyMonospace = '"SatoshiLight", "FigtreeLight", monospace'; 
 
 export function createTypography(colors: ThemeColors, typographyInput: ThemeTypographyInput = {}): ThemeTypography {
   const {
