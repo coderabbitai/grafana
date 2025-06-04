@@ -1,6 +1,6 @@
 import { ReactNode } from 'react';
 
-import { FnGlobalState } from 'app/core/reducers/fn-slice';
+import { FnGlobalState, FnState } from 'app/core/reducers/fn-slice';
 
 export type FailedToMountGrafanaErrorName = 'FailedToMountGrafana';
 
@@ -16,11 +16,12 @@ export type GrafanaMicroFrontendActions = {
 export type AnyObject<K extends string | number | symbol = string, V = any> = {
   [key in K]: V;
 };
-export interface FNDashboardProps extends FnGlobalState {
+export interface FNDashboardProps extends FnState {
   name: string;
   fnError?: ReactNode;
   isLoading: (isLoading: boolean) => void;
   setErrors: (errors?: { [K: number | string]: string }) => void;
   hiddenVariables: readonly string[];
   container?: HTMLElement | null;
+  mode: FnGlobalState['mode'];
 }

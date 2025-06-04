@@ -5,7 +5,7 @@ import { useDispatch, useSelector } from 'react-redux';
 
 import { TimeRange, isDateTime, rangeUtil } from '@grafana/data';
 import { TimeRangePickerProps, TimeRangePicker, useTheme2 } from '@grafana/ui';
-import { FnGlobalState, updatePartialFnStates } from 'app/core/reducers/fn-slice';
+import { FnGlobalState, updateFnTimeRange } from 'app/core/reducers/fn-slice';
 import { StoreState } from 'app/types';
 
 import { LocalStorageValueProvider } from '../LocalStorageValueProvider';
@@ -59,11 +59,7 @@ export const Picker: FC<PickerProps> = ({ rawValues, onSaveToStore, pickerProps 
     if (didMountRef.current) {
       /* If the current timerange value has changed, update fnGlobalTimeRange */
       if (!isEqual(fnGlobalTimeRange?.raw, pickerProps.value.raw)) {
-        dispatch(
-          updatePartialFnStates({
-            fnGlobalTimeRange: pickerProps.value,
-          })
-        );
+        dispatch(updateFnTimeRange(pickerProps.value));
       }
     } else if (fnGlobalTimeRange && !isEqual(fnGlobalTimeRange.raw, pickerProps.value.raw)) {
       /* If fnGlobalTimeRange exists in the initial render, set the time as that */

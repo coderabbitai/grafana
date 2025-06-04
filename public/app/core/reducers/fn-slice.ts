@@ -4,23 +4,22 @@ import { GrafanaThemeType, TimeRange } from '@grafana/data';
 
 import { AnyObject } from '../../fn-app/types';
 
-export interface FnGlobalState {
-  FNDashboard: boolean;
+export interface FnState {
   uid: string;
   slug: string;
   version: number;
-  mode: GrafanaThemeType.Light | GrafanaThemeType.Dark;
   controlsContainer: string | null;
   pageTitle: string;
   queryParams: AnyObject;
   hiddenVariables: readonly string[];
-  fnGlobalTimeRange: TimeRange | null;
   metadata: {
     teams: string[];
+    eventListener: (<T>(event: { type: string; data: T }) => void) | null;
   };
+  portalContainerID: string;
 }
 
-export type UpdateFNGlobalStateAction = PayloadAction<Partial<FnGlobalState>>;
+export type UpdateFNGlobalStateAction = PayloadAction<Partial<Omit<FnGlobalState, 'uid'>> & { uid: string }>;
 
 export type SetFnStateAction = PayloadAction<Omit<FnGlobalState, 'hiddenVariables'>>;
 
@@ -28,15 +27,13 @@ export type FnPropMappedFromState = Extract<
   keyof FnGlobalState,
   'FNDashboard' | 'hiddenVariables' | 'mode' | 'uid' | 'queryParams' | 'slug' | 'version' | 'controlsContainer'
 >;
-export type FnStateProp = keyof FnGlobalState;
+export type FnStateProp = keyof FnState;
 
 export type FnPropsMappedFromState = Pick<FnGlobalState, FnPropMappedFromState>;
 
 export const fnStateProps: FnStateProp[] = [
-  'FNDashboard',
   'controlsContainer',
   'hiddenVariables',
-  'mode',
   'pageTitle',
   'queryParams',
   'slug',
@@ -48,40 +45,54 @@ const INITIAL_MODE = GrafanaThemeType.Light;
 
 export const FN_STATE_KEY = 'fnGlobalState';
 
-export const INITIAL_FN_STATE: FnGlobalState = {
+export const INITIAL_FN_STATE: FnState = {
   // NOTE: initial value is false
-  FNDashboard: false,
   uid: '',
   slug: '',
   version: 1,
-  mode: INITIAL_MODE,
   controlsContainer: null,
   pageTitle: '',
   queryParams: {},
   hiddenVariables: [],
-  fnGlobalTimeRange: null,
   metadata: {
     teams: [],
+    eventListener: null,
   },
+  portalContainerID: 'grafana-portal',
 } as const;
 
+export interface FnGlobalState extends FnState {
+  FNDashboard: boolean;
+  mode: GrafanaThemeType.Light | GrafanaThemeType.Dark;
+  fnGlobalTimeRange: TimeRange | null;
+}
+
 const reducers: SliceCaseReducers<FnGlobalState> = {
-  updateFnState: (state, action: SetFnStateAction) => {
-    return { ...state, ...action.payload };
+  updateFnTimeRange: (state, action: PayloadAction<TimeRange | null>) => {
+    return {
+      ...state,
+      fnGlobalTimeRange: action.payload,
+    };
   },
   updatePartialFnStates: (state, action: UpdateFNGlobalStateAction) => {
     return {
       ...state,
       ...action.payload,
+      FNDashboard: true,
     };
   },
 };
 
 const fnSlice = createSlice<FnGlobalState, SliceCaseReducers<FnGlobalState>, string, SliceSelectors<FnGlobalState>>({
   name: FN_STATE_KEY,
-  initialState: INITIAL_FN_STATE,
+  initialState: {
+    ...INITIAL_FN_STATE,
+    FNDashboard: false,
+    mode: INITIAL_MODE,
+    fnGlobalTimeRange: null,
+  },
   reducers,
 });
 
-export const { updatePartialFnStates, updateFnState } = fnSlice.actions;
+export const { updatePartialFnStates, updateFnTimeRange } = fnSlice.actions;
 export const fnSliceReducer = fnSlice.reducer;

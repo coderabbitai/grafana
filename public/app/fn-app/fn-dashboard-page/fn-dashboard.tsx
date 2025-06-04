@@ -1,7 +1,15 @@
 import { FC, useMemo } from 'react';
+// eslint-disable-next-line no-restricted-imports
+import { Provider, shallowEqual, useSelector } from 'react-redux';
 
-import { FnGlobalState, FnPropMappedFromState } from 'app/core/reducers/fn-slice';
-import { useSelector } from 'app/types';
+import { FnPropMappedFromState, FnState, updatePartialFnStates } from 'app/core/reducers/fn-slice';
+import { FnLoggerService } from 'app/fn_logger';
+import {
+  MfeStore,
+  mfeStore,
+  removeGrafanaStoreAndDashboard,
+  updateRenderingDashboardUID,
+} from 'app/store/configureMfeStore';
 
 import { FnAppProvider } from '../fn-app-provider';
 import { FNDashboardProps } from '../types';
@@ -13,48 +21,60 @@ type FNDashboardComponentProps = Omit<FNDashboardProps, FnPropMappedFromState>;
 
 export const FNDashboard: FC<FNDashboardComponentProps> = (props) => {
   return (
-    <FnAppProvider fnError={props.fnError}>
+    <Provider store={mfeStore}>
       <DashboardPortal {...props} />
-    </FnAppProvider>
+    </Provider>
   );
 };
 
 export const DashboardPortal: FC<FNDashboardComponentProps> = (p) => {
-  const globalFnProps = useSelector<FnGlobalState>(({ fnGlobalState }) => fnGlobalState);
+  const globalFnProps = useSelector(({ fnGlobalReducer }: MfeStore) => fnGlobalReducer, shallowEqual);
+  const dashboards = useMemo(() => {
+    return Object.entries(globalFnProps.dashboards)
+      .filter(([uid, props]) => uid.length)
+      .map(([uid, props]) => [uid, props] satisfies [string, FnState]);
+  }, [globalFnProps.dashboards]);
 
-  const props = useMemo(
-    () => ({
-      ...p,
-      ...globalFnProps,
-    }),
-    [p, globalFnProps]
-  );
+  return useMemo(() => {
+    return dashboards.map(([uid, props]) => {
+      if (!uid.length) {
+        return null;
+      }
 
-  const content = useMemo(() => {
-    if (!props.FNDashboard) {
-      return null;
-    }
+      const store = globalFnProps.grafanaStores[uid];
+      if (!store) {
+        return null;
+      }
 
-    const { uid, queryParams = {} } = props;
-
-    if (!uid) {
-      return null;
-    }
-
-    return (
-      <RenderFNDashboard
-        {...{
-          ...props,
+      if (!document.getElementById(props.portalContainerID)) {
+        FnLoggerService.info("removing dashboard from MfeStore because portalContainerID doesn't exist", {
+          portalID: props.portalContainerID,
           uid,
-          queryParams,
-        }}
-      />
-    );
-  }, [props]);
+        });
+        mfeStore.dispatch(removeGrafanaStoreAndDashboard(uid));
+        return null;
+      }
 
-  return (
-    <RenderPortal ID="grafana-portal">
-      <div className="page-dashboard">{content}</div>
-    </RenderPortal>
-  );
+      mfeStore.dispatch(updateRenderingDashboardUID(uid));
+      store.dispatch(updatePartialFnStates(props));
+
+      return (
+        <RenderPortal ID={props.portalContainerID} key={uid}>
+          <FnAppProvider fnError={p.fnError} store={store}>
+            <div className="page-dashboard">
+              <RenderFNDashboard
+                {...{
+                  ...props,
+                  ...p,
+                  uid,
+                  mode: globalFnProps.mode,
+                }}
+              />
+            </div>
+          </FnAppProvider>
+        </RenderPortal>
+      );
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dashboards, p, globalFnProps.renderingDashboardUID]);
 };

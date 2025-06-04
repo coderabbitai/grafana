@@ -1,7 +1,6 @@
 import { useEffect } from 'react';
 
 import { NavModel, NavModelItem } from '@grafana/data';
-import { FnGlobalState } from 'app/core/reducers/fn-slice';
 import { HOME_NAV_ID } from 'app/core/reducers/navModel';
 import { useSelector } from 'app/types';
 
@@ -10,7 +9,7 @@ import { buildBreadcrumbs } from '../Breadcrumbs/utils';
 
 export function usePageTitle(navModel?: NavModel, pageNav?: NavModelItem) {
   const homeNav = useSelector((state) => state.navIndex)[HOME_NAV_ID];
-  const { FNDashboard, pageTitle } = useSelector<FnGlobalState>((state) => state.fnGlobalState);
+  const { FNDashboard, pageTitle } = useSelector((state) => state.fnGlobalState);
 
   useEffect(() => {
     const sectionNav = (navModel?.node !== navModel?.main ? navModel?.node : navModel?.main) ?? { text: 'Grafana' };

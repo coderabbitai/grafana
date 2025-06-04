@@ -59,7 +59,9 @@ export const RenderFNDashboard: FC<FNDashboardProps> = (props) => {
         ...DEFAULT_DASHBOARD_PAGE_PROPS,
         match: {
           params: {
-            ...props,
+            ...props.queryParams,
+            uid: props.uid,
+            slug: props.slug || '',
           },
         },
         location: mfeLocationService.getLocation(),

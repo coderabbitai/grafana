@@ -59,8 +59,8 @@ export function useTableStyles(theme: GrafanaTheme2, cellHeightOption: TableCell
         minHeight: `${rowHeight - 1}px`,
         wordBreak: textShouldWrap ? 'break-word' : undefined,
         whiteSpace: textShouldWrap && overflowOnHover ? 'normal' : 'nowrap',
-        boxShadow: overflowOnHover ? `0 0 2px ${theme.colors.primary.main}` : undefined,
-        background: rowStyled ? 'inherit' : (backgroundHover ?? theme.colors.background.primary),
+        //boxShadow: overflowOnHover ? `0 0 2px ${theme.colors.primary.main}` : undefined,
+       // background: 'inherit', //: (backgroundHover ?? theme.colors.background.primary),
         zIndex: 1,
         '.cellActions': {
           color: '#FFF',

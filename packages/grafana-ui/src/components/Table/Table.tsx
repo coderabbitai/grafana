@@ -58,6 +58,7 @@ export const Table = memo((props: Props) => {
     enableSharedCrosshair = false,
     initialRowIndex = undefined,
     fieldConfig,
+    onClickRow,
   } = props;
 
   const listRef = useRef<VariableSizeList>(null);
@@ -334,6 +335,7 @@ export const Table = memo((props: Props) => {
                 enableSharedCrosshair={enableSharedCrosshair}
                 initialRowIndex={initialRowIndex}
                 longestField={longestField}
+                onClickRow={onClickRow}
               />
             </div>
           ) : (

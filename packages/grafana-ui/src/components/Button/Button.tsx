@@ -14,7 +14,7 @@ import { PopoverContent, Tooltip, TooltipPlacement } from '../Tooltip';
 
 export type ButtonVariant = 'primary' | 'secondary' | 'destructive' | 'success';
 export const allButtonVariants: ButtonVariant[] = ['primary', 'secondary', 'destructive'];
-export type ButtonFill = 'solid' | 'outline' | 'text';
+export type ButtonFill = 'solid' | 'outline' | 'text' | 'ghost';
 export const allButtonFills: ButtonFill[] = ['solid', 'outline', 'text'];
 
 type CommonProps = {
@@ -316,6 +316,17 @@ function getButtonVariantStyles(theme: GrafanaTheme2, color: ThemeRichColor, fil
         background: color.transparent,
         textDecoration: 'none',
       },
+    };
+  }
+
+  if (fill === 'ghost') {
+    return {
+      background: '#5d5a5990',
+      color: color.text,
+      border: `1px solid ${borderColor}`,
+      transition: theme.transitions.create(['background-color', 'box-shadow', 'border-color', 'color'], {
+        duration: theme.transitions.duration.short,
+      }),
     };
   }
 
