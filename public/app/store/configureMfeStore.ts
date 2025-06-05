@@ -8,7 +8,7 @@ import {
 } from '@reduxjs/toolkit';
 import { WritableDraft } from 'immer';
 
-import { GrafanaThemeType, TimeRange } from '@grafana/data';
+import { GrafanaThemeType } from '@grafana/data';
 import { FnState, INITIAL_FN_STATE, UpdateFNGlobalStateAction } from 'app/core/reducers/fn-slice';
 import { FnLoggerService } from 'app/fn_logger';
 import { StoreState } from 'app/types';
@@ -22,7 +22,6 @@ interface MfeState {
   dashboards: Record<string, FnState>;
   FNDashboard: boolean;
   mode: GrafanaThemeType.Light | GrafanaThemeType.Dark;
-  fnGlobalTimeRange: TimeRange | null;
 }
 
 function setGrafanaStore(state: WritableDraft<MfeGlobalState>, uid: string) {
@@ -92,7 +91,6 @@ const fnSlice = createSlice<MfeGlobalState, SliceCaseReducers<MfeGlobalState>, s
     dashboards: {},
     FNDashboard: false,
     mode: INITIAL_MODE,
-    fnGlobalTimeRange: null,
     grafanaStores: {},
     renderingDashboardUID: '',
   },

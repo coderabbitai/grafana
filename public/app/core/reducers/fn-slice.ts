@@ -1,6 +1,6 @@
 import { createSlice, PayloadAction, SliceCaseReducers, SliceSelectors } from '@reduxjs/toolkit';
 
-import { GrafanaThemeType, TimeRange } from '@grafana/data';
+import { GrafanaThemeType } from '@grafana/data';
 
 import { AnyObject } from '../../fn-app/types';
 
@@ -64,16 +64,9 @@ export const INITIAL_FN_STATE: FnState = {
 export interface FnGlobalState extends FnState {
   FNDashboard: boolean;
   mode: GrafanaThemeType.Light | GrafanaThemeType.Dark;
-  fnGlobalTimeRange: TimeRange | null;
 }
 
 const reducers: SliceCaseReducers<FnGlobalState> = {
-  updateFnTimeRange: (state, action: PayloadAction<TimeRange | null>) => {
-    return {
-      ...state,
-      fnGlobalTimeRange: action.payload,
-    };
-  },
   updatePartialFnStates: (state, action: UpdateFNGlobalStateAction) => {
     return {
       ...state,
@@ -89,7 +82,6 @@ const fnSlice = createSlice<FnGlobalState, SliceCaseReducers<FnGlobalState>, str
     ...INITIAL_FN_STATE,
     FNDashboard: false,
     mode: INITIAL_MODE,
-    fnGlobalTimeRange: null,
   },
   reducers,
 });

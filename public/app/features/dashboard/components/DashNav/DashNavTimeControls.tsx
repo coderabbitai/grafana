@@ -20,6 +20,7 @@ export interface Props {
   onToolbarRefreshClick?: () => void;
   onToolbarZoomClick?: () => void;
   onToolbarTimePickerClick?: () => void;
+  isFnDashboard?: boolean;
 }
 
 export class DashNavTimeControls extends Component<Props> {
@@ -52,7 +53,7 @@ export class DashNavTimeControls extends Component<Props> {
   };
 
   onChangeTimePicker = (timeRange: TimeRange) => {
-    const { dashboard } = this.props;
+    const { dashboard, isFnDashboard } = this.props;
     const panel = dashboard.timepicker;
     const hasDelay = panel.nowDelay && timeRange.raw.to === 'now';
 
@@ -64,6 +65,9 @@ export class DashNavTimeControls extends Component<Props> {
     };
 
     getTimeSrv().setTime(nextRange);
+    if (isFnDashboard) {
+      this.forceUpdate();
+    }
   };
 
   onChangeTimeZone = (timeZone: TimeZone) => {
