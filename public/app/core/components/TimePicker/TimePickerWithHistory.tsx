@@ -1,12 +1,9 @@
-import { isEqual, uniqBy } from 'lodash';
-import { CSSProperties, FC, useEffect, useRef } from 'react';
-// eslint-disable-next-line no-restricted-imports
-import { useDispatch, useSelector } from 'react-redux';
+import { uniqBy } from 'lodash';
+import { CSSProperties, FC } from 'react';
 
 import { TimeRange, isDateTime, rangeUtil } from '@grafana/data';
 import { TimeRangePickerProps, TimeRangePicker, useTheme2 } from '@grafana/ui';
-import { FnGlobalState, updatePartialFnStates } from 'app/core/reducers/fn-slice';
-import { StoreState } from 'app/types';
+import { useSelector } from 'app/types';
 
 import { LocalStorageValueProvider } from '../LocalStorageValueProvider';
 
@@ -24,7 +21,7 @@ interface TimePickerHistoryItem {
 type LSTimePickerHistoryItem = TimePickerHistoryItem | TimeRange;
 
 const FnText: React.FC = () => {
-  const { FNDashboard } = useSelector<StoreState, FnGlobalState>(({ fnGlobalState }) => fnGlobalState);
+  const { FNDashboard } = useSelector(({ fnGlobalState }) => fnGlobalState);
   const theme = useTheme2();
 
   const FN_TEXT_STYLE: CSSProperties = { fontWeight: 700, fontSize: 14, marginLeft: 8 };
@@ -47,31 +44,8 @@ export interface PickerProps {
 }
 
 export const Picker: FC<PickerProps> = ({ rawValues, onSaveToStore, pickerProps }) => {
-  const { fnGlobalTimeRange } = useSelector<StoreState, FnGlobalState>(({ fnGlobalState }) => fnGlobalState);
-  const dispatch = useDispatch();
-
   const values = migrateHistory(rawValues);
   const history = deserializeHistory(values);
-
-  const didMountRef = useRef(false);
-  useEffect(() => {
-    /* The condition below skips the first run of useeffect that happens when this component gets mounted */
-    if (didMountRef.current) {
-      /* If the current timerange value has changed, update fnGlobalTimeRange */
-      if (!isEqual(fnGlobalTimeRange?.raw, pickerProps.value.raw)) {
-        dispatch(
-          updatePartialFnStates({
-            fnGlobalTimeRange: pickerProps.value,
-          })
-        );
-      }
-    } else if (fnGlobalTimeRange && !isEqual(fnGlobalTimeRange.raw, pickerProps.value.raw)) {
-      /* If fnGlobalTimeRange exists in the initial render, set the time as that */
-      pickerProps.onChange(fnGlobalTimeRange);
-    }
-
-    didMountRef.current = true;
-  }, [dispatch, fnGlobalTimeRange, pickerProps]);
 
   return (
     <TimeRangePicker

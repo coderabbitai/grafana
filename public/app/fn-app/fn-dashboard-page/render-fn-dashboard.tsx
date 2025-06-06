@@ -50,7 +50,17 @@ export const RenderFNDashboard: FC<FNDashboardProps> = (props) => {
   }, [firstError, setErrors]);
 
   useEffect(() => {
-    mfeLocationService.fnPathnameChange(window.location.pathname, queryParams);
+    const params = new URLSearchParams(window.location.search);
+    const queryParamsInUrl = Object.fromEntries(params.entries());
+    mfeLocationService.fnPathnameChange(window.location.pathname, {
+      ...(queryParamsInUrl['from'] && queryParamsInUrl['to']
+        ? {
+            from: queryParamsInUrl['from'],
+            to: queryParamsInUrl['to'],
+          }
+        : {}),
+      ...queryParams,
+    });
   }, [queryParams]);
 
   const dashboardPageProps: DashboardPageProps = useMemo(
@@ -59,7 +69,9 @@ export const RenderFNDashboard: FC<FNDashboardProps> = (props) => {
         ...DEFAULT_DASHBOARD_PAGE_PROPS,
         match: {
           params: {
-            ...props,
+            ...props.queryParams,
+            uid: props.uid,
+            slug: props.slug || '',
           },
         },
         location: mfeLocationService.getLocation(),

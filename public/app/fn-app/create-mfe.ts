@@ -16,18 +16,15 @@ import { GrafanaBootConfig } from '@grafana/runtime/src/config';
 import { getTheme } from '@grafana/ui';
 import appEvents from 'app/core/app_events';
 import config from 'app/core/config';
-import {
-  FnGlobalState,
-  updatePartialFnStates,
-  updateFnState,
-  INITIAL_FN_STATE,
-  FnPropMappedFromState,
-  fnStateProps,
-} from 'app/core/reducers/fn-slice';
+import { FnState, INITIAL_FN_STATE, FnPropMappedFromState, fnStateProps } from 'app/core/reducers/fn-slice';
 import { backendSrv } from 'app/core/services/backend_srv';
 import fn_app from 'app/fn_app';
 import { FnLoggerService } from 'app/fn_logger';
-import { dispatch } from 'app/store/store';
+import {
+  mfeDispatch,
+  updateRenderingDashboardUID,
+  updatePartialMfeStates,
+} from 'app/store/configureMfeStore';
 
 import { FNDashboardProps, FailedToMountGrafanaErrorName } from './types';
 
@@ -202,15 +199,13 @@ class createMfe {
           createMfe.loadFnTheme(props.mode);
           createMfe.Component = Component;
 
-          const initialState: FnGlobalState = {
+          const initialState: FnState = {
             ...INITIAL_FN_STATE,
             ...pick(props, ...fnStateProps),
-            FNDashboard: true,
           };
 
           createMfe.logger.info('[FN Grafana] Dispatching initial state.', { initialState });
-
-          dispatch(updateFnState(initialState));
+          mfeDispatch(updatePartialMfeStates(initialState));
 
           createMfe.renderMfeComponent(props, () => {
             createMfe.logger.info('Mounted grafana.', { props });
@@ -258,10 +253,15 @@ class createMfe {
   }
 
   static updateFnApp() {
-    const lifeCycleFn: FrameworkLifeCycles['update'] = ({ mode, ...other }: FNDashboardProps) => {
+    const lifeCycleFn: FrameworkLifeCycles['update'] = ({
+      mode,
+      ...other
+    }: FNDashboardProps & {
+      readonly renderingDashboardUid?: string;
+    }) => {
       if (mode) {
-        dispatch(
-          updatePartialFnStates({
+        mfeDispatch(
+          updatePartialMfeStates({
             mode,
           })
         );
@@ -272,20 +272,21 @@ class createMfe {
       if (other.uid) {
         createMfe.logger.info('Trying to render dashboard using update: ', { updatedProps: other });
 
-        dispatch(
-          updatePartialFnStates({
-            uid: other.uid,
-            hiddenVariables: other.hiddenVariables,
-            slug: other.slug,
-            version: other.version,
-            queryParams: other.queryParams,
-            controlsContainer: other.controlsContainer,
-            metadata: other.metadata,
+        mfeDispatch(updatePartialMfeStates(other));
+      }
+
+      if (other.renderingDashboardUid) {
+        createMfe.logger.info('Trying to update drill down dashboard.', {
+          renderingDashboardUid: other.renderingDashboardUid,
+        });
+
+        mfeDispatch(
+          updateRenderingDashboardUID({
+            renderingDashboardUid: other.renderingDashboardUid,
           })
         );
       }
 
-      // NOTE: The false/true value does not change anything
       return Promise.resolve(true);
     };
 

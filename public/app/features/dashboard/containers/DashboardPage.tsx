@@ -406,12 +406,22 @@ export class UnthemedDashboardPage extends PureComponent<Props, State> {
 
     const FNTimeRange = !controlsContainer ? (
       <ToolbarButtonRow alignment="right" style={{ marginBottom: '16px' }}>
-        <DashNavTimeControls dashboard={dashboard} onChangeTimeZone={updateTimeZoneForSession} key="time-controls" />
+        <DashNavTimeControls
+          dashboard={dashboard}
+          onChangeTimeZone={updateTimeZoneForSession}
+          key="time-controls"
+          isFnDashboard={FNDashboard}
+        />
       </ToolbarButtonRow>
     ) : (
       <Portal container={document.getElementById(controlsContainer)!}>
         <ToolbarButtonRow>
-          <DashNavTimeControls dashboard={dashboard} onChangeTimeZone={updateTimeZoneForSession} key="time-controls" />
+          <DashNavTimeControls
+            dashboard={dashboard}
+            onChangeTimeZone={updateTimeZoneForSession}
+            key="time-controls"
+            isFnDashboard={FNDashboard}
+          />
         </ToolbarButtonRow>
       </Portal>
     );

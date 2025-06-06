@@ -34,7 +34,7 @@ export const Pagination = ({
     const pages = [...new Array(numberOfPages).keys()];
 
     const condensePages = numberOfPages > pageLengthToCondense;
-    const getListItem = (page: number, fill?: 'outline') => (
+    const getListItem = (page: number, fill?: 'outline' | 'ghost') => (
       <li key={page} className={styles.item}>
         <Button size="sm" onClick={() => onNavigate(page)} fill={fill}>
           {page}
@@ -44,7 +44,7 @@ export const Pagination = ({
 
     return pages.reduce<JSX.Element[]>((pagesToRender, pageIndex) => {
       const page = pageIndex + 1;
-      const fill: 'outline' | undefined = page === currentPage ? undefined : 'outline';
+      const fill: 'outline' | 'ghost' = page === currentPage ? 'ghost' : 'outline';
 
       // The indexes at which to start and stop condensing pages
       const lowerBoundIndex = pageLengthToCondense;

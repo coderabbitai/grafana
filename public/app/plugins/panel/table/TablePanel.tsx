@@ -11,6 +11,7 @@ import {
 import { config, PanelDataErrorView } from '@grafana/runtime';
 import { Select, Table, usePanelContext, useTheme2 } from '@grafana/ui';
 import { TableSortByFieldState } from '@grafana/ui/src/components/Table/types';
+import { useSelector } from 'app/types';
 
 import { hasDeprecatedParentRowIndex, migrateFromParentRowIndexToNestedFrames } from './migrations';
 import { Options } from './panelcfg.gen';
@@ -19,6 +20,8 @@ interface Props extends PanelProps<Options> {}
 
 export function TablePanel(props: Props) {
   const { data, height, width, options, fieldConfig, id, timeRange } = props;
+
+  const eventListener = useSelector((state) => state.fnGlobalState.metadata.eventListener);
 
   const theme = useTheme2();
   const panelContext = usePanelContext();
@@ -63,6 +66,7 @@ export function TablePanel(props: Props) {
       timeRange={timeRange}
       enableSharedCrosshair={config.featureToggles.tableSharedCrosshair && enableSharedCrosshair}
       fieldConfig={fieldConfig}
+      onClickRow={eventListener ? (row) => eventListener({ type: 'tableRowClick', data: row }) : undefined}
     />
   );
 
