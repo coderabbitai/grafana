@@ -42,7 +42,7 @@ export function getDashboardGridStyles(theme: GrafanaTheme2) {
     },
 
     '.react-grid-item.react-grid-placeholder': {
-      boxShadow: `0 8px 24px ${theme.colors.primary.border} !important`,
+      boxShadow: `0 0 4px ${theme.colors.primary.border} !important`,
       background: `${theme.colors.primary.transparent} !important`,
       zIndex: '-1 !important',
       opacity: 'unset !important',
@@ -54,7 +54,7 @@ export function getDashboardGridStyles(theme: GrafanaTheme2) {
     },
 
     '.react-grid-item > div:first-of-type': {
-      boxShadow: `0 8px 24px ${theme.colors.primary.border} !important`,
+      boxShadow: `0 0 4px ${theme.colors.primary.border} !important`,
       borderRadius: theme.shape.borderRadius(2),
     },
 
