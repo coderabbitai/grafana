@@ -91,7 +91,7 @@ class DarkColors implements ThemeColorsBase<Partial<ThemeRichColor>> {
   mode: ThemeColorsMode = 'dark';
 
   // Used to get more white opacity colors
-  whiteBase = '219, 217, 215';
+  whiteBase = '209, 209, 209';
 
   border = {
     weak: `rgba(${this.whiteBase}, 0.12)`,
@@ -100,16 +100,16 @@ class DarkColors implements ThemeColorsBase<Partial<ThemeRichColor>> {
   };
 
   text = {
-    primary: '#DBD9D7',
-    secondary: '#F0E4B6',
+    primary: '#fff',
+    secondary: '#ffffff90',
     disabled: '#9DA7B8',
     link: '#F0E4B6',
     maxContrast: '#F0E4B6',
   };
 
   primary = {
-    main: '#3F8367',
-    text: '#F0E4B6',
+    main: '#ff570ae5',
+    text: '#e94900',
     border: '#ffffff00',
   };
 
@@ -139,8 +139,8 @@ class DarkColors implements ThemeColorsBase<Partial<ThemeRichColor>> {
   };
 
   background = {
-    canvas: '#312D2B', //palette.gray05,
-    primary: '#3B3835', //palette.gray10,
+    canvas: '#151619', //palette.gray05,
+    primary: '#23242a', //palette.gray10,
     secondary: '#5E5855', //palette.gray15,
   };
 

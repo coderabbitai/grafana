@@ -5,7 +5,7 @@ import { useSelector } from 'react-redux';
 
 import { VariableHide } from '@grafana/data';
 import { selectors } from '@grafana/e2e-selectors';
-import { Tooltip } from '@grafana/ui';
+import { Tooltip, useTheme2 } from '@grafana/ui';
 import { FnGlobalState } from 'app/core/reducers/fn-slice';
 import type { StoreState } from 'app/types';
 
@@ -69,13 +69,14 @@ const COMMON_PICKER_LABEL_STYLE: CSSProperties = {
 
 function PickerLabel({ variable }: PropsWithChildren<Props>): ReactElement | null {
   const labelOrName = useMemo(() => variable.label || variable.name, [variable]);
-  const { FNDashboard, mode } = useSelector<StoreState, FnGlobalState>(({ fnGlobalState }) => fnGlobalState);
+  const { FNDashboard } = useSelector<StoreState, FnGlobalState>(({ fnGlobalState }) => fnGlobalState);
+  const { colors: { mode } } = useTheme2();
 
   const fnLabelStyle = useMemo(
     () => ({
       ...COMMON_PICKER_LABEL_STYLE,
       color: mode === 'light' ? '#2D333E' : '#DBD9D7',
-      backgroundColor: '#F6F6F1',
+      backgroundColor: mode === 'light' ? '#F6F6F1': '#23242a',
     }),
     [mode]
   );
