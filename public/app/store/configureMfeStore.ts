@@ -78,6 +78,15 @@ const reducers: SliceCaseReducers<MfeGlobalState> = {
 
     state.renderingDashboardUID = action.payload;
   },
+
+  updateMfeMode: (state, action: PayloadAction<GrafanaThemeType.Light | GrafanaThemeType.Dark>) => {
+    FnLoggerService.info('Updating MFE mode', {
+      state,
+      mode: action.payload,
+    });
+
+    state.mode = action.payload;
+  },
 };
 
 export interface MfeGlobalState extends MfeState {
@@ -97,7 +106,8 @@ const fnSlice = createSlice<MfeGlobalState, SliceCaseReducers<MfeGlobalState>, s
   reducers,
 });
 
-export const { updatePartialMfeStates, removeGrafanaStoreAndDashboard, updateRenderingDashboardUID } = fnSlice.actions;
+export const { updatePartialMfeStates, updateMfeMode, removeGrafanaStoreAndDashboard, updateRenderingDashboardUID } =
+  fnSlice.actions;
 export const fnSliceReducer = fnSlice.reducer;
 
 export type MfeStore = {

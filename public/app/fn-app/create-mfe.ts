@@ -24,6 +24,8 @@ import {
   mfeDispatch,
   updateRenderingDashboardUID,
   updatePartialMfeStates,
+  mfeGetStoreState,
+  updateMfeMode,
 } from 'app/store/configureMfeStore';
 
 import { FNDashboardProps, FailedToMountGrafanaErrorName } from './types';
@@ -205,6 +207,9 @@ class createMfe {
           };
 
           createMfe.logger.info('[FN Grafana] Dispatching initial state.', { initialState });
+          if (props.mode && mfeGetStoreState().fnGlobalReducer.mode !== props.mode) {
+            mfeDispatch(updateMfeMode(props.mode));
+          }
           mfeDispatch(updatePartialMfeStates(initialState));
 
           createMfe.renderMfeComponent(props, () => {
@@ -259,12 +264,8 @@ class createMfe {
     }: FNDashboardProps & {
       readonly renderingDashboardUid?: string;
     }) => {
-      if (mode) {
-        mfeDispatch(
-          updatePartialMfeStates({
-            mode,
-          })
-        );
+      if (mode && mfeGetStoreState().fnGlobalReducer.mode !== mode) {
+        mfeDispatch(updateMfeMode(mode));
 
         createMfe.loadFnTheme(mode);
       }
