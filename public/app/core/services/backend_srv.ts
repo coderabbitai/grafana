@@ -189,18 +189,6 @@ export class BackendSrv implements BackendService {
     return lastValueFrom(this.fetch<T>(options));
   }
 
-  private getCodeRabbitOrg(): { id: string } | null {
-    const selectedOrgStorage = sessionStorage.getItem('selected_org');
-
-    try {
-      return selectedOrgStorage ? (JSON.parse(selectedOrgStorage) as { id: string }) : null;
-    } catch (e) {
-      console.error('Failed to parse selected_org', selectedOrgStorage, 'error:', e);
-      sessionStorage.removeItem('selected_org');
-      return null;
-    }
-  }
-
   private parseRequestOptions(options: BackendSrvRequest): BackendSrvRequest {
     const orgId = this.dependencies.contextSrv.user?.orgId;
 
@@ -213,24 +201,8 @@ export class BackendSrv implements BackendService {
         options.headers['X-Grafana-Org-Id'] = orgId;
       }
 
-      const codeRabbitOrg = this.getCodeRabbitOrg();
-      if (codeRabbitOrg) {
-        options.headers = options.headers ?? {};
-        options.headers['x-coderabbit-organization'] = codeRabbitOrg.id;
-        const firebaseTenantId = sessionStorage.getItem('firebaseTenantId');
-        if(firebaseTenantId){
-          options.headers['x-tenant-id'] = firebaseTenantId;
-        }
-      }
-
       if (options.url.startsWith('/')) {
         options.url = options.url.substring(1);
-      }
-
-      const codeRabbitToken = sessionStorage.getItem('accessToken');
-      if (codeRabbitToken) {
-        options.headers = options.headers ?? {};
-        options.headers['x-coderabbit-token'] = `Bearer ${codeRabbitToken}`;
       }
 
       if (options.headers?.Authorization) {
