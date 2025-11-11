@@ -1,48 +1,23 @@
-import { Box, CircularProgress, CircularProgressProps, Typography, type BoxProps } from '@mui/material';
-import { type ReactNode, type FC } from 'react';
-
-import { useTheme2 } from '@grafana/ui';
+import { type FC } from 'react';
 
 import { CodeRabbitLogo } from './CodeRabbitLogo';
 
 export type FnLoaderProps = {
-  outerContainerProps?: Omit<BoxProps, 'children'>;
-  innerContainerProps?: Omit<BoxProps, 'children'>;
-  circularProgressProps?: CircularProgressProps;
-  text?: ReactNode;
+  size?: 'small' | 'medium' | 'large';
+  loadingMessage?: string;
 };
 
-export const FnLoader: FC<FnLoaderProps> = ({
-  outerContainerProps,
-  innerContainerProps,
-  circularProgressProps,
-  text,
-}) => {
-  const theme = useTheme2();
-
+export const FnLoader: FC<FnLoaderProps> = ({ size = 'medium', loadingMessage = 'Loading dashboard...' }) => {
   return (
-    <Box
-      display="flex"
-      justifyContent="center"
-      alignItems="center"
-      flexDirection="column"
-      paddingTop="150px"
-      {...outerContainerProps}
-    >
-      <CodeRabbitLogo width={350} />
-      <Box marginTop="100px" {...innerContainerProps}>
-        <CircularProgress
-          role="alert"
-          aria-busy="true"
-          aria-label="Loading..."
-          disableShrink
-          sx={{
-            color: theme.colors.primary.main,
-          }}
-          {...circularProgressProps}
-        />
-      </Box>
-      {typeof text === 'string' ? <Typography>{text}</Typography> : text || null}
-    </Box>
+    <div className="hide-theme-toggle relative">
+      <div className="mx-auto flex w-10/12 flex-col items-center sm:w-full">
+        {size === 'medium' && <CodeRabbitLogo width={200} className="" />}
+        <div className="flex items-center justify-center gap-x-4">
+          <p className="font-poppins text-shimmer from-muted via-secondary to-foreground -mt-2 ml-1 bg-gradient-to-r bg-clip-text text-lg tracking-wide text-transparent">
+            {loadingMessage}
+          </p>
+        </div>
+      </div>
+    </div>
   );
 };
