@@ -1,4 +1,4 @@
-name: Deploy Grafana Server Cloud Run
+name: Deploy Grafana Server Cloud Run on Dev
 
 on:
   push:
