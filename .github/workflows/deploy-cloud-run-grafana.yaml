@@ -34,13 +34,13 @@ jobs:
           context: .
           push: true
           tags: gcr.io/coderabbit/grafana:latest
-          cache-from: type=local,src=/tmp/.buildx-cache
-          cache-to: type=local,dest=/tmp/.buildx-cache-new
+          # cache-from: type=local,src=/tmp/.buildx-cache
+          # cache-to: type=local,dest=/tmp/.buildx-cache-new
 
-      - name: Move Docker cache
-        run: |
-          rm -rf /tmp/.buildx-cache
-          mv /tmp/.buildx-cache-new /tmp/.buildx-cache
+      # - name: Move Docker cache
+      #   run: |
+      #     rm -rf /tmp/.buildx-cache
+      #     mv /tmp/.buildx-cache-new /tmp/.buildx-cache
 
       # - name: Deploy to Cloud Run
       #   run: gcloud run deploy grafana --image gcr.io/coderabbit/grafana:latest --region us-central1 --allow-unauthenticated --vpc-connector=coderabbitai-dev-cr
