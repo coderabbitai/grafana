@@ -18,7 +18,7 @@ import app from '../fn_app';
 import { FNDashboardProps } from './types';
 
 type FnAppProviderProps = Pick<FNDashboardProps, 'fnError'> & {
-  store: Store<StoreState>
+  store: Store<StoreState>;
 };
 
 export const FnAppProvider: FC<PropsWithChildren<FnAppProviderProps>> = (props) => {

@@ -70,15 +70,17 @@ const COMMON_PICKER_LABEL_STYLE: CSSProperties = {
 function PickerLabel({ variable }: PropsWithChildren<Props>): ReactElement | null {
   const labelOrName = useMemo(() => variable.label || variable.name, [variable]);
   const { FNDashboard } = useSelector<StoreState, FnGlobalState>(({ fnGlobalState }) => fnGlobalState);
-  const { colors: { mode } } = useTheme2();
+  const {
+    colors: { background, text },
+  } = useTheme2();
 
   const fnLabelStyle = useMemo(
     () => ({
       ...COMMON_PICKER_LABEL_STYLE,
-      color: mode === 'light' ? '#2D333E' : '#DBD9D7',
-      backgroundColor: mode === 'light' ? '#F6F6F1': '#23242a',
+      color: text.primary,
+      backgroundColor: background.canvas,
     }),
-    [mode]
+    [background, text]
   );
 
   if (variable.hide !== VariableHide.dontHide) {
