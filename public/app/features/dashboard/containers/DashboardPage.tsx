@@ -116,9 +116,7 @@ type OwnProps = {
 export type DashboardPageProps = OwnProps &
   GrafanaRouteComponentProps<DashboardPageRouteParams, DashboardPageRouteSearchParams>;
 
-export type Props = Themeable2 &
-  GrafanaRouteComponentProps<DashboardPageRouteParams, DashboardPageRouteSearchParams> &
-  ConnectedProps<typeof connector>;
+export type Props = Themeable2 & DashboardPageProps & ConnectedProps<typeof connector>;
 
 export interface State {
   editPanel: PanelModel | null;
@@ -383,9 +381,11 @@ export class UnthemedDashboardPage extends PureComponent<Props, State> {
     const kioskMode = getKioskMode(this.props.queryParams);
 
     if (!dashboard) {
+      this.props?.isLoading?.(true);
       return FNDashboard ? <FnLoader /> : <DashboardLoading initPhase={this.props.initPhase} />;
     }
 
+    this.props?.isLoading?.(false);
     const inspectPanel = this.getInspectPanel();
     const showSubMenu = !editPanel && !kioskMode && !this.props.queryParams.editview;
 

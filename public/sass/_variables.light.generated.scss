@@ -15,17 +15,17 @@
 $theme-name: light;
 
 $colors-action-hover: rgba(45, 51, 62, 0.12);
-$colors-action-selected: #F27A40;
+$colors-action-selected: #F04006;
 
 // New Colors
 // -------------------------
-$blue-light: #101828;
-$blue-base: #FF570AE5;
-$blue-shade: rgba(204, 69, 8, 0.898);
-$red-base: #E0226E;
-$red-shade: rgb(179, 27, 88);
-$green-base: #83D39E;
-$green-shade: rgb(104, 168, 126);
+$blue-light: #141116;
+$blue-base: #F04006;
+$blue-shade: rgb(192, 51, 4);
+$red-base: #FF6467;
+$red-shade: rgb(204, 80, 82);
+$green-base: #05DF72;
+$green-shade: rgb(4, 178, 91);
 $orange-dark: #ff780a;
 
 $gray98: #f7f8fa;
@@ -58,8 +58,8 @@ $gray-7: #fbfbfb;
 $white: #ffffff;
 
 $layer0: #FFFFFF;
-$layer1: #F5F5F5;
-$layer2: #FFFFFF;
+$layer1: #FFFFFF;
+$layer2: #F5F4F6;
 
 $divider: rgba(45, 51, 62, 0.12);
 $border0: rgba(45, 51, 62, 0.12);
@@ -67,17 +67,17 @@ $border1: rgba(45, 51, 62, 0.30);
 
 // Accent colors
 // -------------------------
-$blue: #101828;
+$blue: #141116;
 $red: $red-base;
 $yellow: #ecbb13;
 $orange: #eb7b18;
 $purple: #9933cc;
-$variable: #101828;
+$variable: #141116;
 
 $brand-primary: #eb7b18;
-$brand-success: #83D39E;
-$brand-warning: #F3D086;
-$brand-danger: #E0226E;
+$brand-success: #05DF72;
+$brand-warning: #FDC700;
+$brand-danger: #FF6467;
 
 $query-red: #CF0E5B;
 $query-green: #0A764E;
@@ -97,30 +97,30 @@ $body-bg: #FFFFFF;
 $page-bg: #FFFFFF;
 $dashboard-bg: #FFFFFF;
 
-$text-color: #101828;
+$text-color: #141116;
 $text-color-strong: #000000;
-$text-color-semi-weak: #363636;
-$text-color-weak: #363636;
-$text-color-faint: #9DA7B8;
+$text-color-semi-weak: #3A3441;
+$text-color-weak: #3A3441;
+$text-color-faint: #AFACB3;
 $text-color-emphasis: #000000;
-$text-blue: #101828;
+$text-blue: #141116;
 
 $text-shadow-faint: none;
 
 // gradients
-$brand-gradient-horizontal: linear-gradient(90deg, #FF8833 0%, #F53E4C 100%);
-$brand-gradient-vertical: linear-gradient(0.01deg, #F53E4C -31.2%, #FF8833 113.07%);
+$brand-gradient-horizontal: linear-gradient(90deg, #FF570A 0%, #F04006 100%);
+$brand-gradient-vertical: linear-gradient(0.01deg, #FF570A -31.2%, #F04006 113.07%);
 
 // Links
 // -------------------------
-$link-color: #101828;
-$link-color-disabled: #9DA7B8;
+$link-color: #141116;
+$link-color-disabled: #AFACB3;
 $link-hover-color: #000000;
-$external-link-color: #FF4702;
+$external-link-color: #F04006;
 
 // Typography
 // -------------------------
-$headings-color: #101828;
+$headings-color: #141116;
 $abbr-border-color: $gray-2 !default;
 $text-muted: $text-color-weak;
 
@@ -128,7 +128,7 @@ $hr-border-color: $gray-4 !default;
 
 // Panel
 // -------------------------
-$panel-bg: #F5F5F5;
+$panel-bg: #FFFFFF;
 $panel-border: 1px solid rgba(45, 51, 62, 0.12);
 $panel-header-hover-bg: rgba(45, 51, 62, 0.12);
 $panel-box-shadow: none;
@@ -142,16 +142,16 @@ $page-header-border-color: #FFFFFF;
 $divider-border-color: $gray-2;
 
 // Graphite Target Editor
-$tight-form-func-bg: #FFFFFF;
-$tight-form-func-highlight-bg: #fafafa;
+$tight-form-func-bg: #F5F4F6;
+$tight-form-func-highlight-bg: #f0eef1;
 
-$modal-backdrop-bg: #F5F5F5;
+$modal-backdrop-bg: #FFFFFF;
 $code-tag-bg: $gray-6;
 $code-tag-border: $gray-4;
 
 // cards
-$card-background: #FFFFFF;
-$card-background-hover: #FFFFFF;
+$card-background: #F5F4F6;
+$card-background-hover: #F5F4F6;
 $card-shadow: none;
 
 // Lists
@@ -168,10 +168,10 @@ $scrollbarBorder: $gray-7;
 
 // Tables
 // -------------------------
-$table-bg-accent: #FFFFFF;
+$table-bg-accent: #F5F4F6;
 $table-border: rgba(45, 51, 62, 0.30);
-$table-bg-odd: rgb(240, 240, 240);
-$table-bg-hover: rgb(232, 232, 232);
+$table-bg-odd: rgb(249, 249, 249);
+$table-bg-hover: rgb(242, 242, 242);
 
 // Buttons
 // -------------------------
@@ -207,16 +207,16 @@ $btn-active-box-shadow: 0px 0px 4px rgba(234, 161, 51, 0.6);
 
 // Forms
 // -------------------------
-$input-bg: #F5F5F5;
+$input-bg: #FFFFFF;
 $input-bg-disabled: rgba(45, 51, 62, 0.04);
 
-$input-color: #101828;
+$input-color: #141116;
 $input-border-color: rgba(45, 51, 62, 0.30);
 $input-box-shadow: none;
 $input-border-focus: #5794f2;
 $input-box-shadow-focus: #5794f2;
-$input-color-placeholder: #9DA7B8;
-$input-label-bg: #FFFFFF;
+$input-color-placeholder: #AFACB3;
+$input-label-bg: #F5F4F6;
 $input-color-select-arrow: #7b8087;
 
 // search
@@ -229,7 +229,7 @@ $typeahead-selected-color: $yellow;
 
 // Dropdowns
 // -------------------------
-$dropdownBackground: #F5F5F5;
+$dropdownBackground: #FFFFFF;
 $dropdownBorder: rgba(45, 51, 62, 0.12);
 $dropdownDividerTop: rgba(45, 51, 62, 0.12);
 $dropdownDividerBottom: rgba(45, 51, 62, 0.12);
@@ -263,7 +263,7 @@ $side-menu-header-color: #e9edf2;
 
 // Menu dropdowns
 // -------------------------
-$menu-dropdown-bg: #F5F5F5;
+$menu-dropdown-bg: #FFFFFF;
 $menu-dropdown-hover-bg: rgba(45, 51, 62, 0.12);
 $menu-dropdown-shadow: 0px 13px 20px 1px rgba(24, 26, 27, 0.18);
 
@@ -277,22 +277,22 @@ $warning-text-color: #B5510D;
 $error-text-color: #CF0E5B;
 $success-text-color: #0A764E;
 
-$alert-error-bg: #E0226E;
-$alert-success-bg: #83D39E;
-$alert-warning-bg: #F3D086;
-$alert-info-bg: #F3D086;
+$alert-error-bg: #FF6467;
+$alert-success-bg: #05DF72;
+$alert-warning-bg: #FDC700;
+$alert-info-bg: #FDC700;
 
 // Tooltips and popovers
-$tooltipBackground: #FFFFFF;
-$tooltipColor: #101828;
-$tooltipArrowColor: #FFFFFF;
-$tooltipBackgroundError: #E0226E;
+$tooltipBackground: #F5F4F6;
+$tooltipColor: #141116;
+$tooltipArrowColor: #F5F4F6;
+$tooltipBackgroundError: #FF6467;
 $tooltipShadow: 0px 4px 8px rgba(24, 26, 27, 0.2);
 
-$popover-bg: #F5F5F5;
-$popover-color: #101828;
+$popover-bg: #FFFFFF;
+$popover-color: #141116;
 $popover-border-color: rgba(45, 51, 62, 0.12);
-$popover-header-bg: #FFFFFF;
+$popover-header-bg: #F5F4F6;
 $popover-shadow: 0px 13px 20px 1px rgba(24, 26, 27, 0.18);
 
 $graph-tooltip-bg: $gray-5;
@@ -305,7 +305,7 @@ $popover-error-bg: $btn-danger-bg;
 $popover-help-bg: $tooltipBackground;
 $popover-help-color: $tooltipColor;
 
-$popover-code-bg: #F5F5F5;
+$popover-code-bg: #FFFFFF;
 $popover-code-boxshadow: 0 0 5px $gray60;
 
 // images
@@ -338,10 +338,10 @@ $diff-label-bg: rgba(45, 51, 62, 0.12);
 $diff-label-fg: $gray-2;
 
 $diff-arrow-color: $dark-2;
-$diff-group-bg: #FFFFFF;
+$diff-group-bg: #F5F4F6;
 
-$diff-json-bg: #FFFFFF;
-$diff-json-fg: #101828;
+$diff-json-bg: #F5F4F6;
+$diff-json-fg: #141116;
 
 $diff-json-added: $blue-shade;
 $diff-json-deleted: $red-shade;
