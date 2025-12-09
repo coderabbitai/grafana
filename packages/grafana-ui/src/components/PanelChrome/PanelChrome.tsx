@@ -465,8 +465,7 @@ const getStyles = (isFNPanel?: boolean) => (theme: GrafanaTheme2) => {
       minWidth: 0,
       ...(isFNPanel && {
         width: '100%',
-        textAlign: 'center',
-        justifyContent: 'center',
+        textTransform: 'uppercase',
       }),
       '& > h2': {
         minWidth: 0,

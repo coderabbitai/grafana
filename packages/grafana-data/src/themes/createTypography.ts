@@ -53,8 +53,8 @@ export interface ThemeTypographyInput {
   htmlFontSize?: number;
 }
 
-const defaultFontFamily = '"Work Sans", Inter, Satoshi, sans-serif';
-const defaultFontFamilyMonospace = '"SatoshiLight", "FigtreeLight", monospace'; 
+const defaultFontFamily = '"IBM Plex Mono", monospace';
+const defaultFontFamilyMonospace = '"IBM Plex Mono", monospace';
 
 export function createTypography(colors: ThemeColors, typographyInput: ThemeTypographyInput = {}): ThemeTypography {
   const {
