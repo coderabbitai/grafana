@@ -439,9 +439,7 @@ export class UnthemedDashboardPage extends PureComponent<Props, State> {
         >
           {showToolbar && (
             <header data-testid={selectors.pages.Dashboard.DashNav.navV2}>
-              {FNDashboard ? (
-                FNTimeRange
-              ) : (
+              {!FNDashboard && (
                 <DashNav
                   dashboard={dashboard}
                   title={dashboard.title}
@@ -456,7 +454,19 @@ export class UnthemedDashboardPage extends PureComponent<Props, State> {
           )}
           {!FNDashboard && <DashboardPrompt dashboard={dashboard} />}
           {initError && <DashboardFailed />}
-          {showSubMenu && (
+          {FNDashboard && (
+            <div className="flex flex-col-reverse md:flex-row md:items-center md:justify-between w-full gap-y-2">
+              <div className="flex items-center w-full">
+                {showSubMenu && (
+                  <section aria-label={selectors.pages.Dashboard.SubMenu.submenu}>
+                    <SubMenu dashboard={dashboard} annotations={dashboard.annotations.list} links={dashboard.links} />
+                  </section>
+                )}
+              </div>
+              <div className="flex items-center w-full justify-end">{FNTimeRange}</div>
+            </div>
+          )}
+          {showSubMenu && !FNDashboard && (
             <section aria-label={selectors.pages.Dashboard.SubMenu.submenu}>
               <SubMenu dashboard={dashboard} annotations={dashboard.annotations.list} links={dashboard.links} />
             </section>
