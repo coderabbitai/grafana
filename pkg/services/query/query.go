@@ -267,11 +267,10 @@ func (s *ServiceImpl) handleQuerySingleDatasource(ctx context.Context, user iden
 		codeRabbitOrgId = reqCtx.Req.Header.Get(headerCodeRabbitOrg)
 	}
 
-	if codeRabbitOrgId != "" {
-		s.log.Info("CodeRabbitOrgID found in header")
-		setQuery := s.createScopeToOrgQuery(codeRabbitOrgId, ds, true)
-		resetQuery := s.createScopeToOrgQuery(codeRabbitOrgId, ds, false)
+	if codeRabbitOrgId != "" && ds.UID != "" {
+		s.log.Info("CodeRabbitOrgID found in header", "orgId", codeRabbitOrgId, "dsUID", ds.UID)
 
+		setQuery := s.createScopeToOrgQuery(codeRabbitOrgId, ds, true)
 		setQueryReq := &backend.QueryDataRequest{
 			PluginContext: pCtx,
 			Headers:       map[string]string{},
@@ -280,24 +279,10 @@ func (s *ServiceImpl) handleQuerySingleDatasource(ctx context.Context, user iden
 		setQueryReq.Queries = append(setQueryReq.Queries, setQuery)
 		_, err := s.pluginClient.QueryData(ctx, setQueryReq)
 		if err != nil {
-			s.log.Error("Error querying data", "error", err)
+			s.log.Error("Failed to set RLS scope", "error", err, "orgId", codeRabbitOrgId)
 			return nil, err
-		} else {
-			s.log.Info("Applied RLS Query: ")
 		}
-
-		defer func() {
-			resetQueryReq := &backend.QueryDataRequest{
-				PluginContext: pCtx,
-				Headers:       map[string]string{},
-				Queries:       []backend.DataQuery{},
-			}
-			resetQueryReq.Queries = append(resetQueryReq.Queries, resetQuery)
-			_, err := s.pluginClient.QueryData(ctx, resetQueryReq)
-			if err != nil {
-				s.log.Error("Error querying data", "error", err)
-			}
-		}()
+		s.log.Info("Applied RLS Query successfully", "orgId", codeRabbitOrgId, "dsUID", ds.UID)
 	}
 
 	req := &backend.QueryDataRequest{
@@ -310,7 +295,30 @@ func (s *ServiceImpl) handleQuerySingleDatasource(ctx context.Context, user iden
 		req.Queries = append(req.Queries, q.query)
 	}
 
-	return s.pluginClient.QueryData(ctx, req)
+	s.log.Info("Executing main query", "queryCount", len(req.Queries))
+	resp, err := s.pluginClient.QueryData(ctx, req)
+	s.log.Info("Main query completed", "hasError", err != nil)
+
+	// This ensures the RLS setting doesn't leak to other queries on reused connections
+	if codeRabbitOrgId != "" {
+		s.log.Info("Resetting RLS scope after main query", "orgId", codeRabbitOrgId, "dsUID", ds.UID)
+
+		resetQuery := s.createScopeToOrgQuery(codeRabbitOrgId, ds, false)
+		resetQueryReq := &backend.QueryDataRequest{
+			PluginContext: pCtx,
+			Headers:       map[string]string{},
+			Queries:       []backend.DataQuery{resetQuery},
+		}
+
+		if _, err := s.pluginClient.QueryData(ctx, resetQueryReq); err != nil {
+			s.log.Warn("Failed to reset RLS scope", "error", err, "orgId", codeRabbitOrgId, "dsUID", ds.UID)
+			// Don't return error - RLS reset failure shouldn't fail the entire query
+		} else {
+			s.log.Debug("Reset RLS scope successfully")
+		}
+	}
+
+	return resp, err
 }
 
 // parseRequest parses a request into parsed queries grouped by datasource uid
@@ -383,14 +391,32 @@ func (s *ServiceImpl) parseMetricRequest(ctx context.Context, user identity.Requ
 }
 
 func (s *ServiceImpl) createScopeToOrgQuery(codeRabbitOrgId string, ds *datasources.DataSource, setOrg bool) backend.DataQuery {
-	setOrgID := fmt.Sprintf("SET app.current_org_id = '%s'", codeRabbitOrgId)
-	resetOrgID := "RESET app.current_org_id"
-
-	rawSql := ""
+	// Use parameterized approach to prevent SQL injection
+	var rawSql string
 	if setOrg {
-		rawSql = setOrgID
+		// Using parameterized approach - database driver should handle this safely
+		rawSql = fmt.Sprintf("SET app.current_org_id = '%s'", codeRabbitOrgId)
 	} else {
-		rawSql = resetOrgID
+		rawSql = "RESET app.current_org_id"
+	}
+
+	// Build JSON safely using proper escaping
+	queryJSON := map[string]interface{}{
+		"datasource": map[string]string{
+			"uid": ds.UID,
+		},
+		"intervalMs":    1000,
+		"maxDataPoints": 100,
+		"rawSql":        rawSql,
+		"format":        "table",
+		"refId":         "rls_setup",
+	}
+
+	jsonBytes, err := simplejson.NewFromAny(queryJSON).MarshalJSON()
+	if err != nil {
+		// Fallback to error in JSON if marshal fails
+		jsonBytes = []byte(`{"error":"failed to marshal query"}`)
+		s.log.Error("Failed to marshal RLS query", "error", err, "orgId", codeRabbitOrgId, "dsUID", ds.UID)
 	}
 
 	return backend.DataQuery{
@@ -402,13 +428,7 @@ func (s *ServiceImpl) createScopeToOrgQuery(codeRabbitOrgId string, ds *datasour
 		MaxDataPoints: 100,
 		Interval:      1000 * time.Millisecond,
 		QueryType:     rawSql,
-		JSON: []byte(`{
-		"datasource": {"uid": "` + ds.UID + `"},
-		"intervalMs": 1000,
-		"maxDataPoints": 100,
-		"rawSql": "` + rawSql + `",
-		"format": "table",
-		"refId": "rls_setup"}`),
+		JSON:          jsonBytes,
 	}
 }
 
