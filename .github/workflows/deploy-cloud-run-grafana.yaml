@@ -59,4 +59,4 @@ jobs:
           -H "Authorization: token ${{ secrets.PAT_TRIGGER_GRAFANA }}" \
           -H "Accept: application/vnd.github.everest-preview+json" \
           https://api.github.com/repos/coderabbitai/mono/dispatches \
-          -d '{"event_type": "trigger-grafana-micro-frontend-dev"}'
+          -d "{\"event_type\": \"trigger-grafana-micro-frontend-dev\", \"client_payload\": {\"ref\": \"${GITHUB_REF}\"}}"
