@@ -11,7 +11,7 @@ export interface FnState {
   controlsContainer: string | null;
   pageTitle: string;
   queryParams: AnyObject;
-  hiddenVariables: readonly string[];
+  hiddenVariables: string[];
   metadata: {
     teams: string[];
     eventListener: (<T>(event: { type: string; data: T }) => void) | null;

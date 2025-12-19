@@ -21,7 +21,6 @@ export interface FNDashboardProps extends FnState {
   fnError?: ReactNode;
   isLoading: (isLoading: boolean) => void;
   setErrors: (errors?: { [K: number | string]: string }) => void;
-  hiddenVariables: readonly string[];
   container?: HTMLElement | null;
   mode: FnGlobalState['mode'];
 }
