@@ -45,10 +45,10 @@ export const FnAppProvider: FC<PropsWithChildren<FnAppProviderProps>> = (props) 
         <ErrorBoundaryAlert style="page">
           <GrafanaContext.Provider value={app.context}>
             <ThemeProvider value={config.theme2}>
-              <>
-                <GlobalStyles />
+              <div data-grafana-mf-root>
+                <GlobalStyles prefix="[data-grafana-mf-root]" />
                 {children}
-              </>
+              </div>
             </ThemeProvider>
           </GrafanaContext.Provider>
         </ErrorBoundaryAlert>

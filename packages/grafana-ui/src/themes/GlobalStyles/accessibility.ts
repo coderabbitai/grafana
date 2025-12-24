@@ -1,9 +1,9 @@
-import { css } from '@emotion/react';
+import { CSSObject } from '@emotion/react';
 
 import { GrafanaTheme2 } from '@grafana/data';
 
-export function getAccessibilityStyles(theme: GrafanaTheme2) {
-  return css({
+export function getAccessibilityStyles(theme: GrafanaTheme2): CSSObject {
+  return {
     '.sr-only': {
       position: 'absolute',
       width: '1px',
@@ -14,5 +14,5 @@ export function getAccessibilityStyles(theme: GrafanaTheme2) {
       clip: 'rect(0, 0, 0, 0)',
       border: 0,
     },
-  });
+  };
 }

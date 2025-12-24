@@ -1,9 +1,9 @@
-import { css } from '@emotion/react';
+import { CSSObject } from '@emotion/react';
 
 import { GrafanaTheme2 } from '@grafana/data';
 
-export function getAgularPanelStyles(theme: GrafanaTheme2) {
-  return css({
+export function getAgularPanelStyles(theme: GrafanaTheme2): CSSObject {
+  return {
     '.panel-options-group': {
       borderBottom: `1px solid ${theme.colors.border.weak}`,
     },
@@ -35,5 +35,5 @@ export function getAgularPanelStyles(theme: GrafanaTheme2) {
     '.panel-options-group__body': {
       padding: theme.spacing(1, 2, 1, 4),
     },
-  });
+  };
 }
