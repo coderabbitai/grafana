@@ -1,12 +1,12 @@
-import { css } from '@emotion/react';
+import { CSSObject } from '@emotion/react';
 
 import { GrafanaTheme2 } from '@grafana/data';
 
-export function getFontStyles(theme: GrafanaTheme2) {
+export function getFontStyles(theme: GrafanaTheme2): CSSObject[] {
   const grafanaPublicPath = typeof window !== 'undefined' && window.__grafana_public_path__;
   const fontRoot = grafanaPublicPath ? `${grafanaPublicPath}fonts/` : 'public/fonts/';
 
-  return css([
+  return [
     {
       /* latin */
       '@font-face': {
@@ -57,5 +57,5 @@ export function getFontStyles(theme: GrafanaTheme2) {
         src: `url('${fontRoot}inter/Inter-Medium.woff2') format('woff2')`,
       },
     },
-  ]);
+  ];
 }

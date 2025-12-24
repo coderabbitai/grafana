@@ -1,9 +1,9 @@
-import { css } from '@emotion/react';
+import { CSSObject } from '@emotion/react';
 
 import { GrafanaTheme2 } from '@grafana/data';
 
-export function getRcTimePickerStyles(theme: GrafanaTheme2) {
-  return css({
+export function getRcTimePickerStyles(theme: GrafanaTheme2): CSSObject {
+  return {
     '.rc-time-picker-input,.rc-time-picker-panel-input-wrap,.rc-time-picker-panel-inner': {
       backgroundColor: theme.components.input.background,
       color: theme.colors.text.secondary,
@@ -39,5 +39,5 @@ export function getRcTimePickerStyles(theme: GrafanaTheme2) {
     '.rc-time-picker-panel-narrow': {
       maxWidth: 'none',
     },
-  });
+  };
 }

@@ -1,9 +1,9 @@
-import { css } from '@emotion/react';
+import { CSSObject } from '@emotion/react';
 
 import { GrafanaTheme2 } from '@grafana/data';
 
-export function getCardStyles(theme: GrafanaTheme2) {
-  return css({
+export function getCardStyles(theme: GrafanaTheme2): CSSObject {
+  return {
     '.card-section': {
       marginBottom: theme.spacing(4),
     },
@@ -185,5 +185,5 @@ export function getCardStyles(theme: GrafanaTheme2) {
         marginRight: 0,
       },
     },
-  });
+  };
 }

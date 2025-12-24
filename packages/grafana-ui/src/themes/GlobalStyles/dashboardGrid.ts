@@ -1,9 +1,9 @@
-import { css } from '@emotion/react';
+import { CSSObject } from '@emotion/react';
 
 import { GrafanaTheme2 } from '@grafana/data';
 
-export function getDashboardGridStyles(theme: GrafanaTheme2) {
-  return css({
+export function getDashboardGridStyles(theme: GrafanaTheme2): CSSObject {
+  return {
     '.react-resizable-handle': {
       // this needs to use visibility and not display none in order not to cause resize flickering
       visibility: 'hidden',
@@ -76,5 +76,5 @@ export function getDashboardGridStyles(theme: GrafanaTheme2) {
         },
       },
     },
-  });
+  };
 }

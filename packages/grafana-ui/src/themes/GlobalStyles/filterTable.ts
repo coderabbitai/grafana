@@ -1,9 +1,9 @@
-import { css } from '@emotion/react';
+import { CSSObject } from '@emotion/react';
 
 import { GrafanaTheme2 } from '@grafana/data';
 
-export function getFilterTableStyles(theme: GrafanaTheme2) {
-  return css({
+export function getFilterTableStyles(theme: GrafanaTheme2): CSSObject {
+  return {
     '.filter-table *': {
       boxSizing: 'border-box',
     },
@@ -75,5 +75,5 @@ export function getFilterTableStyles(theme: GrafanaTheme2) {
         },
       },
     },
-  });
+  };
 }

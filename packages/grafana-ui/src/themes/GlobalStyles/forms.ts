@@ -1,9 +1,9 @@
-import { css } from '@emotion/react';
+import { CSSObject } from '@emotion/css';
 
 import { GrafanaTheme2 } from '@grafana/data';
 
-export function getFormElementStyles(theme: GrafanaTheme2) {
-  return css({
+export function getFormElementStyles(theme: GrafanaTheme2): CSSObject {
+  return {
     'input, button, select, textarea': {
       fontFamily: theme.typography.body.fontFamily,
       fontSize: theme.typography.body.fontSize,
@@ -365,5 +365,5 @@ export function getFormElementStyles(theme: GrafanaTheme2) {
       marginBottom: theme.spacing(3),
       borderTop: `3px solid ${theme.colors.success.main}`,
     },
-  });
+  };
 }
