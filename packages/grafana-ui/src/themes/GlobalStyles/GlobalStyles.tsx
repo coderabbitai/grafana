@@ -77,8 +77,10 @@ export function GlobalStyles(props: GlobalStylesProps) {
           boxSizing: 'inherit',
         },
 
-        [`${props.prefix} input`]: {
-          border: theme.components.input.borderColor,
+        [`${props.prefix} .gf-form-input, ${props.prefix} input, ${props.prefix} select, ${props.prefix} textarea`]: {
+          borderWidth: '1px',
+          borderStyle: 'solid',
+          borderColor: theme.components.input.borderColor,
         },
       })
     : undefined;
