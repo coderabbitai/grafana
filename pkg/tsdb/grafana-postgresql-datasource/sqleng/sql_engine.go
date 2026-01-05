@@ -19,10 +19,14 @@ import (
 	"github.com/grafana/grafana-plugin-sdk-go/backend/log"
 	"github.com/grafana/grafana-plugin-sdk-go/data"
 	"github.com/grafana/grafana-plugin-sdk-go/data/sqlutil"
+	"github.com/grafana/grafana/pkg/services/contexthandler"
 )
 
 // MetaKeyExecutedQueryString is the key where the executed query should get stored
-const MetaKeyExecutedQueryString = "executedQueryString"
+const (
+	MetaKeyExecutedQueryString = "executedQueryString"
+	headerCodeRabbitOrg        = "X-CodeRabbit-Org-Id"
+)
 
 // SQLMacroEngine interpolates macros into sql. It takes in the Query to have access to query context and
 // timeRange to be able to generate queries that use from and to.
@@ -245,6 +249,22 @@ func (e *DataSourceHandler) executeQuery(query backend.DataQuery, wg *sync.WaitG
 	if err != nil {
 		errAppendDebug("interpolation failed", e.TransformQueryError(logger, err), interpolatedQuery)
 		return
+	}
+
+	codeRabbitOrgId := ""
+	reqCtx := contexthandler.FromContext(queryContext)
+	if reqCtx != nil && reqCtx.Req != nil {
+		codeRabbitOrgId = reqCtx.Req.Header.Get(headerCodeRabbitOrg)
+	}
+
+	if codeRabbitOrgId != "" {
+		interpolatedQuery = fmt.Sprintf(`
+BEGIN;
+SET app.current_org_id = '%s';
+%s;
+RESET app.current_org_id;
+COMMIT;
+`, codeRabbitOrgId, interpolatedQuery)
 	}
 
 	rows, err := e.db.QueryContext(queryContext, interpolatedQuery)

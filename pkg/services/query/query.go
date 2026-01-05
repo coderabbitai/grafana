@@ -36,7 +36,6 @@ const (
 	HeaderPanelPluginId  = "X-Panel-Plugin-Id"
 	HeaderQueryGroupID   = "X-Query-Group-Id"    // mainly useful for finding related queries with query chunking
 	HeaderFromExpression = "X-Grafana-From-Expr" // used by datasources to identify expression queries
-	headerCodeRabbitOrg  = "X-CodeRabbit-Org-Id" // used by CodeRabbit Org Id use to set Row Level Security to scope queries to org
 )
 
 func ProvideService(
@@ -261,30 +260,6 @@ func (s *ServiceImpl) handleQuerySingleDatasource(ctx context.Context, user iden
 		return nil, err
 	}
 
-	codeRabbitOrgId := ""
-	reqCtx := contexthandler.FromContext(ctx)
-	if reqCtx != nil && reqCtx.Req != nil {
-		codeRabbitOrgId = reqCtx.Req.Header.Get(headerCodeRabbitOrg)
-	}
-
-	if codeRabbitOrgId != "" && ds.UID != "" {
-		s.log.Info("CodeRabbitOrgID found in header", "orgId", codeRabbitOrgId, "dsUID", ds.UID)
-
-		setQuery := s.createScopeToOrgQuery(codeRabbitOrgId, ds, true)
-		setQueryReq := &backend.QueryDataRequest{
-			PluginContext: pCtx,
-			Headers:       map[string]string{},
-			Queries:       []backend.DataQuery{},
-		}
-		setQueryReq.Queries = append(setQueryReq.Queries, setQuery)
-		_, err := s.pluginClient.QueryData(ctx, setQueryReq)
-		if err != nil {
-			s.log.Error("Failed to set RLS scope", "error", err, "orgId", codeRabbitOrgId)
-			return nil, err
-		}
-		s.log.Info("Applied RLS Query successfully", "orgId", codeRabbitOrgId, "dsUID", ds.UID)
-	}
-
 	req := &backend.QueryDataRequest{
 		PluginContext: pCtx,
 		Headers:       map[string]string{},
@@ -295,30 +270,7 @@ func (s *ServiceImpl) handleQuerySingleDatasource(ctx context.Context, user iden
 		req.Queries = append(req.Queries, q.query)
 	}
 
-	s.log.Info("Executing main query", "queryCount", len(req.Queries))
-	resp, err := s.pluginClient.QueryData(ctx, req)
-	s.log.Info("Main query completed", "hasError", err != nil)
-
-	// This ensures the RLS setting doesn't leak to other queries on reused connections
-	if codeRabbitOrgId != "" {
-		s.log.Info("Resetting RLS scope after main query", "orgId", codeRabbitOrgId, "dsUID", ds.UID)
-
-		resetQuery := s.createScopeToOrgQuery(codeRabbitOrgId, ds, false)
-		resetQueryReq := &backend.QueryDataRequest{
-			PluginContext: pCtx,
-			Headers:       map[string]string{},
-			Queries:       []backend.DataQuery{resetQuery},
-		}
-
-		if _, err := s.pluginClient.QueryData(ctx, resetQueryReq); err != nil {
-			s.log.Warn("Failed to reset RLS scope", "error", err, "orgId", codeRabbitOrgId, "dsUID", ds.UID)
-			// Don't return error - RLS reset failure shouldn't fail the entire query
-		} else {
-			s.log.Debug("Reset RLS scope successfully")
-		}
-	}
-
-	return resp, err
+	return s.pluginClient.QueryData(ctx, req)
 }
 
 // parseRequest parses a request into parsed queries grouped by datasource uid
@@ -388,48 +340,6 @@ func (s *ServiceImpl) parseMetricRequest(ctx context.Context, user identity.Requ
 	}
 
 	return req, req.validateRequest(ctx)
-}
-
-func (s *ServiceImpl) createScopeToOrgQuery(codeRabbitOrgId string, ds *datasources.DataSource, setOrg bool) backend.DataQuery {
-	// Use parameterized approach to prevent SQL injection
-	var rawSql string
-	if setOrg {
-		// Using parameterized approach - database driver should handle this safely
-		rawSql = fmt.Sprintf("SET app.current_org_id = '%s'", codeRabbitOrgId)
-	} else {
-		rawSql = "RESET app.current_org_id"
-	}
-
-	// Build JSON safely using proper escaping
-	queryJSON := map[string]interface{}{
-		"datasource": map[string]string{
-			"uid": ds.UID,
-		},
-		"intervalMs":    1000,
-		"maxDataPoints": 100,
-		"rawSql":        rawSql,
-		"format":        "table",
-		"refId":         "rls_setup",
-	}
-
-	jsonBytes, err := simplejson.NewFromAny(queryJSON).MarshalJSON()
-	if err != nil {
-		// Fallback to error in JSON if marshal fails
-		jsonBytes = []byte(`{"error":"failed to marshal query"}`)
-		s.log.Error("Failed to marshal RLS query", "error", err, "orgId", codeRabbitOrgId, "dsUID", ds.UID)
-	}
-
-	return backend.DataQuery{
-		TimeRange: backend.TimeRange{
-			From: time.Now().Add(-time.Hour),
-			To:   time.Now(),
-		},
-		RefID:         "rls_setup",
-		MaxDataPoints: 100,
-		Interval:      1000 * time.Millisecond,
-		QueryType:     rawSql,
-		JSON:          jsonBytes,
-	}
 }
 
 func (s *ServiceImpl) getDataSourceFromQuery(ctx context.Context, user identity.Requester, skipDSCache bool, query *simplejson.Json, history map[string]*datasources.DataSource) (*datasources.DataSource, error) {
