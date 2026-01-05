@@ -270,32 +270,19 @@ func (s *ServiceImpl) handleQuerySingleDatasource(ctx context.Context, user iden
 	if codeRabbitOrgId != "" && ds.UID != "" {
 		s.log.Info("CodeRabbitOrgID found in header", "orgId", codeRabbitOrgId, "dsUID", ds.UID)
 
-		// COMBINE ALL OPERATIONS INTO A SINGLE REQUEST
-		req := &backend.QueryDataRequest{
+		setQuery := s.createScopeToOrgQuery(codeRabbitOrgId, ds, true)
+		setQueryReq := &backend.QueryDataRequest{
 			PluginContext: pCtx,
 			Headers:       map[string]string{},
 			Queries:       []backend.DataQuery{},
 		}
-
-		// 1. SET RLS scope
-		setQuery := s.createScopeToOrgQuery(codeRabbitOrgId, ds, true)
-		req.Queries = append(req.Queries, setQuery)
-
-		// 2. Add the actual queries
-		for _, q := range queries {
-			req.Queries = append(req.Queries, q.query)
+		setQueryReq.Queries = append(setQueryReq.Queries, setQuery)
+		_, err := s.pluginClient.QueryData(ctx, setQueryReq)
+		if err != nil {
+			s.log.Error("Failed to set RLS scope", "error", err, "orgId", codeRabbitOrgId)
+			return nil, err
 		}
-
-		// 3. RESET RLS scope
-		resetQuery := s.createScopeToOrgQuery(codeRabbitOrgId, ds, false)
-		req.Queries = append(req.Queries, resetQuery)
-
-		// Execute all in ONE call
-		s.log.Info("Executing combined query with RLS queries", "queryCount", len(req.Queries), "orgId", codeRabbitOrgId)
-		resp, err := s.pluginClient.QueryData(ctx, req)
-		s.log.Info("Combined query completed", "hasError", err != nil)
-
-		return resp, err
+		s.log.Info("Applied RLS Query successfully", "orgId", codeRabbitOrgId, "dsUID", ds.UID)
 	}
 
 	req := &backend.QueryDataRequest{
@@ -311,6 +298,25 @@ func (s *ServiceImpl) handleQuerySingleDatasource(ctx context.Context, user iden
 	s.log.Info("Executing main query", "queryCount", len(req.Queries))
 	resp, err := s.pluginClient.QueryData(ctx, req)
 	s.log.Info("Main query completed", "hasError", err != nil)
+
+	// This ensures the RLS setting doesn't leak to other queries on reused connections
+	if codeRabbitOrgId != "" {
+		s.log.Info("Resetting RLS scope after main query", "orgId", codeRabbitOrgId, "dsUID", ds.UID)
+
+		resetQuery := s.createScopeToOrgQuery(codeRabbitOrgId, ds, false)
+		resetQueryReq := &backend.QueryDataRequest{
+			PluginContext: pCtx,
+			Headers:       map[string]string{},
+			Queries:       []backend.DataQuery{resetQuery},
+		}
+
+		if _, err := s.pluginClient.QueryData(ctx, resetQueryReq); err != nil {
+			s.log.Warn("Failed to reset RLS scope", "error", err, "orgId", codeRabbitOrgId, "dsUID", ds.UID)
+			// Don't return error - RLS reset failure shouldn't fail the entire query
+		} else {
+			s.log.Debug("Reset RLS scope successfully")
+		}
+	}
 
 	return resp, err
 }
