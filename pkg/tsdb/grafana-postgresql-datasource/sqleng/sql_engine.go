@@ -257,26 +257,54 @@ func (e *DataSourceHandler) executeQuery(query backend.DataQuery, wg *sync.WaitG
 		codeRabbitOrgId = reqCtx.Req.Header.Get(headerCodeRabbitOrg)
 	}
 
+	var rows *sql.Rows
 	if codeRabbitOrgId != "" {
-		interpolatedQuery = fmt.Sprintf(`
-BEGIN;
-SET app.current_org_id = '%s';
-%s;
-RESET app.current_org_id;
-COMMIT;
-`, codeRabbitOrgId, interpolatedQuery)
-	}
-
-	rows, err := e.db.QueryContext(queryContext, interpolatedQuery)
-	if err != nil {
-		errAppendDebug("db query error", e.TransformQueryError(logger, err), interpolatedQuery)
-		return
-	}
-	defer func() {
-		if err := rows.Close(); err != nil {
-			logger.Warn("Failed to close rows", "err", err)
+		// Use a transaction to set the org context variable
+		tx, err := e.db.BeginTx(queryContext, nil)
+		if err != nil {
+			errAppendDebug("failed to begin transaction", e.TransformQueryError(logger, err), interpolatedQuery)
+			return
 		}
-	}()
+		defer tx.Rollback()
+
+		// Set the org context variable with proper escaping (PostgreSQL SET doesn't support parameterized queries)
+		// Escape single quotes by doubling them
+		escapedOrgId := strings.ReplaceAll(codeRabbitOrgId, "'", "''")
+		if _, err := tx.ExecContext(queryContext, fmt.Sprintf("SET app.current_org_id = '%s'", escapedOrgId)); err != nil {
+			errAppendDebug("failed to set app.current_org_id", e.TransformQueryError(logger, err), interpolatedQuery)
+			return
+		}
+
+		// Execute the actual query within the transaction
+		rows, err = tx.QueryContext(queryContext, interpolatedQuery)
+		if err != nil {
+			errAppendDebug("db query error", e.TransformQueryError(logger, err), interpolatedQuery)
+			return
+		}
+
+		// Commit the transaction after rows are processed
+		// Note: PostgreSQL automatically resets session variables when the transaction ends,
+		// so we don't need an explicit RESET statement
+		defer func() {
+			if err := rows.Close(); err != nil {
+				logger.Warn("Failed to close rows", "err", err)
+			}
+			if err := tx.Commit(); err != nil {
+				logger.Warn("Failed to commit transaction", "err", err)
+			}
+		}()
+	} else {
+		rows, err = e.db.QueryContext(queryContext, interpolatedQuery)
+		if err != nil {
+			errAppendDebug("db query error", e.TransformQueryError(logger, err), interpolatedQuery)
+			return
+		}
+		defer func() {
+			if err := rows.Close(); err != nil {
+				logger.Warn("Failed to close rows", "err", err)
+			}
+		}()
+	}
 
 	qm, err := e.newProcessCfg(query, queryContext, rows, interpolatedQuery)
 	if err != nil {
