@@ -1,6 +1,6 @@
 import log from 'loglevel';
 
-const SHOULD_LOG = true;
+const SHOULD_LOG = false;
 
 const FnLoggerService = log.getLogger('[FN Grafana]');
 
