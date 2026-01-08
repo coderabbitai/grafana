@@ -354,7 +354,14 @@ export const processVariable = (
     const variable = getVariable(identifier, getState());
     await processVariableDependencies(variable, getState());
 
-    const urlValue = queryParams[VARIABLE_PREFIX + variable.name];
+    let urlValue = queryParams[VARIABLE_PREFIX + variable.name];
+
+    const sessionOrgId = getOrgIdFromSession();
+    // Fallback for org_id variable: use selected_org from session if not in URL
+    if (variable.name === 'org_id' && sessionOrgId) {
+      urlValue = sessionOrgId;
+    }
+
     if (urlValue !== void 0) {
       const stringUrlValue = ensureStringValues(urlValue);
       await variableAdapters.get(variable.type).setValueFromUrl(variable, stringUrlValue);
@@ -1119,4 +1126,18 @@ export function upgradeLegacyQueries(
 
 function isDataQueryType(query: unknown): query is DataQuery {
   return isObject(query) && 'refId' in query && typeof query.refId === 'string';
+}
+
+function getOrgIdFromSession(): string | undefined {
+  try {
+    // Use contextSrv to get the current user's organization ID
+    const storage = sessionStorage.getItem('selected_org');
+    const orgId = storage ? JSON.parse(storage).id : null;
+    if (orgId) {
+      return orgId.toString();
+    }
+  } catch (err) {
+    logWarning('Failed to get org_id from session context', { err: err instanceof Error ? err.message : String(err) });
+  }
+  return undefined;
 }

@@ -2,9 +2,7 @@ import { merge, isFunction } from 'lodash';
 import { useEffect, FC, useMemo } from 'react';
 
 import { locationService as locationSrv, HistoryWrapper } from '@grafana/runtime';
-import { FnLoader } from 'app/features/dashboard/components/DashboardLoading/FnLoader';
 import DashboardPage, { DashboardPageProps } from 'app/features/dashboard/containers/DashboardPage';
-import { FnLoggerService } from 'app/fn_logger';
 import { DashboardRoutes, StoreState, useSelector } from 'app/types';
 
 import { FNDashboardProps } from '../types';
@@ -27,8 +25,6 @@ const DEFAULT_DASHBOARD_PAGE_PROPS: Pick<DashboardPageProps, 'history' | 'route'
     component: DashboardPage,
   },
 };
-
-const ORG_ID_VAR = 'var-org_id';
 
 export const RenderFNDashboard: FC<FNDashboardProps> = (props) => {
   const { queryParams, controlsContainer, setErrors, hiddenVariables, isLoading } = props;
@@ -76,12 +72,6 @@ export const RenderFNDashboard: FC<FNDashboardProps> = (props) => {
       }),
     [controlsContainer, hiddenVariables, isLoading, props, queryParams]
   );
-
-  if (!queryParams[ORG_ID_VAR]) {
-    FnLoggerService.info('RenderFNDashboard: missing org_id in query params');
-    props?.isLoading(true);
-    return <FnLoader />;
-  }
 
   return <DashboardPage {...dashboardPageProps} />;
 };
