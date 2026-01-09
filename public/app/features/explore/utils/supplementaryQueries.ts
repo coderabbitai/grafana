@@ -137,8 +137,12 @@ export const getSupplementaryQueryProvider = (
         if (!request) {
           return undefined;
         }
+        // Ensure targets are set in the request to prevent "No queries found" errors
+        if (!request.targets || request.targets.length === 0) {
+          request.targets = dsRequest.targets;
+        }
         return type === SupplementaryQueryType.LogsVolume
-          ? queryLogsVolume(datasource, request, { targets: dsRequest.targets })
+          ? queryLogsVolume(datasource, request, { targets: request.targets })
           : queryLogsSample(datasource, request);
       } else {
         return undefined;

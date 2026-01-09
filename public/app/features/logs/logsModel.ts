@@ -651,6 +651,9 @@ export function queryLogsVolume<TQuery extends DataQuery, TOptions extends DataS
   const timespan = range.to.valueOf() - range.from.valueOf();
   const intervalInfo = getIntervalInfo(logsVolumeRequest.scopedVars, timespan);
 
+  // Set targets from options (prevents "No queries found" error)
+  logsVolumeRequest.targets = targets;
+
   logsVolumeRequest.interval = intervalInfo.interval;
   logsVolumeRequest.scopedVars.__interval = { value: intervalInfo.interval, text: intervalInfo.interval };
 

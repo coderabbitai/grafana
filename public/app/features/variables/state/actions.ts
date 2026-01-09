@@ -358,7 +358,8 @@ export const processVariable = (
 
     const sessionOrgId = getOrgIdFromSession();
     // Fallback for org_id variable: use selected_org from session if not in URL
-    if (variable.name === 'org_id' && sessionOrgId) {
+    // Only use if sessionOrgId is a non-empty string (prevents invalid UUID errors)
+    if (variable.name === 'org_id' && sessionOrgId && sessionOrgId.trim()) {
       urlValue = sessionOrgId;
     }
 
@@ -1134,7 +1135,11 @@ function getOrgIdFromSession(): string | undefined {
     const storage = sessionStorage.getItem('selected_org');
     const orgId = storage ? JSON.parse(storage).id : null;
     if (orgId) {
-      return orgId.toString();
+      const orgIdStr = orgId.toString();
+      // Validate that orgId is not empty (prevents invalid UUID errors in queries)
+      if (orgIdStr && orgIdStr.trim()) {
+        return orgIdStr;
+      }
     }
   } catch (err) {
     logWarning('Failed to get org_id from session context', { err: err instanceof Error ? err.message : String(err) });
