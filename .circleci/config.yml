@@ -43,6 +43,9 @@ jobs:
       - run:
           name: Install frontend dependencies
           command: yarn install --immutable
+      - run:
+          name: Update browserslist database
+          command: npx update-browserslist-db@latest --yes
       - save_cache:
           paths:
             - ~/.cache/yarn
