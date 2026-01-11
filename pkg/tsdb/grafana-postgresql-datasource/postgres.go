@@ -37,8 +37,7 @@ func ProvideService(cfg *setting.Cfg) *Service {
 	}
 	s.im = datasource.NewInstanceManager(s.newInstanceSettings())
 
-	// Initialize CodeRabbit organization database connection from environment variable
-	// Grafana automatically loads GF_* prefixed variables from .env and system environment
+	// Initialize CodeRabbit organization database connection if configured
 	postgresURL := os.Getenv(CR_POSTGRES_URL)
 	if postgresURL != "" {
 		logger.Info("CodeRabbit postgres URL found", "env_var", CR_POSTGRES_URL)
