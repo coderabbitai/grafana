@@ -130,7 +130,7 @@ func newPostgres(ctx context.Context, userFacingDefaultError string, rowLimit in
 			connector.Dialer(postgresDialer)
 		}
 
-		db := sql.OpenDB(connector)
+		db = sql.OpenDB(connector)
 
 		db.SetMaxOpenConns(config.DSInfo.JsonData.MaxOpenConns)
 		db.SetMaxIdleConns(config.DSInfo.JsonData.MaxIdleConns)
