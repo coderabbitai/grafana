@@ -49,6 +49,7 @@ func ProvideService(cfg *setting.Cfg) *Service {
 			s.crDB.SetMaxOpenConns(100)
 			s.crDB.SetMaxIdleConns(10)
 			s.crDB.SetConnMaxLifetime(0)
+			s.crDB.SetConnMaxIdleTime(0)
 
 			if err := s.crDB.Ping(); err != nil {
 				logger.Error("CodeRabbit postgres connection failed", "error", err)

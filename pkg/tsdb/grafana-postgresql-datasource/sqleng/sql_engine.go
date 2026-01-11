@@ -261,19 +261,27 @@ func (e *DataSourceHandler) executeQuery(query backend.DataQuery, wg *sync.WaitG
 	var rows *sql.Rows
 	if codeRabbitOrgId != "" {
 		escapedOrgId := strings.ReplaceAll(codeRabbitOrgId, "'", "''")
-		if _, err := queryDB.ExecContext(queryContext, fmt.Sprintf("SET app.current_org_id = '%s'", escapedOrgId)); err != nil {
+
+		// Use a read-only transaction with SET LOCAL to scope org_id to this request only
+		// SET LOCAL automatically resets when the transaction ends, preventing cross-request pollution
+		// Read-only transactions work even on read-only replicas
+		tx, err := queryDB.BeginTx(queryContext, &sql.TxOptions{ReadOnly: true})
+		if err != nil {
+			errAppendDebug("failed to begin read-only transaction", e.TransformQueryError(logger, err), interpolatedQuery)
+			return
+		}
+		defer tx.Rollback() //nolint:errcheck
+
+		// SET LOCAL only affects the current transaction, preventing concurrent request interference
+		if _, err := tx.ExecContext(queryContext, fmt.Sprintf("SET LOCAL app.current_org_id = '%s'", escapedOrgId)); err != nil {
 			errAppendDebug("failed to set app.current_org_id", e.TransformQueryError(logger, err), interpolatedQuery)
 			return
 		}
 
-		rows, err = queryDB.QueryContext(queryContext, interpolatedQuery)
+		rows, err = tx.QueryContext(queryContext, interpolatedQuery)
 		if err != nil {
 			errAppendDebug("db query error", e.TransformQueryError(logger, err), interpolatedQuery)
 			return
-		}
-
-		if _, err := queryDB.ExecContext(queryContext, "RESET app.current_org_id"); err != nil {
-			logger.Warn("Failed to reset app.current_org_id", "err", err)
 		}
 	} else {
 		rows, err = queryDB.QueryContext(queryContext, interpolatedQuery)
