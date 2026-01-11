@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"net"
+	"os"
 	"regexp"
 	"runtime/debug"
 	"strconv"
@@ -26,6 +27,7 @@ import (
 const (
 	MetaKeyExecutedQueryString = "executedQueryString"
 	headerCodeRabbitOrg        = "X-CodeRabbit-Org-Id"
+	CR_POSTGRES_URL            = "GF_CR_POSTGRES_URL"
 )
 
 // SQLMacroEngine interpolates macros into sql. It takes in the Query to have access to query context and
@@ -148,6 +150,11 @@ type DBDataResponse struct {
 
 func (e *DataSourceHandler) Dispose() {
 	e.log.Debug("Disposing DB...")
+	crPostgres := os.Getenv(CR_POSTGRES_URL)
+	if crPostgres != "" {
+		e.log.Info("CR Postgres detected, skipping DB dispose")
+		return
+	}
 	if e.db != nil {
 		if err := e.db.Close(); err != nil {
 			e.log.Error("Failed to dispose db", "error", err)
@@ -201,6 +208,15 @@ func (e *DataSourceHandler) QueryData(ctx context.Context, req *backend.QueryDat
 	return result, nil
 }
 
+func (e *DataSourceHandler) findCodeRabbitOrgId(ctx context.Context) string {
+	codeRabbitOrgId := ""
+	reqCtx := contexthandler.FromContext(ctx)
+	if reqCtx != nil && reqCtx.Req != nil {
+		codeRabbitOrgId = reqCtx.Req.Header.Get(headerCodeRabbitOrg)
+	}
+	return codeRabbitOrgId
+}
+
 func (e *DataSourceHandler) executeQuery(query backend.DataQuery, wg *sync.WaitGroup, queryContext context.Context,
 	ch chan DBDataResponse, queryJson QueryJson) {
 	defer wg.Done()
@@ -251,12 +267,7 @@ func (e *DataSourceHandler) executeQuery(query backend.DataQuery, wg *sync.WaitG
 		return
 	}
 
-	codeRabbitOrgId := ""
-	reqCtx := contexthandler.FromContext(queryContext)
-	if reqCtx != nil && reqCtx.Req != nil {
-		codeRabbitOrgId = reqCtx.Req.Header.Get(headerCodeRabbitOrg)
-	}
-
+	codeRabbitOrgId := e.findCodeRabbitOrgId(queryContext)
 	queryDB := e.db
 	var rows *sql.Rows
 	if codeRabbitOrgId != "" {
