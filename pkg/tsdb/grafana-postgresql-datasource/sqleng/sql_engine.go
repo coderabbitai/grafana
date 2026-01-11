@@ -257,41 +257,37 @@ func (e *DataSourceHandler) executeQuery(query backend.DataQuery, wg *sync.WaitG
 		codeRabbitOrgId = reqCtx.Req.Header.Get(headerCodeRabbitOrg)
 	}
 
+	queryDB := e.db
 	var rows *sql.Rows
 	if codeRabbitOrgId != "" {
 		escapedOrgId := strings.ReplaceAll(codeRabbitOrgId, "'", "''")
-		if _, err := e.db.ExecContext(queryContext, fmt.Sprintf("SET app.current_org_id = '%s'", escapedOrgId)); err != nil {
+		if _, err := queryDB.ExecContext(queryContext, fmt.Sprintf("SET app.current_org_id = '%s'", escapedOrgId)); err != nil {
 			errAppendDebug("failed to set app.current_org_id", e.TransformQueryError(logger, err), interpolatedQuery)
 			return
 		}
 
-		rows, err = e.db.QueryContext(queryContext, interpolatedQuery)
+		rows, err = queryDB.QueryContext(queryContext, interpolatedQuery)
 		if err != nil {
 			errAppendDebug("db query error", e.TransformQueryError(logger, err), interpolatedQuery)
 			return
 		}
 
-		if _, err := e.db.ExecContext(queryContext, "RESET app.current_org_id"); err != nil {
+		if _, err := queryDB.ExecContext(queryContext, "RESET app.current_org_id"); err != nil {
 			logger.Warn("Failed to reset app.current_org_id", "err", err)
 		}
-
-		defer func() {
-			if err := rows.Close(); err != nil {
-				logger.Warn("Failed to close rows", "err", err)
-			}
-		}()
 	} else {
-		rows, err = e.db.QueryContext(queryContext, interpolatedQuery)
+		rows, err = queryDB.QueryContext(queryContext, interpolatedQuery)
 		if err != nil {
 			errAppendDebug("db query error", e.TransformQueryError(logger, err), interpolatedQuery)
 			return
 		}
-		defer func() {
-			if err := rows.Close(); err != nil {
-				logger.Warn("Failed to close rows", "err", err)
-			}
-		}()
 	}
+
+	defer func() {
+		if err := rows.Close(); err != nil {
+			logger.Warn("Failed to close rows", "err", err)
+		}
+	}()
 
 	qm, err := e.newProcessCfg(query, queryContext, rows, interpolatedQuery)
 	if err != nil {
