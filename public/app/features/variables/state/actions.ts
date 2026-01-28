@@ -25,6 +25,7 @@ import { notifyApp } from 'app/core/actions';
 import { contextSrv } from 'app/core/services/context_srv';
 import { getTimeSrv } from 'app/features/dashboard/services/TimeSrv';
 import { DashboardModel } from 'app/features/dashboard/state';
+import { FnLoggerService } from 'app/fn_logger';
 import { store } from 'app/store/store';
 
 import { createErrorNotification } from '../../../core/copy/appNotification';
@@ -356,11 +357,14 @@ export const processVariable = (
 
     let urlValue = queryParams[VARIABLE_PREFIX + variable.name];
 
-    const sessionOrgId = getOrgIdFromSession();
     // Fallback for org_id variable: use selected_org from session if not in URL
     // Only use if sessionOrgId is a non-empty string (prevents invalid UUID errors)
-    if (variable.name === 'org_id' && sessionOrgId && sessionOrgId.trim()) {
-      urlValue = sessionOrgId;
+    if (variable.name === 'org_id') {
+      FnLoggerService.info('Using org_id from session as fallback for variable org_id');
+      const sessionOrgId = getOrgIdFromSession();
+      if (sessionOrgId && sessionOrgId.trim()) {
+        urlValue = sessionOrgId;
+      }
     }
 
     if (urlValue !== void 0) {
