@@ -7,7 +7,7 @@ toolchain go1.24.10
 require (
 	github.com/grafana/authlib v0.0.0-20240828122726-9edfcbea43e2 // @grafana/identity-access-team
 	github.com/grafana/authlib/claims v0.0.0-20240828122726-9edfcbea43e2 // @grafana/identity-access-team
-	github.com/stretchr/testify v1.9.0
+	github.com/stretchr/testify v1.11.1
 	k8s.io/apimachinery v0.31.0
 	k8s.io/apiserver v0.31.0
 	k8s.io/kube-openapi v0.0.0-20240827152857-f7e401e7b4c2
