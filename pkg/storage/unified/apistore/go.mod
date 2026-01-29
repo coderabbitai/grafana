@@ -9,7 +9,7 @@ require (
 	github.com/grafana/grafana/pkg/apimachinery v0.0.0-20240821155123-6891eb1d35da
 	github.com/grafana/grafana/pkg/apiserver v0.0.0-20240821155123-6891eb1d35da
 	github.com/grafana/grafana/pkg/storage/unified/resource v0.0.0-20240821161612-71f0dae39e9d
-	github.com/stretchr/testify v1.9.0
+	github.com/stretchr/testify v1.11.1
 	gocloud.dev v0.39.0
 	google.golang.org/grpc v1.66.0
 	k8s.io/apimachinery v0.31.0
