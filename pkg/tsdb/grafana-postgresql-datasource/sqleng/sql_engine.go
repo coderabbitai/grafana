@@ -213,6 +213,8 @@ func (e *DataSourceHandler) findCodeRabbitOrgId(ctx context.Context) string {
 	reqCtx := contexthandler.FromContext(ctx)
 	if reqCtx != nil && reqCtx.Req != nil {
 		codeRabbitOrgId = reqCtx.Req.Header.Get(headerCodeRabbitOrg)
+	} else {
+		e.log.Debug("Request context or request is nil, cannot extract CodeRabbit Org ID from headers")
 	}
 	return codeRabbitOrgId
 }
@@ -272,6 +274,7 @@ func (e *DataSourceHandler) executeQuery(query backend.DataQuery, wg *sync.WaitG
 	var rows *sql.Rows
 	if codeRabbitOrgId != "" {
 		escapedOrgId := strings.ReplaceAll(codeRabbitOrgId, "'", "''")
+		logger.Info(fmt.Sprintf("Executing query for Org ID: %s", escapedOrgId))
 
 		// Use a read-only transaction with SET LOCAL to scope org_id to this request only
 		// SET LOCAL automatically resets when the transaction ends, preventing cross-request pollution
@@ -290,11 +293,13 @@ func (e *DataSourceHandler) executeQuery(query backend.DataQuery, wg *sync.WaitG
 		}
 
 		rows, err = tx.QueryContext(queryContext, interpolatedQuery)
+		logger.Info("Query executed within read-only transaction for Org ID", "orgId", escapedOrgId)
 		if err != nil {
 			errAppendDebug("db query error", e.TransformQueryError(logger, err), interpolatedQuery)
 			return
 		}
 	} else {
+		logger.Info("Executing query without Org ID set")
 		rows, err = queryDB.QueryContext(queryContext, interpolatedQuery)
 		if err != nil {
 			errAppendDebug("db query error", e.TransformQueryError(logger, err), interpolatedQuery)
