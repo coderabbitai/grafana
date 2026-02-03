@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef } from 'react';
+import { useMemo } from 'react';
 
 import { PanelProps, VizOrientation } from '@grafana/data';
 import { PanelDataErrorView } from '@grafana/runtime';
@@ -13,8 +13,6 @@ import {
   useTheme2,
 } from '@grafana/ui';
 import { TooltipHoverMode } from '@grafana/ui/src/components/uPlot/plugins/TooltipPlugin2';
-import { FnLoggerService } from 'app/fn_logger';
-import { useSelector } from 'app/types';
 
 import { TimeSeriesTooltip } from '../timeseries/TimeSeriesTooltip';
 
@@ -134,52 +132,6 @@ export const BarChartPanel = (props: PanelProps<Options>) => {
     () => (prepData == null ? [] : prepData(vizSeries, info.color)),
     [prepData, vizSeries, info.color]
   );
-
-  const eventListener = useSelector((state) => state.fnGlobalState.metadata.eventListener);
-  const initOnBarClick = useRef(false);
-
-  useEffect(() => {
-    if (!builder || !eventListener || initOnBarClick.current) {
-      return;
-    }
-
-    builder.addHook('init', (u) => {
-      initOnBarClick.current = true;
-      const over = u.root.querySelector('.u-over');
-      FnLoggerService.info('BarChartPanel: Setting up bar click listener', { over });
-
-      if (!over) {
-        FnLoggerService.info('BarChartPanel: No .u-over element found, cannot set up bar click listener');
-        return;
-      }
-
-      over.addEventListener('click', () => {
-        if (!u.cursor || !u.cursor.idxs) {
-          return;
-        }
-
-        const idxs = u.cursor.idxs;
-        const dataIdx = idxs.find((v) => v != null);
-        const data = vizSeries[0];
-
-        FnLoggerService.info('BarChartPanel: Bar clicked', { dataIdx, data });
-
-        if (dataIdx === undefined || dataIdx < 0) {
-          return;
-        }
-
-        const payload = data.fields.map((field) => {
-          return {
-            title: field.name,
-            value: field.values[dataIdx],
-          };
-        });
-
-        FnLoggerService.info('BarChartPanel: Dispatching barClick event', { payload });
-        eventListener({ type: 'barClick', data: payload });
-      });
-    });
-  }, [builder, eventListener, vizSeries]);
 
   if (info.warn != null || builder == null) {
     return (
