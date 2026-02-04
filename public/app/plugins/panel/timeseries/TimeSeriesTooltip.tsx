@@ -98,16 +98,18 @@ export const TimeSeriesTooltip = ({
     <div
       className={styles.wrapper}
       onClick={() => {
-        if (!headerItem || !eventListener) {
+        if ((!headerItem && !contentItems.length) || !eventListener) {
           return;
         }
 
+        const data = [...(headerItem ? [headerItem] : []), ...contentItems].map((item) => ({
+          title: item.label,
+          text: item.value,
+        }));
+
         eventListener({
           type: 'barTooltipClick',
-          data: {
-            title: headerItem.label,
-            text: headerItem.value,
-          },
+          data,
         });
       }}
     >
