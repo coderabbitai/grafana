@@ -25,8 +25,9 @@ import (
 )
 
 const (
-	CR_POSTGRES_URL     = "GF_CR_POSTGRES_URL"
-	headerCodeRabbitOrg = "X-CodeRabbit-Org-Id"
+	CR_POSTGRES_URL              = "GF_CR_POSTGRES_URL"
+	headerCodeRabbitOrg          = "X-CodeRabbit-Org-Id"
+	headerCodeRabbitSelfHostedId = "X-CodeRabbit-Self-Hosted-Instance-Id"
 )
 
 func ProvideService(cfg *setting.Cfg) *Service {
@@ -100,11 +101,13 @@ func newPostgres(ctx context.Context, userFacingDefaultError string, rowLimit in
 	var db *sql.DB
 
 	codeRabbitOrgId := ""
+	codeRabbitSelfHostedId := ""
 	reqCtx := contexthandler.FromContext(ctx)
 	if reqCtx != nil && reqCtx.Req != nil {
 		codeRabbitOrgId = reqCtx.Req.Header.Get(headerCodeRabbitOrg)
+		codeRabbitSelfHostedId = reqCtx.Req.Header.Get(headerCodeRabbitSelfHostedId)
 	}
-	if crDB != nil && codeRabbitOrgId != "" {
+	if crDB != nil && (codeRabbitOrgId != "" || codeRabbitSelfHostedId != "") {
 		logger.Info("[Postgres Datasource]:: Using CodeRabbit database connection")
 		db = crDB
 	} else {
