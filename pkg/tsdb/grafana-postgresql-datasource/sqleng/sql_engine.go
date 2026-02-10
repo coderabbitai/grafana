@@ -288,11 +288,12 @@ func (e *DataSourceHandler) executeQuery(query backend.DataQuery, wg *sync.WaitG
 	if codeRabbitOrgId != "" || codeRabbitSelfHostedId != "" {
 		sessionVarName := "app.current_org_id"
 		identifier := strings.ReplaceAll(codeRabbitOrgId, "'", "''")
-		if identifier != "" {
+		escapedSelfHostedId := strings.ReplaceAll(codeRabbitSelfHostedId, "'", "''")
+
+		if identifier != "" && escapedSelfHostedId == "" {
 			logger.Info(fmt.Sprintf("Executing query for Org ID: %s", identifier))
 		}
 
-		escapedSelfHostedId := strings.ReplaceAll(codeRabbitSelfHostedId, "'", "''")
 		if escapedSelfHostedId != "" {
 			logger.Info(fmt.Sprintf("Executing query for Self-Hosted Instance ID: %s", escapedSelfHostedId))
 			sessionVarName = "app.current_self_hosted_id"

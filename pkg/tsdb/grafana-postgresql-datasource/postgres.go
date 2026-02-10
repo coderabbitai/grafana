@@ -19,15 +19,12 @@ import (
 	"github.com/lib/pq"
 
 	"github.com/grafana/grafana-plugin-sdk-go/backend/log"
-	"github.com/grafana/grafana/pkg/services/contexthandler"
 	"github.com/grafana/grafana/pkg/setting"
 	"github.com/grafana/grafana/pkg/tsdb/grafana-postgresql-datasource/sqleng"
 )
 
 const (
-	CR_POSTGRES_URL              = "GF_CR_POSTGRES_URL"
-	headerCodeRabbitOrg          = "X-CodeRabbit-Org-Id"
-	headerCodeRabbitSelfHostedId = "X-CodeRabbit-Self-Hosted-Instance-Id"
+	CR_POSTGRES_URL = "GF_CR_POSTGRES_URL"
 )
 
 func ProvideService(cfg *setting.Cfg) *Service {
@@ -100,14 +97,7 @@ func newPostgres(ctx context.Context, userFacingDefaultError string, rowLimit in
 	queryResultTransformer := postgresQueryResultTransformer{}
 	var db *sql.DB
 
-	codeRabbitOrgId := ""
-	codeRabbitSelfHostedId := ""
-	reqCtx := contexthandler.FromContext(ctx)
-	if reqCtx != nil && reqCtx.Req != nil {
-		codeRabbitOrgId = reqCtx.Req.Header.Get(headerCodeRabbitOrg)
-		codeRabbitSelfHostedId = reqCtx.Req.Header.Get(headerCodeRabbitSelfHostedId)
-	}
-	if crDB != nil && (codeRabbitOrgId != "" || codeRabbitSelfHostedId != "") {
+	if crDB != nil {
 		logger.Info("[Postgres Datasource]:: Using CodeRabbit database connection")
 		db = crDB
 	} else {
