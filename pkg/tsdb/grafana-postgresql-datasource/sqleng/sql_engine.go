@@ -312,7 +312,7 @@ func (e *DataSourceHandler) executeQuery(query backend.DataQuery, wg *sync.WaitG
 
 		// SET LOCAL only affects the current transaction, preventing concurrent request interference
 		if _, err := tx.ExecContext(queryContext, fmt.Sprintf("SET LOCAL %s = '%s'", sessionVarName, identifier)); err != nil {
-			errAppendDebug("failed to set app.current_org_id", e.TransformQueryError(logger, err), interpolatedQuery)
+			errAppendDebug(fmt.Sprintf("failed to set %s", sessionVarName), e.TransformQueryError(logger, err), interpolatedQuery)
 			return
 		}
 
