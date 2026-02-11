@@ -25,9 +25,10 @@ import (
 
 // MetaKeyExecutedQueryString is the key where the executed query should get stored
 const (
-	MetaKeyExecutedQueryString = "executedQueryString"
-	headerCodeRabbitOrg        = "X-CodeRabbit-Org-Id"
-	CR_POSTGRES_URL            = "GF_CR_POSTGRES_URL"
+	MetaKeyExecutedQueryString   = "executedQueryString"
+	headerCodeRabbitOrg          = "X-CodeRabbit-Org-Id"
+	headerCodeRabbitSelfHostedId = "X-CodeRabbit-Self-Hosted-Instance-Id"
+	CR_POSTGRES_URL              = "GF_CR_POSTGRES_URL"
 )
 
 // SQLMacroEngine interpolates macros into sql. It takes in the Query to have access to query context and
@@ -219,6 +220,17 @@ func (e *DataSourceHandler) findCodeRabbitOrgId(ctx context.Context) string {
 	return codeRabbitOrgId
 }
 
+func (e *DataSourceHandler) findCodeRabbitSelfHostedId(ctx context.Context) string {
+	codeRabbitSelfHostedId := ""
+	reqCtx := contexthandler.FromContext(ctx)
+	if reqCtx != nil && reqCtx.Req != nil {
+		codeRabbitSelfHostedId = reqCtx.Req.Header.Get(headerCodeRabbitSelfHostedId)
+	} else {
+		e.log.Debug("Request context or request is nil, cannot extract CodeRabbit Self-Hosted Instance ID from headers")
+	}
+	return codeRabbitSelfHostedId
+}
+
 func (e *DataSourceHandler) executeQuery(query backend.DataQuery, wg *sync.WaitGroup, queryContext context.Context,
 	ch chan DBDataResponse, queryJson QueryJson) {
 	defer wg.Done()
@@ -270,11 +282,23 @@ func (e *DataSourceHandler) executeQuery(query backend.DataQuery, wg *sync.WaitG
 	}
 
 	codeRabbitOrgId := e.findCodeRabbitOrgId(queryContext)
+	codeRabbitSelfHostedId := e.findCodeRabbitSelfHostedId(queryContext)
 	queryDB := e.db
 	var rows *sql.Rows
-	if codeRabbitOrgId != "" {
-		escapedOrgId := strings.ReplaceAll(codeRabbitOrgId, "'", "''")
-		logger.Info(fmt.Sprintf("Executing query for Org ID: %s", escapedOrgId))
+	if codeRabbitOrgId != "" || codeRabbitSelfHostedId != "" {
+		sessionVarName := "app.current_org_id"
+		identifier := strings.ReplaceAll(codeRabbitOrgId, "'", "''")
+		escapedSelfHostedId := strings.ReplaceAll(codeRabbitSelfHostedId, "'", "''")
+
+		if identifier != "" && escapedSelfHostedId == "" {
+			logger.Info(fmt.Sprintf("Executing query for Org ID: %s", identifier))
+		}
+
+		if escapedSelfHostedId != "" {
+			logger.Info(fmt.Sprintf("Executing query for Self-Hosted Instance ID: %s", escapedSelfHostedId))
+			sessionVarName = "app.current_self_hosted_id"
+			identifier = escapedSelfHostedId
+		}
 
 		// Use a read-only transaction with SET LOCAL to scope org_id to this request only
 		// SET LOCAL automatically resets when the transaction ends, preventing cross-request pollution
@@ -287,19 +311,19 @@ func (e *DataSourceHandler) executeQuery(query backend.DataQuery, wg *sync.WaitG
 		defer tx.Rollback() //nolint:errcheck
 
 		// SET LOCAL only affects the current transaction, preventing concurrent request interference
-		if _, err := tx.ExecContext(queryContext, fmt.Sprintf("SET LOCAL app.current_org_id = '%s'", escapedOrgId)); err != nil {
-			errAppendDebug("failed to set app.current_org_id", e.TransformQueryError(logger, err), interpolatedQuery)
+		if _, err := tx.ExecContext(queryContext, fmt.Sprintf("SET LOCAL %s = '%s'", sessionVarName, identifier)); err != nil {
+			errAppendDebug(fmt.Sprintf("failed to set %s", sessionVarName), e.TransformQueryError(logger, err), interpolatedQuery)
 			return
 		}
 
 		rows, err = tx.QueryContext(queryContext, interpolatedQuery)
-		logger.Info("Query executed within read-only transaction for Org ID", "orgId", escapedOrgId)
+		logger.Info(fmt.Sprintf("Executed query for %s: %s", sessionVarName, identifier))
 		if err != nil {
 			errAppendDebug("db query error", e.TransformQueryError(logger, err), interpolatedQuery)
 			return
 		}
 	} else {
-		logger.Info("Executing query without Org ID set")
+		logger.Info("Executing query without Org ID/ Self-Hosted Instance ID set")
 		rows, err = queryDB.QueryContext(queryContext, interpolatedQuery)
 		if err != nil {
 			errAppendDebug("db query error", e.TransformQueryError(logger, err), interpolatedQuery)
