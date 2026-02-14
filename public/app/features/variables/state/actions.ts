@@ -357,13 +357,25 @@ export const processVariable = (
 
     let urlValue = queryParams[VARIABLE_PREFIX + variable.name];
 
-    // Fallback for org_id variable: use selected_org from session if not in URL
-    // Only use if sessionOrgId is a non-empty string (prevents invalid UUID errors)
-    if (variable.name === 'org_id') {
-      FnLoggerService.info('Using org_id from session as fallback for variable org_id');
-      const sessionOrgId = getOrgIdFromSession();
-      if (sessionOrgId && sessionOrgId.trim()) {
-        urlValue = sessionOrgId;
+    // Fallback for org_id/self_hosted_id variables: use selected_org from session
+    // Only when the value is not already present in the URL
+    if (urlValue === void 0) {
+      if (variable.name === 'org_id') {
+        const sessionOrgId = getOrgIdFromSession().org_id;
+        if (sessionOrgId) {
+          FnLoggerService.info('Using org_id from session as fallback for variable org_id', {
+            org_id: sessionOrgId,
+          });
+          urlValue = sessionOrgId;
+        }
+      } else if (variable.name === 'self_hosted_id') {
+        const sessionSelfHostedId = getOrgIdFromSession().self_hosted_id;
+        if (sessionSelfHostedId) {
+          FnLoggerService.info('Using self_hosted_id from session as fallback for variable self_hosted_id', {
+            self_hosted_id: sessionSelfHostedId,
+          });
+          urlValue = sessionSelfHostedId;
+        }
       }
     }
 
@@ -1133,20 +1145,23 @@ function isDataQueryType(query: unknown): query is DataQuery {
   return isObject(query) && 'refId' in query && typeof query.refId === 'string';
 }
 
-function getOrgIdFromSession(): string | undefined {
+function getOrgIdFromSession(): { org_id: string; self_hosted_id: string } {
   try {
     // Use contextSrv to get the current user's organization ID
     const storage = sessionStorage.getItem('selected_org');
-    const orgId = storage ? JSON.parse(storage).id : null;
-    if (orgId) {
-      const orgIdStr = orgId.toString();
-      // Validate that orgId is not empty (prevents invalid UUID errors in queries)
-      if (orgIdStr && orgIdStr.trim()) {
-        return orgIdStr;
-      }
-    }
+    const parsed = storage ? JSON.parse(storage) : null;
+    const orgIdRaw = parsed?.id;
+    const selfHostedIdRaw = parsed?.self_hosted_instance_id;
+
+    const orgId = orgIdRaw != null ? String(orgIdRaw).trim() : '';
+    const selfHostedId = selfHostedIdRaw != null ? String(selfHostedIdRaw).trim() : '';
+
+    return { org_id: orgId, self_hosted_id: selfHostedId };
   } catch (err) {
-    logWarning('Failed to get org_id from session context', { err: err instanceof Error ? err.message : String(err) });
+    FnLoggerService.error('Failed to get org_id from session context', {
+      err: err instanceof Error ? err.message : String(err),
+    });
+
+    return { org_id: '', self_hosted_id: '' };
   }
-  return undefined;
 }

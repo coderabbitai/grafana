@@ -252,24 +252,25 @@ export class TemplateSrv implements BaseTemplateSrv {
     return value;
   }
 
-  private getCodeRabbitOrgIdFromSession(): string | undefined {
+  private getCodeRabbitOrgIdFromSession(): { org_id: string; self_hosted_id: string } {
     try {
       // Use contextSrv to get the current user's organization ID
       const storage = sessionStorage.getItem('selected_org');
-      const orgId = storage ? JSON.parse(storage).id : null;
-      if (orgId) {
-        const orgIdStr = orgId.toString();
-        // Validate that orgId is not empty (prevents invalid UUID errors in queries)
-        if (orgIdStr && orgIdStr.trim()) {
-          return orgIdStr;
-        }
-      }
+      const parsed = storage ? JSON.parse(storage) : null;
+      const orgIdRaw = parsed?.id;
+      const selfHostedIdRaw = parsed?.self_hosted_instance_id;
+
+      const orgId = orgIdRaw != null ? String(orgIdRaw).trim() : '';
+      const selfHostedId = selfHostedIdRaw != null ? String(selfHostedIdRaw).trim() : '';
+
+      return { org_id: orgId, self_hosted_id: selfHostedId };
     } catch (err) {
       FnLoggerService.error('Failed to get org_id from session context', {
         err: err instanceof Error ? err.message : String(err),
       });
+
+      return { org_id: '', self_hosted_id: '' };
     }
-    return undefined;
   }
 
   replace(
@@ -333,17 +334,21 @@ export class TemplateSrv implements BaseTemplateSrv {
     const variable = this.getVariableAtIndex(variableName);
     const scopedVar = scopedVars?.[variableName];
 
+    const { org_id, self_hosted_id } = this.getCodeRabbitOrgIdFromSession();
+
     if (scopedVar) {
       const value = this.getVariableValue(scopedVar, fieldPath);
       const text = this.getVariableText(scopedVar, value);
 
-      if (variableName === 'org_id') {
-        // Ensure org_id is never empty when coming from scoped variables
-        const sessionOrgId = this.getCodeRabbitOrgIdFromSession();
-
-        if (this.isEmptyValue(value) && sessionOrgId && sessionOrgId.trim()) {
+      if (variableName === 'org_id' && org_id) {
+        if (this.isEmptyValue(value) && org_id) {
           FnLoggerService.info('Using org_id from session as fallback in scoped variable replacement');
-          return formatVariableValue(sessionOrgId, format, variable, sessionOrgId);
+          return formatVariableValue(org_id, format, variable, org_id);
+        }
+      } else if (variableName === 'self_hosted_id' && self_hosted_id) {
+        if (this.isEmptyValue(value) && self_hosted_id) {
+          FnLoggerService.info('Using self_hosted_id from session as fallback in scoped variable replacement');
+          return formatVariableValue(self_hosted_id, format, variable, self_hosted_id);
         }
       }
 
@@ -365,14 +370,17 @@ export class TemplateSrv implements BaseTemplateSrv {
       let value = variableAdapters.get(variable.type).getValueForUrl(variable);
       let text = isAdHoc(variable) ? variable.id : variable.current.text;
 
-      if (variableName === 'org_id') {
-        // Ensure org_id is never empty when used in query param or adhoc formats
-        const sessionOrgId = this.getCodeRabbitOrgIdFromSession();
-
-        if (this.isEmptyValue(value) && sessionOrgId && sessionOrgId.trim()) {
+      if (variableName === 'org_id' && org_id) {
+        if (this.isEmptyValue(value) && org_id) {
           FnLoggerService.info('Using org_id from session as fallback for query param/adhoc replacement');
-          value = sessionOrgId;
-          text = sessionOrgId;
+          value = org_id;
+          text = org_id;
+        }
+      } else if (variableName === 'self_hosted_id' && self_hosted_id) {
+        if (this.isEmptyValue(value) && self_hosted_id) {
+          FnLoggerService.info('Using self_hosted_id from session as fallback for query param/adhoc replacement');
+          value = self_hosted_id;
+          text = self_hosted_id;
         }
       }
 
@@ -387,14 +395,17 @@ export class TemplateSrv implements BaseTemplateSrv {
     let value = variable.current.value;
     let text = variable.current.text;
 
-    if (variableName === 'org_id') {
-      // Ensure org_id from standard variables is never left empty
-      const sessionOrgId = this.getCodeRabbitOrgIdFromSession();
-
-      if (this.isEmptyValue(value) && sessionOrgId && sessionOrgId.trim()) {
+    if (variableName === 'org_id' && org_id) {
+      if (this.isEmptyValue(value) && org_id) {
         FnLoggerService.info('Using org_id from session as fallback in variable replacement');
-        value = sessionOrgId;
-        text = sessionOrgId;
+        value = org_id;
+        text = org_id;
+      }
+    } else if (variableName === 'self_hosted_id' && self_hosted_id) {
+      if (this.isEmptyValue(value) && self_hosted_id) {
+        FnLoggerService.info('Using self_hosted_id from session as fallback in variable replacement');
+        value = self_hosted_id;
+        text = self_hosted_id;
       }
     }
 
