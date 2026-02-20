@@ -284,9 +284,18 @@ func (e *DataSourceHandler) executeQuery(query backend.DataQuery, wg *sync.WaitG
 	codeRabbitOrgId := e.findCodeRabbitOrgId(queryContext)
 	codeRabbitSelfHostedId := e.findCodeRabbitSelfHostedId(queryContext)
 	queryDB := e.db
-	var rows *sql.Rows
+
+	var (
+		rows      *sql.Rows
+		tx        *sql.Tx
+		committed bool
+	)
+
 	if codeRabbitOrgId != "" || codeRabbitSelfHostedId != "" {
-		sessionVarName := "app.current_org_id"
+		const orgSessionVar = "app.current_org_id"
+		const selfHostedSessionVar = "app.current_self_hosted_id"
+
+		sessionVarName := orgSessionVar
 		identifier := strings.ReplaceAll(codeRabbitOrgId, "'", "''")
 		escapedSelfHostedId := strings.ReplaceAll(codeRabbitSelfHostedId, "'", "''")
 
@@ -296,22 +305,22 @@ func (e *DataSourceHandler) executeQuery(query backend.DataQuery, wg *sync.WaitG
 
 		if escapedSelfHostedId != "" {
 			logger.Info(fmt.Sprintf("Executing query for Self-Hosted Instance ID: %s", escapedSelfHostedId))
-			sessionVarName = "app.current_self_hosted_id"
+			sessionVarName = selfHostedSessionVar
 			identifier = escapedSelfHostedId
 		}
 
-		// Use a read-only transaction with SET LOCAL to scope org_id to this request only
-		// SET LOCAL automatically resets when the transaction ends, preventing cross-request pollution
-		// Read-only transactions work even on read-only replicas
-		tx, err := queryDB.BeginTx(queryContext, &sql.TxOptions{ReadOnly: true})
+		// Use a read-only transaction with SET LOCAL to scope the identifier to this request only.
+		// SET LOCAL automatically resets when the transaction ends, preventing cross-request pollution.
+		// Read-only transactions work even on read-only replicas.
+		tx, err = queryDB.BeginTx(queryContext, &sql.TxOptions{ReadOnly: true})
 		if err != nil {
 			errAppendDebug("failed to begin read-only transaction", e.TransformQueryError(logger, err), interpolatedQuery)
 			return
 		}
-		defer tx.Rollback() //nolint:errcheck
 
-		// SET LOCAL only affects the current transaction, preventing concurrent request interference
-		if _, err := tx.ExecContext(queryContext, fmt.Sprintf("SET LOCAL %s = '%s'", sessionVarName, identifier)); err != nil {
+		setVarQuery := fmt.Sprintf("SET LOCAL %s = '%s'", sessionVarName, identifier)
+		logger.Info(fmt.Sprintf("Setting session variable for query: %s", setVarQuery))
+		if _, err := tx.ExecContext(queryContext, setVarQuery); err != nil {
 			errAppendDebug(fmt.Sprintf("failed to set %s", sessionVarName), e.TransformQueryError(logger, err), interpolatedQuery)
 			return
 		}
@@ -332,8 +341,13 @@ func (e *DataSourceHandler) executeQuery(query backend.DataQuery, wg *sync.WaitG
 	}
 
 	defer func() {
-		if err := rows.Close(); err != nil {
-			logger.Warn("Failed to close rows", "err", err)
+		if rows != nil {
+			if err := rows.Close(); err != nil {
+				logger.Warn("Failed to close rows", "err", err)
+			}
+		}
+		if tx != nil && !committed {
+			_ = tx.Rollback()
 		}
 	}()
 
@@ -349,6 +363,23 @@ func (e *DataSourceHandler) executeQuery(query backend.DataQuery, wg *sync.WaitG
 	if err != nil {
 		errAppendDebug("convert frame from rows error", err, interpolatedQuery)
 		return
+	}
+
+	// Close rows now that FrameFromRows consumed them
+	if rows != nil {
+		if err := rows.Close(); err != nil {
+			logger.Warn("Failed to close rows", "err", err)
+		}
+		rows = nil
+	}
+
+	// If we used a tx, commit now that we've read everything
+	if tx != nil {
+		if err := tx.Commit(); err != nil {
+			errAppendDebug("failed to commit read-only transaction", e.TransformQueryError(logger, err), interpolatedQuery)
+			return
+		}
+		committed = true
 	}
 
 	if frame.Meta == nil {
