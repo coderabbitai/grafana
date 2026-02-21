@@ -365,15 +365,8 @@ func (e *DataSourceHandler) executeQuery(query backend.DataQuery, wg *sync.WaitG
 		return
 	}
 
-	// Close rows now that FrameFromRows consumed them
-	if rows != nil {
-		if err := rows.Close(); err != nil {
-			logger.Warn("Failed to close rows", "err", err)
-		}
-		rows = nil
-	}
-
-	// If we used a tx, commit now that we've read everything
+	// If we used a tx, commit now that we've read everything. Any failure here
+	// will roll back in the deferred cleanup.
 	if tx != nil {
 		if err := tx.Commit(); err != nil {
 			errAppendDebug("failed to commit read-only transaction", e.TransformQueryError(logger, err), interpolatedQuery)
