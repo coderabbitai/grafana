@@ -618,7 +618,6 @@ export const TooltipPlugin2 = ({
 
         if (isMobile) {
           event = new MouseEvent('mousemove', {
-            view: window,
             bubbles: true,
             cancelable: true,
             clientX: event.clientX,
