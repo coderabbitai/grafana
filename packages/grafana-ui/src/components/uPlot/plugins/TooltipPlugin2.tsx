@@ -609,30 +609,27 @@ export const TooltipPlugin2 = ({
       size.width = width;
       size.height = height;
 
-      let event = plot!.cursor.event;
+      const event = plot!.cursor.event as MouseEvent | null | undefined;
 
-      // if not viaSync, re-dispatch real event
+      // If we have a real mousemove (desktop), re-dispatch it to keep behavior.
+      // On mobile (last event is click/mouseup), avoid constructing a synthetic MouseEvent,
+      // which can throw on some browsers when validating UIEventInit.view. Instead, just
+      // re-apply the current cursor position so uPlot runs its hooks.
       if (event != null) {
-        // we expect to re-dispatch mousemove, but on mobile we'll get mouseup or click
         const isMobile = event.type !== 'mousemove';
 
         if (isMobile) {
-          event = new MouseEvent('mousemove', {
-            bubbles: true,
-            cancelable: true,
-            clientX: event.clientX,
-            clientY: event.clientY,
-            screenX: event.screenX,
-            screenY: event.screenY,
-          });
+          plot!.setCursor(
+            {
+              left: plot!.cursor.left!,
+              top: plot!.cursor.top!,
+            },
+            true
+          );
+        } else {
+          const isStaleEvent = performance.now() - event.timeStamp > 16;
+          !isStaleEvent && plot!.over.dispatchEvent(event);
         }
-
-        // this works around the fact that uPlot does not unset cursor.event (for perf reasons)
-        // so if the last real mouse event was mouseleave and you manually trigger u.setCursor()
-        // it would end up re-dispatching mouseleave
-        const isStaleEvent = isMobile ? false : performance.now() - event.timeStamp > 16;
-
-        !isStaleEvent && plot!.over.dispatchEvent(event);
       } else {
         plot!.setCursor(
           {
