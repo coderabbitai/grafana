@@ -16,7 +16,7 @@ jobs:
       id-token: write
     env:
       PROD_IMAGE: gcr.io/coderabbitprod/grafana:latest
-      PROD2_IMAGE: gcr.io/coderabbitprod2/grafana:latest
+      PROD2_IMAGE: eu.gcr.io/coderabbitprod2/grafana:latest
       PROD_WIF_PROVIDER: "projects/616313617167/locations/global/workloadIdentityPools/github-actions-pool/providers/github-actions-provider"
       PROD_WIF_SERVICE_ACCOUNT: "gha-prod-sa@coderabbitprod.iam.gserviceaccount.com"
       PROD2_WIF_PROVIDER: "projects/121321054698/locations/global/workloadIdentityPools/github-actions-pool/providers/github-actions-provider"
@@ -84,7 +84,7 @@ jobs:
       - name: Login to GCR (prod2)
         uses: docker/login-action@v3
         with:
-          registry: gcr.io
+          registry: eu.gcr.io
           username: oauth2accesstoken
           password: ${{ steps.auth_prod2.outputs.access_token }}
 
