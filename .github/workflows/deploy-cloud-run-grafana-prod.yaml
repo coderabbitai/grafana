@@ -1,0 +1,110 @@
+name: Deploy Grafana Server Cloud Run on prod
+
+on:
+  push:
+    branches:
+      - coderabbit_micro_frontend
+    paths:
+      - "/**"
+  workflow_dispatch:
+
+jobs:
+  build_and_deploy:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    env:
+      PROD_IMAGE: gcr.io/coderabbitprod/grafana:latest
+      PROD2_IMAGE: eu.gcr.io/coderabbitprod2/grafana:latest
+      PROD_WIF_PROVIDER: "projects/616313617167/locations/global/workloadIdentityPools/github-actions-pool/providers/github-actions-provider"
+      PROD_WIF_SERVICE_ACCOUNT: "gha-prod-sa@coderabbitprod.iam.gserviceaccount.com"
+      PROD2_WIF_PROVIDER: "projects/121321054698/locations/global/workloadIdentityPools/github-actions-pool/providers/github-actions-provider"
+      PROD2_WIF_SERVICE_ACCOUNT: "gha-prod2-sa@coderabbitprod2.iam.gserviceaccount.com"
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+          persist-credentials: false
+      - name: Free disk space
+        run: |
+          sudo rm -rf /usr/share/dotnet /opt/ghc /usr/local/share/boost
+          sudo rm -rf "$AGENT_TOOLSDIRECTORY" || true
+          sudo docker system prune -af || true
+          df -h
+
+      - uses: docker/setup-buildx-action@v3
+
+      # - name: Cache Docker layers
+      #   uses: actions/cache@v4
+      #   with:
+      #     path: /tmp/.buildx-cache
+      #     key: ${{ runner.os }}-${{ github.workflow }}-${{ github.sha }}
+      #     restore-keys: ${{ runner.os }}-${{ github.workflow }}-
+
+      - name: Build image once
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: false
+          load: true
+          tags: grafana:latest
+          # cache-from: type=local,src=/tmp/.buildx-cache
+          # cache-to: type=local,dest=/tmp/.buildx-cache-new
+
+      - name: Authenticate to Google Cloud (prod) with OIDC
+        id: auth_prod
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ env.PROD_WIF_PROVIDER }}
+          service_account: ${{ env.PROD_WIF_SERVICE_ACCOUNT }}
+          token_format: access_token
+
+      - name: Login to GCR (prod)
+        uses: docker/login-action@v3
+        with:
+          registry: gcr.io
+          username: oauth2accesstoken
+          password: ${{ steps.auth_prod.outputs.access_token }}
+
+      - name: Push image to prod
+        run: |
+          docker tag grafana:latest "$PROD_IMAGE"
+          docker push "$PROD_IMAGE"
+
+      - name: Authenticate to Google Cloud (prod2) with OIDC
+        id: auth_prod2
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ env.PROD2_WIF_PROVIDER }}
+          service_account: ${{ env.PROD2_WIF_SERVICE_ACCOUNT }}
+          token_format: access_token
+
+      - name: Login to GCR (prod2)
+        uses: docker/login-action@v3
+        with:
+          registry: eu.gcr.io
+          username: oauth2accesstoken
+          password: ${{ steps.auth_prod2.outputs.access_token }}
+
+      - name: Push image to prod2
+        run: |
+          docker tag grafana:latest "$PROD2_IMAGE"
+          docker push "$PROD2_IMAGE"
+
+      # - name: Move Docker cache
+      #   run: |
+      #     rm -rf /tmp/.buildx-cache
+      #     mv /tmp/.buildx-cache-new /tmp/.buildx-cache
+
+      # - name: Deploy to Cloud Run
+      #   run: gcloud run deploy grafana-internal --image gcr.io/coderabbitprod/grafana:latest --region us-central1 --allow-unauthenticated --vpc-connector=coderabbit-prod-connector
+
+      - name: Trigger a repository dispatch
+        run: |
+          curl -X POST \
+          -H "Authorization: token ${{ secrets.PAT_TRIGGER_GRAFANA }}" \
+          -H "Accept: application/vnd.github.everest-preview+json" \
+          https://api.github.com/repos/coderabbitai/mono/dispatches \
+          -d '{"event_type": "trigger-grafana-micro-frontend"}' 

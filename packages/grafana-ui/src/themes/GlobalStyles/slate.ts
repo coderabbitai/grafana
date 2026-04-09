@@ -1,9 +1,9 @@
-import { css } from '@emotion/react';
+import { CSSObject } from '@emotion/react';
 
 import { GrafanaTheme2 } from '@grafana/data';
 
-export function getSlateStyles(theme: GrafanaTheme2) {
-  return css({
+export function getSlateStyles(theme: GrafanaTheme2): CSSObject {
+  return {
     '.slate-query-field': {
       fontSize: theme.typography.fontSize,
       fontFamily: theme.typography.fontFamilyMonospace,
@@ -141,5 +141,5 @@ export function getSlateStyles(theme: GrafanaTheme2) {
         opacity: 0.7,
       },
     },
-  });
+  };
 }

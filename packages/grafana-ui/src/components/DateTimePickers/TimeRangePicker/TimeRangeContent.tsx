@@ -58,7 +58,7 @@ export const TimeRangeContent = (props: Props) => {
     onApply: onApplyFromProps,
     isReversed,
     fiscalYearStartMonth,
-    onError,
+    // onError,
     weekStart,
   } = props;
   const [fromValue, toValue] = valueToState(value.raw.from, value.raw.to, timeZone);
@@ -112,28 +112,28 @@ export const TimeRangeContent = (props: Props) => {
     }
   };
 
-  const onCopy = () => {
-    const raw: RawTimeRange = { from: from.value, to: to.value };
-    navigator.clipboard.writeText(JSON.stringify(raw));
-  };
+  // const onCopy = () => {
+  //   const raw: RawTimeRange = { from: from.value, to: to.value };
+  //   navigator.clipboard.writeText(JSON.stringify(raw));
+  // };
 
-  const onPaste = async () => {
-    const raw = await navigator.clipboard.readText();
-    let range;
+  // const onPaste = async () => {
+  //   const raw = await navigator.clipboard.readText();
+  //   let range;
 
-    try {
-      range = JSON.parse(raw);
-    } catch (error) {
-      if (onError) {
-        onError(raw);
-      }
-      return;
-    }
+  //   try {
+  //     range = JSON.parse(raw);
+  //   } catch (error) {
+  //     if (onError) {
+  //       onError(raw);
+  //     }
+  //     return;
+  //   }
 
-    const [fromValue, toValue] = valueToState(range.from, range.to, timeZone);
-    setFrom(fromValue);
-    setTo(toValue);
-  };
+  //   const [fromValue, toValue] = valueToState(range.from, range.to, timeZone);
+  //   setFrom(fromValue);
+  //   setTo(toValue);
+  // };
 
   const fiscalYear = rangeUtil.convertRawToRange({ from: 'now/fy', to: 'now/fy' }, timeZone, fiscalYearStartMonth);
   const fiscalYearMessage = t('time-picker.range-content.fiscal-year', 'Fiscal year');
@@ -195,8 +195,9 @@ export const TimeRangeContent = (props: Props) => {
         </Field>
         {fyTooltip}
       </div>
+
       <div className={style.buttonsContainer}>
-        <Button
+        {/* <Button
           data-testid={selectors.components.TimePicker.copyTimeRange}
           icon="copy"
           variant="secondary"
@@ -211,8 +212,17 @@ export const TimeRangeContent = (props: Props) => {
           tooltip={t('time-picker.copy-paste.tooltip-paste', 'Paste time range')}
           type="button"
           onClick={onPaste}
-        />
-        <Button data-testid={selectors.components.TimePicker.applyTimeRange} type="button" onClick={onApply}>
+        /> */}
+        <Button
+          data-testid={selectors.components.TimePicker.applyTimeRange}
+          type="button"
+          onClick={onApply}
+          style={{
+            width: 205,
+            textAlign: 'center',
+            paddingLeft: 45,
+          }}
+        >
           <Trans i18nKey="time-picker.range-content.apply-button">Apply time range</Trans>
         </Button>
       </div>

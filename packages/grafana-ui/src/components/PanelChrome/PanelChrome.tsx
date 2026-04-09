@@ -23,7 +23,7 @@ import { TitleItem } from './TitleItem';
 /**
  * @internal
  */
-export type PanelChromeProps = (AutoSize | FixedDimensions) & (Collapsible | HoverHeader);
+export type PanelChromeProps = (AutoSize | FixedDimensions) & (Collapsible | HoverHeader) & { isFNPanel?: boolean };
 
 interface BaseProps {
   padding?: PanelPadding;
@@ -134,9 +134,10 @@ export function PanelChrome({
   onFocus,
   onMouseMove,
   onMouseEnter,
+  isFNPanel,
 }: PanelChromeProps) {
   const theme = useTheme2();
-  const styles = useStyles2(getStyles);
+  const styles = useStyles2(getStyles(isFNPanel));
   const panelContentId = useId();
   const panelTitleId = useId().replace(/:/g, '_');
 
@@ -303,7 +304,7 @@ export function PanelChrome({
 
           {headerContent}
 
-          {menu && (
+          {menu && !isFNPanel && (
             <PanelMenu
               menu={menu}
               title={typeof title === 'string' ? title : undefined}
@@ -376,7 +377,7 @@ const getContentStyle = (
   return { contentStyle, innerWidth, innerHeight };
 };
 
-const getStyles = (theme: GrafanaTheme2) => {
+const getStyles = (isFNPanel?: boolean) => (theme: GrafanaTheme2) => {
   const { background, borderColor, padding } = theme.components.panel;
 
   return {
@@ -385,7 +386,7 @@ const getStyles = (theme: GrafanaTheme2) => {
       backgroundColor: background,
       border: `1px solid ${borderColor}`,
       position: 'relative',
-      borderRadius: theme.shape.radius.default,
+      borderRadius: theme.shape.borderRadius(),
       height: '100%',
       display: 'flex',
       flexDirection: 'column',
@@ -462,6 +463,10 @@ const getStyles = (theme: GrafanaTheme2) => {
       display: 'flex',
       padding: theme.spacing(0, padding),
       minWidth: 0,
+      ...(isFNPanel && {
+        width: '100%',
+        textTransform: 'uppercase',
+      }),
       '& > h2': {
         minWidth: 0,
       },

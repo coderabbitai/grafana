@@ -1,5 +1,6 @@
 import { debounce } from 'lodash';
 import { PureComponent } from 'react';
+import { connect } from 'react-redux';
 import { Subscription } from 'rxjs';
 
 import {
@@ -41,6 +42,7 @@ import { applyFilterFromTable } from 'app/features/variables/adhoc/actions';
 import { onUpdatePanelSnapshotData } from 'app/plugins/datasource/grafana/utils';
 import { changeSeriesColorConfigFactory } from 'app/plugins/panel/timeseries/overrides/colorSeriesConfigFactory';
 import { dispatch } from 'app/store/store';
+import { StoreState } from 'app/types';
 import { RenderEvent } from 'app/types/events';
 
 import { deleteAnnotation, saveAnnotation, updateAnnotation } from '../../annotations/api';
@@ -71,6 +73,7 @@ export interface Props {
   onInstanceStateChange: (value: unknown) => void;
   timezone?: string;
   hideMenu?: boolean;
+  isFnDashboard?: boolean;
 }
 
 export interface State {
@@ -82,7 +85,7 @@ export interface State {
   liveTime?: TimeRange;
 }
 
-export class PanelStateWrapper extends PureComponent<Props, State> {
+export class PanelStateWrapperDisConnected extends PureComponent<Props, State> {
   private readonly timeSrv: TimeSrv = getTimeSrv();
   private subs = new Subscription();
   private eventFilter: EventFilterOptions = { onlyLocal: true };
@@ -555,7 +558,7 @@ export class PanelStateWrapper extends PureComponent<Props, State> {
   debouncedSetPanelAttention() {}
 
   render() {
-    const { dashboard, panel, width, height, plugin } = this.props;
+    const { dashboard, panel, width, height, plugin, isFnDashboard } = this.props;
     const { errorMessage, data } = this.state;
     const { transparent } = panel;
     const panelChromeProps = getPanelChromeProps({ ...this.props, data });
@@ -590,6 +593,7 @@ export class PanelStateWrapper extends PureComponent<Props, State> {
         onFocus={() => this.setPanelAttention()}
         onMouseEnter={() => this.setPanelAttention()}
         onMouseMove={() => this.debouncedSetPanelAttention()}
+        isFNPanel={isFnDashboard}
       >
         {(innerWidth, innerHeight) => (
           <>
@@ -611,3 +615,11 @@ export class PanelStateWrapper extends PureComponent<Props, State> {
     );
   }
 }
+
+function mapStateToProps() {
+  return (state: StoreState) => ({
+    isFnDashboard: state.fnGlobalState.FNDashboard,
+  });
+}
+
+export const PanelStateWrapper = connect(mapStateToProps)(PanelStateWrapperDisConnected);

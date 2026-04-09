@@ -147,6 +147,10 @@ export interface BootData {
     light: string;
     dark: string;
   };
+  themePaths: {
+    dark: string;
+    light: string;
+  };
 }
 
 /**

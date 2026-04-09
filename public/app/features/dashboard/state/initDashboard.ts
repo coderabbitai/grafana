@@ -37,12 +37,13 @@ export interface InitDashboardArgs {
   urlUid?: string;
   urlSlug?: string;
   urlType?: string;
-  urlFolderUid?: string;
+  urlFolderId?: string;
+  version?: number;
   panelType?: string;
   accessToken?: string;
   routeName?: string;
   fixUrl: boolean;
-  keybindingSrv: KeybindingSrv;
+  keybindingSrv?: KeybindingSrv;
 }
 
 async function fetchDashboard(
@@ -84,10 +85,15 @@ async function fetchDashboard(
         return dashDTO;
       }
       case DashboardRoutes.Public: {
-        return await dashboardLoaderSrv.loadDashboard('public', args.urlSlug, args.accessToken);
+        return await dashboardLoaderSrv.loadDashboard('public', args.urlSlug, args.accessToken, args.version);
       }
       case DashboardRoutes.Normal: {
-        const dashDTO: DashboardDTO = await dashboardLoaderSrv.loadDashboard(args.urlType, args.urlSlug, args.urlUid);
+        const dashDTO: DashboardDTO = await dashboardLoaderSrv.loadDashboard(
+          args.urlType,
+          args.urlSlug,
+          args.urlUid,
+          args.version
+        );
 
         // only the folder API has information about ancestors
         // get parent folder (if it exists) and put it in the store
@@ -120,14 +126,14 @@ async function fetchDashboard(
         // only the folder API has information about ancestors
         // get parent folder (if it exists) and put it in the store
         // this will be used to populate the full breadcrumb trail
-        if (args.urlFolderUid) {
-          await dispatch(getFolderByUid(args.urlFolderUid));
+        if (args.urlFolderId) {
+          await dispatch(getFolderByUid(args.urlFolderId));
         }
-        return await buildNewDashboardSaveModel(args.urlFolderUid);
+        return await buildNewDashboardSaveModel(args.urlFolderId);
       }
       case DashboardRoutes.Path: {
         const path = args.urlSlug ?? '';
-        return await dashboardLoaderSrv.loadDashboard(DashboardRoutes.Path, path, path);
+        return await dashboardLoaderSrv.loadDashboard(DashboardRoutes.Path, path, path, args.version);
       }
       default:
         throw { message: 'Unknown route ' + args.routeName };
@@ -215,7 +221,7 @@ export function initDashboard(args: InitDashboardArgs): ThunkResult<void> {
     }
 
     // init services
-    const timeSrv: TimeSrv = getTimeSrv();
+    const timeSrv: TimeSrv = getTimeSrv(); // FN: We might need to return this to main app so that we can render it elsewhere
     const dashboardSrv: DashboardSrv = getDashboardSrv();
 
     // legacy srv state, we need this value updated for built-in annotations
@@ -252,9 +258,7 @@ export function initDashboard(args: InitDashboardArgs): ThunkResult<void> {
         dashboard.autoFitPanels(window.innerHeight, queryParams.kiosk);
       }
 
-      if (!config.publicDashboardAccessToken) {
-        args.keybindingSrv.setupDashboardBindings(dashboard);
-      }
+      args.keybindingSrv?.setupDashboardBindings(dashboard);
     } catch (err) {
       if (err instanceof Error) {
         dispatch(notifyApp(createErrorNotification('Dashboard init failed', err)));

@@ -1,14 +1,14 @@
-import { css } from '@emotion/react';
+import { CSSObject } from '@emotion/react';
 
 import { GrafanaTheme2, ThemeTypographyVariant } from '@grafana/data';
 
 import { getFocusStyles } from '../mixins';
 
-export function getElementStyles(theme: GrafanaTheme2) {
+export function getElementStyles(theme: GrafanaTheme2): CSSObject {
   // TODO can we get the feature toggle in a better way?
   const isBodyScrolling = window.grafanaBootData?.settings.featureToggles.bodyScrolling;
 
-  return css({
+  return {
     html: {
       MsOverflowStyle: 'scrollbar',
       WebkitTapHighlightColor: 'rgba(0, 0, 0, 0)',
@@ -344,7 +344,7 @@ export function getElementStyles(theme: GrafanaTheme2) {
       paddingTop: theme.spacing(1),
       margin: theme.spacing(0, 2),
     },
-  });
+  };
 }
 
 export function getVariantStyles(variant: ThemeTypographyVariant) {

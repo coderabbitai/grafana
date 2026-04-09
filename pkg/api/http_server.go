@@ -217,6 +217,7 @@ type HTTPServer struct {
 	anonService          anonymous.Service
 	userVerifier         user.Verifier
 	tlsCerts             TLSCerts
+	readyChan            chan struct{}
 }
 
 type TLSCerts struct {
@@ -394,6 +395,7 @@ func (hs *HTTPServer) AddNamedMiddleware(middleware routing.RegisterNamedMiddlew
 
 func (hs *HTTPServer) Run(ctx context.Context) error {
 	hs.context = ctx
+	hs.readyChan = make(chan struct{})
 
 	hs.applyRoutes()
 
@@ -442,6 +444,31 @@ func (hs *HTTPServer) Run(ctx context.Context) error {
 		}
 	}()
 
+	// Signal readiness once server is accepting connections
+	// This fixes startup probe failures by ensuring we only signal readiness
+	// after the listener is truly accepting connections
+	readyOnce := sync.Once{}
+	readyErr := make(chan error, 1)
+	go func() {
+		// Try to connect to the server to verify it's accepting connections
+		ticker := time.NewTicker(10 * time.Millisecond)
+		defer ticker.Stop()
+		for i := 0; i < 500; i++ { // ~5 second timeout
+			conn, err := net.Dial("tcp", hs.httpSrv.Addr)
+			if err == nil {
+				conn.Close()
+				readyOnce.Do(func() {
+					close(hs.readyChan)
+					hs.log.Debug("HTTP Server ready to accept connections", "address", hs.httpSrv.Addr)
+				})
+				return
+			}
+			<-ticker.C
+		}
+		readyErr <- fmt.Errorf("server failed to become ready within timeout")
+	}()
+
+	var serveErr error
 	switch hs.Cfg.Protocol {
 	case setting.HTTPScheme, setting.SocketScheme:
 		if err := hs.httpSrv.Serve(listener); err != nil {
@@ -449,7 +476,7 @@ func (hs *HTTPServer) Run(ctx context.Context) error {
 				hs.log.Debug("server was shutdown gracefully")
 				return nil
 			}
-			return err
+			serveErr = err
 		}
 	case setting.HTTP2Scheme, setting.HTTPSScheme:
 		if err := hs.httpSrv.ServeTLS(listener, "", ""); err != nil {
@@ -457,15 +484,25 @@ func (hs *HTTPServer) Run(ctx context.Context) error {
 				hs.log.Debug("server was shutdown gracefully")
 				return nil
 			}
-			return err
+			serveErr = err
 		}
 	default:
 		panic(fmt.Sprintf("Unhandled protocol %q", hs.Cfg.Protocol))
 	}
 
+	if serveErr != nil {
+		return serveErr
+	}
+
 	wg.Wait()
 
 	return nil
+}
+
+// IsReady returns a channel that closes when the server is ready to accept connections.
+// This is useful for startup probes and readiness checks.
+func (hs *HTTPServer) IsReady() <-chan struct{} {
+	return hs.readyChan
 }
 
 func (hs *HTTPServer) getListener() (net.Listener, error) {
@@ -602,7 +639,7 @@ func (hs *HTTPServer) addMiddlewaresAndStaticRoutes() {
 	m.UseMiddleware(hs.Csrf.Middleware())
 
 	hs.mapStatic(m, hs.Cfg.StaticRootPath, "build", "public/build")
-	hs.mapStatic(m, hs.Cfg.StaticRootPath, "", "public", "/public/views/swagger.html")
+	hs.mapStatic(m, hs.Cfg.StaticRootPath, "", "public", "/public/views/swagger-template.html")
 	hs.mapStatic(m, hs.Cfg.StaticRootPath, "robots.txt", "robots.txt")
 
 	if hs.Cfg.ImageUploadProvider == "local" {

@@ -274,7 +274,7 @@ describeInitScenario('Initializing new dashboard', (ctx) => {
     expect(getTimeSrv().init).toBeCalled();
     expect(getDashboardSrv().setCurrent).toBeCalled();
     expect(getDashboardQueryRunner().run).toBeCalled();
-    expect(ctx.args.keybindingSrv.setupDashboardBindings).toBeCalled();
+    expect(ctx.args.keybindingSrv?.setupDashboardBindings).toBeCalled();
   });
 });
 
@@ -409,7 +409,7 @@ describeInitScenario('Initializing existing dashboard', (ctx) => {
     expect(getTimeSrv().init).toBeCalled();
     expect(getDashboardSrv().setCurrent).toBeCalled();
     expect(getDashboardQueryRunner().run).toBeCalled();
-    expect(ctx.args.keybindingSrv.setupDashboardBindings).toBeCalled();
+    expect(ctx.args.keybindingSrv?.setupDashboardBindings).toBeCalled();
   });
 
   it('Should initialize redux variables if newVariables is enabled', () => {

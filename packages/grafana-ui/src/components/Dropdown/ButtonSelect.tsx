@@ -128,6 +128,7 @@ const getStyles = (theme: GrafanaTheme2) => {
     }),
     menuWrapper: css({
       zIndex: theme.zIndex.dropdown,
+      marginLeft: -25,
     }),
   };
 };

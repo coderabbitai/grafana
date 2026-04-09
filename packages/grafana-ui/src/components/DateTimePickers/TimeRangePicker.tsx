@@ -2,7 +2,7 @@ import { css, cx } from '@emotion/css';
 import { useDialog } from '@react-aria/dialog';
 import { FocusScope } from '@react-aria/focus';
 import { useOverlay } from '@react-aria/overlays';
-import { memo, createRef, useState, useEffect } from 'react';
+import { memo, createRef, useState, ReactNode, useEffect } from 'react';
 
 import {
   rangeUtil,
@@ -48,6 +48,7 @@ export interface TimeRangePickerProps {
   onToolbarTimePickerClick?: () => void;
   /** Which day of the week the calendar should start on. Possible values: "saturday", "sunday" or "monday" */
   weekStart?: WeekStart;
+  fnText?: ReactNode;
 }
 
 export interface State {
@@ -75,6 +76,7 @@ export function TimeRangePicker(props: TimeRangePickerProps) {
     isOnCanvas,
     onToolbarTimePickerClick,
     weekStart,
+    fnText = '',
   } = props;
 
   const onChange = (timeRange: TimeRange) => {
@@ -135,9 +137,8 @@ export function TimeRangePicker(props: TimeRangePickerProps) {
       )}
 
       <Tooltip
-        ref={buttonRef}
         content={<TimePickerTooltip timeRange={value} timeZone={timeZone} />}
-        placement="bottom"
+        placement="bottom-start"
         interactive
       >
         <ToolbarButton
@@ -150,6 +151,7 @@ export function TimeRangePicker(props: TimeRangePickerProps) {
           icon={timePickerIcon}
           isOpen={isOpen}
           variant={variant}
+          fnText={fnText}
         >
           <TimePickerButtonLabel {...props} />
         </ToolbarButton>
@@ -191,7 +193,7 @@ export function TimeRangePicker(props: TimeRangePickerProps) {
         />
       )}
 
-      <Tooltip content={ZoomOutTooltip} placement="bottom">
+      <Tooltip content={ZoomOutTooltip} placement="bottom-start">
         <ToolbarButton
           aria-label={t('time-picker.range-picker.zoom-out-button', 'Zoom out time range')}
           onClick={onZoom}
@@ -206,11 +208,9 @@ export function TimeRangePicker(props: TimeRangePickerProps) {
 TimeRangePicker.displayName = 'TimeRangePicker';
 
 const ZoomOutTooltip = () => (
-  <>
-    <Trans i18nKey="time-picker.range-picker.zoom-out-tooltip">
-      Time range zoom out <br /> CTRL+Z
-    </Trans>
-  </>
+  <Trans i18nKey="time-picker.range-picker.zoom-out-tooltip">
+    Time range zoom out <br /> CTRL+Z
+  </Trans>
 );
 
 export const TimePickerTooltip = ({ timeRange, timeZone }: { timeRange: TimeRange; timeZone?: TimeZone }) => {

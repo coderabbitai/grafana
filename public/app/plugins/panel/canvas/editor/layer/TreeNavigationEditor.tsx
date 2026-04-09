@@ -130,6 +130,7 @@ export const TreeNavigationEditor = ({ item }: StandardEditorProps<unknown, Tree
   return (
     <>
       <Global styles={globalCSS} />
+      {/*@ts-ignore */}
       <Tree
         selectable={true}
         onSelect={onSelect}

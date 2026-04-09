@@ -116,7 +116,14 @@ export const CustomScrollbar = ({
         passedProps.style['WebkitOverflowScrolling'] = 'auto';
       }
 
-      return <div {...passedProps} className="scrollbar-view" id={divId} />;
+      return (
+        <div
+          {...passedProps}
+          style={{ ...passedProps.style, overflow: 'auto' }}
+          className="scrollbar-view"
+          id={divId}
+        />
+      );
     },
     [divId]
   );

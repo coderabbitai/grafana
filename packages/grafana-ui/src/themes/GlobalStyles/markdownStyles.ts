@@ -1,9 +1,9 @@
-import { css } from '@emotion/react';
+import { CSSObject } from '@emotion/react';
 
 import { GrafanaTheme2 } from '@grafana/data';
 
-export function getMarkdownStyles(theme: GrafanaTheme2) {
-  return css({
+export function getMarkdownStyles(theme: GrafanaTheme2): CSSObject {
+  return {
     '.markdown-html': {
       img: {
         maxWidth: '100%',
@@ -48,5 +48,5 @@ export function getMarkdownStyles(theme: GrafanaTheme2) {
         marginBottom: 0,
       },
     },
-  });
+  };
 }

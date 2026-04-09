@@ -1,9 +1,9 @@
-import { css } from '@emotion/react';
+import { CSSObject } from '@emotion/react';
 
 import { GrafanaTheme2 } from '@grafana/data';
 
-export function getAlertingStyles(theme: GrafanaTheme2) {
-  return css({
+export function getAlertingStyles(theme: GrafanaTheme2): CSSObject {
+  return {
     '.alert-state-paused, .alert-state-pending': {
       color: theme.colors.text.secondary,
       fontWeight: theme.typography.fontWeightMedium,
@@ -23,5 +23,5 @@ export function getAlertingStyles(theme: GrafanaTheme2) {
       color: theme.colors.error.text,
       fontWeight: theme.typography.fontWeightMedium,
     },
-  });
+  };
 }

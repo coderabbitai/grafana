@@ -36,6 +36,7 @@ export const withTheme = <P extends Themeable, S extends {} = {}>(Component: Rea
   };
 
   WithTheme.displayName = `WithTheme(${Component.displayName})`;
+  // @ts-ignore
   hoistNonReactStatics(WithTheme, Component);
   type Hoisted = typeof WithTheme & S;
   return WithTheme as Hoisted;
@@ -56,6 +57,7 @@ export const withTheme2 = <P extends Themeable2, S extends {} = {}>(Component: R
   };
 
   WithTheme.displayName = `WithTheme(${Component.displayName})`;
+  // @ts-ignore
   hoistNonReactStatics(WithTheme, Component);
   type Hoisted = typeof WithTheme & S;
   return WithTheme as Hoisted;

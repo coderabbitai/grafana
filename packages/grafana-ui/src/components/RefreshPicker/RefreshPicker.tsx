@@ -5,7 +5,6 @@ import { SelectableValue, parseDuration } from '@grafana/data';
 import { selectors } from '@grafana/e2e-selectors';
 
 import { t } from '../../utils/i18n';
-import { ButtonGroup } from '../Button';
 import { ButtonSelect } from '../Dropdown/ButtonSelect';
 import { ToolbarButtonVariant, ToolbarButton } from '../ToolbarButton';
 
@@ -102,7 +101,7 @@ export class RefreshPicker extends PureComponent<Props> {
     const tooltipAutoRefresh = selectedValue.value === '' ? tooltipAutoRefreshOff : tooltipIntervalSelected;
 
     return (
-      <ButtonGroup className="refresh-picker">
+      <div style={{ display: 'flex', alignItems: 'center', gap: 4 }} className="refresh-picker">
         <ToolbarButton
           aria-label={text}
           tooltip={tooltip}
@@ -125,7 +124,7 @@ export class RefreshPicker extends PureComponent<Props> {
             tooltip={tooltipAutoRefresh}
           />
         )}
-      </ButtonGroup>
+      </div>
     );
   }
 }

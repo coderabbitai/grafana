@@ -58,6 +58,7 @@ export const Table = memo((props: Props) => {
     enableSharedCrosshair = false,
     initialRowIndex = undefined,
     fieldConfig,
+    onClickRow,
   } = props;
 
   const listRef = useRef<VariableSizeList>(null);
@@ -67,7 +68,6 @@ export const Table = memo((props: Props) => {
   const tableStyles = useTableStyles(theme, cellHeight);
   const headerHeight = noHeader ? 0 : tableStyles.rowHeight;
   const [footerItems, setFooterItems] = useState<FooterItem[] | undefined>(footerValues);
-  const noValuesDisplayText = fieldConfig?.defaults?.noValue ?? NO_DATA_TEXT;
 
   const footerHeight = useMemo(() => {
     const EXTENDED_ROW_HEIGHT = FOOTER_ROW_HEIGHT;
@@ -335,11 +335,12 @@ export const Table = memo((props: Props) => {
                 enableSharedCrosshair={enableSharedCrosshair}
                 initialRowIndex={initialRowIndex}
                 longestField={longestField}
+                onClickRow={onClickRow}
               />
             </div>
           ) : (
             <div style={{ height: height - headerHeight, width }} className={tableStyles.noData}>
-              {noValuesDisplayText}
+              {NO_DATA_TEXT}
             </div>
           )}
           {footerItems && (

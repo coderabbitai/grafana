@@ -259,6 +259,7 @@ func (s *ServiceImpl) handleQuerySingleDatasource(ctx context.Context, user iden
 	if err != nil {
 		return nil, err
 	}
+
 	req := &backend.QueryDataRequest{
 		PluginContext: pCtx,
 		Headers:       map[string]string{},

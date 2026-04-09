@@ -1,23 +1,21 @@
-import { css } from '@emotion/react';
+import { CSSObject } from '@emotion/css';
 
 import { GrafanaTheme2 } from '@grafana/data';
 
-export function getFormElementStyles(theme: GrafanaTheme2) {
-  return css({
+export function getFormElementStyles(theme: GrafanaTheme2): CSSObject {
+  return {
     'input, button, select, textarea': {
       fontFamily: theme.typography.body.fontFamily,
       fontSize: theme.typography.body.fontSize,
       fontWeight: theme.typography.body.fontWeight,
       lineHeight: theme.typography.body.lineHeight,
     },
-
     'input, select': {
       backgroundColor: theme.components.input.background,
       color: theme.components.input.text,
       border: 'none',
       boxShadow: 'none',
     },
-
     textarea: {
       height: 'auto',
     },
@@ -367,5 +365,5 @@ export function getFormElementStyles(theme: GrafanaTheme2) {
       marginBottom: theme.spacing(3),
       borderTop: `3px solid ${theme.colors.success.main}`,
     },
-  });
+  };
 }

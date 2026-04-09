@@ -90,146 +90,149 @@ export type ThemeColorsInput = DeepPartial<ThemeColorsBase<ThemeRichColor>>;
 class DarkColors implements ThemeColorsBase<Partial<ThemeRichColor>> {
   mode: ThemeColorsMode = 'dark';
 
-  // Used to get more white opacity colors
-  whiteBase = '204, 204, 220';
+  whiteBase = '255, 255, 255';
 
-  border = {
-    weak: `rgba(${this.whiteBase}, 0.12)`,
-    medium: `rgba(${this.whiteBase}, 0.20)`,
-    strong: `rgba(${this.whiteBase}, 0.30)`,
+  primary = {
+    main: '#F04006',
+    border: '#46404F',
+    text: '#F5F4F6',
   };
 
   text = {
-    primary: `rgb(${this.whiteBase})`,
-    secondary: `rgba(${this.whiteBase}, 0.65)`,
-    disabled: `rgba(${this.whiteBase}, 0.6)`,
-    link: palette.blueDarkText,
+    primary: '#F5F4F6',
+    secondary: '#D5D3DD',
+    disabled: '#D5D3DA',
+    link: '#F04006',
     maxContrast: palette.white,
   };
 
-  primary = {
-    main: palette.blueDarkMain,
-    text: palette.blueDarkText,
-    border: palette.blueDarkText,
+  border = {
+    weak: `rgba(${this.whiteBase}, 0.12)`,
+    medium: `rgba(${this.whiteBase}, 0.30)`,
+    strong: `rgba(${this.whiteBase}, 0.40)`,
   };
 
   secondary = {
-    main: `rgba(${this.whiteBase}, 0.10)`,
-    shade: `rgba(${this.whiteBase}, 0.14)`,
-    transparent: `rgba(${this.whiteBase}, 0.08)`,
+    main: '#F04006',
+    shade: '#9E240E',
+    contrastText: `rgba(${this.whiteBase},  1)`,
     text: this.text.primary,
-    contrastText: `rgb(${this.whiteBase})`,
-    border: `rgba(${this.whiteBase}, 0.08)`,
+    border: this.border.weak,
   };
 
-  info = this.primary;
+  info = {
+    main: '#51A2FF',
+    text: palette.blueDarkText,
+  };
 
   error = {
-    main: palette.redDarkMain,
+    main: '#FF6467',
     text: palette.redDarkText,
+    border: palette.redDarkText,
   };
 
   success = {
-    main: palette.greenDarkMain,
+    main: '#05DF72',
     text: palette.greenDarkText,
   };
 
   warning = {
-    main: palette.orangeDarkMain,
+    main: '#FDC700',
     text: palette.orangeDarkText,
   };
 
   background = {
-    canvas: palette.gray05,
-    primary: palette.gray10,
-    secondary: palette.gray15,
+    primary: '#141116',
+    canvas: '#141116',
+    secondary: '#211E25',
   };
 
   action = {
-    hover: `rgba(${this.whiteBase}, 0.16)`,
-    selected: `rgba(${this.whiteBase}, 0.12)`,
+    hover: `rgba(${this.whiteBase}, 0.12)`,
+    selected: '#F04006',
     selectedBorder: palette.orangeDarkMain,
-    focus: `rgba(${this.whiteBase}, 0.16)`,
     hoverOpacity: 0.08,
-    disabledText: this.text.disabled,
+    focus: `rgba(${this.whiteBase}, 0.12)`,
     disabledBackground: `rgba(${this.whiteBase}, 0.04)`,
+    disabledText: this.text.disabled,
     disabledOpacity: 0.38,
   };
 
   gradients = {
-    brandHorizontal: 'linear-gradient(270deg, #F55F3E 0%, #FF8833 100%)',
-    brandVertical: 'linear-gradient(0.01deg, #F55F3E 0.01%, #FF8833 99.99%)',
+    brandHorizontal: 'linear-gradient(90deg, #FF570A 0%, #F04006 100%)',
+    brandVertical: 'linear-gradient(0.01deg, #FF570A -31.2%, #F04006 113.07%)',
   };
 
   contrastThreshold = 3;
+
   hoverFactor = 0.03;
-  tonalOffset = 0.15;
+
+  tonalOffset = 0.2;
 }
 
 class LightColors implements ThemeColorsBase<Partial<ThemeRichColor>> {
   mode: ThemeColorsMode = 'light';
 
-  blackBase = '36, 41, 46';
+  blackBase = '45, 51, 62';
 
   primary = {
-    main: palette.blueLightMain,
-    border: palette.blueLightText,
-    text: palette.blueLightText,
+    main: '#F04006',
+    border: '#D5D3DD',
+    text: '#141116',
   };
 
   text = {
-    primary: `rgba(${this.blackBase}, 1)`,
-    secondary: `rgba(${this.blackBase}, 0.75)`,
-    disabled: `rgba(${this.blackBase}, 0.64)`,
-    link: this.primary.text,
+    primary: '#141116',
+    secondary: '#3A3441',
+    disabled: '#AFACB3',
+    link: '#F04006',
     maxContrast: palette.black,
   };
 
   border = {
     weak: `rgba(${this.blackBase}, 0.12)`,
     medium: `rgba(${this.blackBase}, 0.30)`,
-    strong: `rgba(${this.blackBase}, 0.40)`,
+    strong: `rgba(${this.blackBase}, .4)`,
   };
 
   secondary = {
-    main: `rgba(${this.blackBase}, 0.08)`,
-    shade: `rgba(${this.blackBase}, 0.15)`,
-    transparent: `rgba(${this.blackBase}, 0.08)`,
+    main: '#F04006',
+    shade: '#FFCFA8',
     contrastText: `rgba(${this.blackBase},  1)`,
     text: this.text.primary,
     border: this.border.weak,
   };
 
   info = {
-    main: palette.blueLightMain,
+    main: '#51A2FF',
     text: palette.blueLightText,
   };
 
   error = {
-    main: palette.redLightMain,
+    main: '#FF6467',
     text: palette.redLightText,
     border: palette.redLightText,
   };
 
   success = {
-    main: palette.greenLightMain,
+    main: '#05DF72',
     text: palette.greenLightText,
   };
 
   warning = {
-    main: palette.orangeLightMain,
+    main: '#FDC700',
     text: palette.orangeLightText,
   };
 
   background = {
-    canvas: palette.gray90,
-    primary: palette.white,
-    secondary: palette.gray100,
+    primary: '#FFFFFF',
+    canvas: '#FFFFFF',
+    secondary: '#F5F4F6',
   };
 
   action = {
     hover: `rgba(${this.blackBase}, 0.12)`,
-    selected: `rgba(${this.blackBase}, 0.08)`,
+    selected: '#F04006',
     selectedBorder: palette.orangeLightMain,
     hoverOpacity: 0.08,
     focus: `rgba(${this.blackBase}, 0.12)`,
@@ -239,19 +242,23 @@ class LightColors implements ThemeColorsBase<Partial<ThemeRichColor>> {
   };
 
   gradients = {
-    brandHorizontal: 'linear-gradient(90deg, #FF8833 0%, #F53E4C 100%)',
-    brandVertical: 'linear-gradient(0.01deg, #F53E4C -31.2%, #FF8833 113.07%)',
+    brandHorizontal: 'linear-gradient(90deg, #FF570A 0%, #F04006 100%)',
+    brandVertical: 'linear-gradient(0.01deg, #FF570A -31.2%, #F04006 113.07%)',
   };
 
   contrastThreshold = 3;
+
   hoverFactor = 0.03;
+
   tonalOffset = 0.2;
 }
 
 export function createColors(colors: ThemeColorsInput): ThemeColors {
   const dark = new DarkColors();
   const light = new LightColors();
+
   const base = (colors.mode ?? 'dark') === 'dark' ? dark : light;
+
   const {
     primary = base.primary,
     secondary = base.secondary,

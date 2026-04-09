@@ -25,6 +25,7 @@ import { notifyApp } from 'app/core/actions';
 import { contextSrv } from 'app/core/services/context_srv';
 import { getTimeSrv } from 'app/features/dashboard/services/TimeSrv';
 import { DashboardModel } from 'app/features/dashboard/state';
+import { FnLoggerService } from 'app/fn_logger';
 import { store } from 'app/store/store';
 
 import { createErrorNotification } from '../../../core/copy/appNotification';
@@ -354,7 +355,30 @@ export const processVariable = (
     const variable = getVariable(identifier, getState());
     await processVariableDependencies(variable, getState());
 
-    const urlValue = queryParams[VARIABLE_PREFIX + variable.name];
+    let urlValue = queryParams[VARIABLE_PREFIX + variable.name];
+
+    // Fallback for org_id/self_hosted_id variables: use selected_org from session
+    // Only when the value is not already present in the URL
+    if (urlValue === void 0) {
+      if (variable.name === 'org_id') {
+        const sessionOrgId = getOrgIdFromSession().org_id;
+        if (sessionOrgId) {
+          FnLoggerService.info('Using org_id from session as fallback for variable org_id', {
+            org_id: sessionOrgId,
+          });
+          urlValue = sessionOrgId;
+        }
+      } else if (variable.name === 'self_hosted_id') {
+        const sessionSelfHostedId = getOrgIdFromSession().self_hosted_id;
+        if (sessionSelfHostedId) {
+          FnLoggerService.info('Using self_hosted_id from session as fallback for variable self_hosted_id', {
+            self_hosted_id: sessionSelfHostedId,
+          });
+          urlValue = sessionSelfHostedId;
+        }
+      }
+    }
+
     if (urlValue !== void 0) {
       const stringUrlValue = ensureStringValues(urlValue);
       await variableAdapters.get(variable.type).setValueFromUrl(variable, stringUrlValue);
@@ -1119,4 +1143,25 @@ export function upgradeLegacyQueries(
 
 function isDataQueryType(query: unknown): query is DataQuery {
   return isObject(query) && 'refId' in query && typeof query.refId === 'string';
+}
+
+function getOrgIdFromSession(): { org_id: string; self_hosted_id: string } {
+  try {
+    // Use contextSrv to get the current user's organization ID
+    const storage = sessionStorage.getItem('selected_org');
+    const parsed = storage ? JSON.parse(storage) : null;
+    const orgIdRaw = parsed?.id;
+    const selfHostedIdRaw = parsed?.self_hosted_instance_id;
+
+    const orgId = orgIdRaw != null ? String(orgIdRaw).trim() : '';
+    const selfHostedId = selfHostedIdRaw != null ? String(selfHostedIdRaw).trim() : '';
+
+    return { org_id: orgId, self_hosted_id: selfHostedId };
+  } catch (err) {
+    FnLoggerService.error('Failed to get org_id from session context', {
+      err: err instanceof Error ? err.message : String(err),
+    });
+
+    return { org_id: '', self_hosted_id: '' };
+  }
 }

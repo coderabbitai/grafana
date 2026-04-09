@@ -31,8 +31,8 @@ const theme: GrafanaThemeCommons = {
   name: 'Grafana Default',
   typography: {
     fontFamily: {
-      sansSerif: '"Inter", "Helvetica", "Arial", sans-serif',
-      monospace: "'Roboto Mono', monospace",
+      sansSerif: '"Poppins", Inter, Satoshi, sans-serif',
+      monospace: '"SatoshiLight", "FigtreeLight", monospace',
     },
     size: {
       base: '14px',

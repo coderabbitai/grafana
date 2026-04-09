@@ -102,3 +102,8 @@ func (i *IDClaimsWrapper) Scopes() []string {
 func (i *IDClaimsWrapper) Subject() string {
 	return ""
 }
+
+// IsNil implements claims.AccessClaims.
+func (i *IDClaimsWrapper) IsNil() bool {
+	return i.Source == nil
+}

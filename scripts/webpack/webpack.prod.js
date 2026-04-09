@@ -4,14 +4,18 @@ const browserslist = require('browserslist');
 const CssMinimizerPlugin = require('css-minimizer-webpack-plugin');
 const { EsbuildPlugin } = require('esbuild-loader');
 const { resolveToEsbuildTarget } = require('esbuild-plugin-browserslist');
+const HtmlWebpackPlugin = require('html-webpack-plugin');
 const MiniCssExtractPlugin = require('mini-css-extract-plugin');
 const path = require('path');
 const { EnvironmentPlugin } = require('webpack');
 const WebpackAssetsManifest = require('webpack-assets-manifest');
 const { WebpackManifestPlugin } = require('webpack-manifest-plugin');
 const { merge } = require('webpack-merge');
+const { SubresourceIntegrityPlugin } = require('webpack-subresource-integrity');
 
 const getEnvConfig = require('./env-util.js');
+const FeatureFlaggedSRIPlugin = require('./plugins/FeatureFlaggedSriPlugin');
+const HTMLWebpackCSSChunks = require('./plugins/HTMLWebpackCSSChunks');
 const common = require('./webpack.common.js');
 const esbuildTargets = resolveToEsbuildTarget(browserslist(), { printUnknownTargets: false });
 
@@ -33,6 +37,8 @@ module.exports = (env = {}) =>
     entry: {
       dark: './public/sass/grafana.dark.scss',
       light: './public/sass/grafana.light.scss',
+      fn_dashboard: './public/app/fn_dashboard.ts',
+      swagger: './public/swagger/index.tsx',
     },
 
     module: {
@@ -45,11 +51,16 @@ module.exports = (env = {}) =>
             options: esbuildOptions,
           },
         },
+        // Use same SCSS processing for all entries (including fn_dashboard)
+        // CSS is extracted, not injected as style tags, preventing global leakage
         require('./sass.rule.js')({
           sourceMap: false,
-          preserveUrl: false,
+          preserveUrl: true,
         }),
       ],
+    },
+    output: {
+      crossOriginLoading: 'anonymous',
     },
     optimization: {
       nodeEnv: 'production',
@@ -58,18 +69,24 @@ module.exports = (env = {}) =>
     },
 
     // enable persistent cache for faster builds
-    cache: {
-      type: 'filesystem',
-      name: 'grafana-default-production',
-      buildDependencies: {
-        config: [__filename],
-      },
-    },
+    cache:
+      parseInt(env.noMinify, 10) === 1
+        ? false
+        : {
+            type: 'filesystem',
+            name: 'grafana-default-production',
+            buildDependencies: {
+              config: [__filename],
+            },
+          },
 
     plugins: [
+      new HTMLWebpackCSSChunks(),
       new MiniCssExtractPlugin({
         filename: 'grafana.[name].[contenthash].css',
       }),
+      new SubresourceIntegrityPlugin(),
+      new FeatureFlaggedSRIPlugin(),
       /**
        * I know we have two manifest plugins here.
        * WebpackManifestPlugin was only used in prod before and does not support integrity hashes
@@ -77,7 +94,23 @@ module.exports = (env = {}) =>
       new WebpackAssetsManifest({
         entrypoints: true,
         integrity: true,
+        integrityHashes: ['sha384', 'sha512'],
         publicPath: true,
+        // This transform filters down the assets to only include the ones that are part of the entrypoints
+        // this is all that the backend requires.
+        transform(assets, manifest) {
+          const entrypointAssets = Object.values(assets[manifest.options.entrypointsKey]).flatMap((entry) => [
+            ...(entry.assets.js || []),
+            ...(entry.assets.css || []),
+          ]);
+          const filteredAssets = Object.entries(assets).filter(([assetFileName]) =>
+            entrypointAssets.includes(assets[assetFileName].src)
+          );
+          const result = Object.fromEntries(filteredAssets);
+          result[manifest.options.entrypointsKey] = assets[manifest.options.entrypointsKey];
+
+          return result;
+        },
       }),
       new WebpackManifestPlugin({
         fileName: path.join(process.cwd(), 'manifest.json'),
@@ -92,5 +125,27 @@ module.exports = (env = {}) =>
         });
       },
       new EnvironmentPlugin(envConfig),
+      new HtmlWebpackPlugin({
+        filename: path.resolve(__dirname, '../../public/microfrontends/fn_dashboard/index.html'),
+        template: path.resolve(__dirname, '../../public/views/index-microfrontend-template.html'),
+        inject: false,
+        chunksSortMode: 'none',
+        excludeChunks: ['dark', 'light', 'app', 'swagger'],
+        templateParameters: (compilation, assets, assetTags, options) => {
+          // Ensure cssChunks is always defined for the template
+          const cssChunks = assets.cssChunks || { light: '', dark: '' };
+          return {
+            compilation,
+            webpackConfig: compilation.options,
+            htmlWebpackPlugin: {
+              files: {
+                ...assets,
+                cssChunks,
+              },
+              options,
+            },
+          };
+        },
+      }),
     ],
   });

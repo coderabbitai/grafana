@@ -17,6 +17,7 @@ import {
 } from '@grafana/runtime';
 import { sceneGraph, VariableCustomFormatterFn, SceneObject } from '@grafana/scenes';
 import { VariableFormatID } from '@grafana/schema';
+import { FnLoggerService } from 'app/fn_logger';
 
 import { getVariablesCompatibility } from '../dashboard-scene/utils/getVariablesCompatibility';
 import { variableAdapters } from '../variables/adapters';
@@ -251,6 +252,27 @@ export class TemplateSrv implements BaseTemplateSrv {
     return value;
   }
 
+  private getCodeRabbitOrgIdFromSession(): { org_id: string; self_hosted_id: string } {
+    try {
+      // Use contextSrv to get the current user's organization ID
+      const storage = sessionStorage.getItem('selected_org');
+      const parsed = storage ? JSON.parse(storage) : null;
+      const orgIdRaw = parsed?.id;
+      const selfHostedIdRaw = parsed?.self_hosted_instance_id;
+
+      const orgId = orgIdRaw != null ? String(orgIdRaw).trim() : '';
+      const selfHostedId = selfHostedIdRaw != null ? String(selfHostedIdRaw).trim() : '';
+
+      return { org_id: orgId, self_hosted_id: selfHostedId };
+    } catch (err) {
+      FnLoggerService.error('Failed to get org_id from session context', {
+        err: err instanceof Error ? err.message : String(err),
+      });
+
+      return { org_id: '', self_hosted_id: '' };
+    }
+  }
+
   replace(
     target?: string,
     scopedVars?: ScopedVars,
@@ -286,7 +308,6 @@ export class TemplateSrv implements BaseTemplateSrv {
     }
 
     this.regex.lastIndex = 0;
-
     return this._replaceWithVariableRegex(target, format, (match, variableName, fieldPath, fmt) => {
       const value = this._evaluateVariableExpression(match, variableName, fieldPath, fmt, scopedVars);
 
@@ -299,6 +320,10 @@ export class TemplateSrv implements BaseTemplateSrv {
     });
   }
 
+  private isEmptyValue(value: any) {
+    return value === '' || value === null || value === undefined || (Array.isArray(value) && value.length === 0);
+  }
+
   private _evaluateVariableExpression(
     match: string,
     variableName: string,
@@ -309,9 +334,23 @@ export class TemplateSrv implements BaseTemplateSrv {
     const variable = this.getVariableAtIndex(variableName);
     const scopedVar = scopedVars?.[variableName];
 
+    const { org_id, self_hosted_id } = this.getCodeRabbitOrgIdFromSession();
+
     if (scopedVar) {
       const value = this.getVariableValue(scopedVar, fieldPath);
       const text = this.getVariableText(scopedVar, value);
+
+      if (variableName === 'org_id' && org_id) {
+        if (this.isEmptyValue(value) && org_id) {
+          FnLoggerService.info('Using org_id from session as fallback in scoped variable replacement');
+          return formatVariableValue(org_id, format, variable, org_id);
+        }
+      } else if (variableName === 'self_hosted_id' && self_hosted_id) {
+        if (this.isEmptyValue(value) && self_hosted_id) {
+          FnLoggerService.info('Using self_hosted_id from session as fallback in scoped variable replacement');
+          return formatVariableValue(self_hosted_id, format, variable, self_hosted_id);
+        }
+      }
 
       if (value !== null && value !== undefined) {
         return formatVariableValue(value, format, variable, text);
@@ -328,8 +367,22 @@ export class TemplateSrv implements BaseTemplateSrv {
     }
 
     if (format === VariableFormatID.QueryParam || isAdHoc(variable)) {
-      const value = variableAdapters.get(variable.type).getValueForUrl(variable);
-      const text = isAdHoc(variable) ? variable.id : variable.current.text;
+      let value = variableAdapters.get(variable.type).getValueForUrl(variable);
+      let text = isAdHoc(variable) ? variable.id : variable.current.text;
+
+      if (variableName === 'org_id' && org_id) {
+        if (this.isEmptyValue(value) && org_id) {
+          FnLoggerService.info('Using org_id from session as fallback for query param/adhoc replacement');
+          value = org_id;
+          text = org_id;
+        }
+      } else if (variableName === 'self_hosted_id' && self_hosted_id) {
+        if (this.isEmptyValue(value) && self_hosted_id) {
+          FnLoggerService.info('Using self_hosted_id from session as fallback for query param/adhoc replacement');
+          value = self_hosted_id;
+          text = self_hosted_id;
+        }
+      }
 
       return formatVariableValue(value, format, variable, text);
     }
@@ -341,6 +394,20 @@ export class TemplateSrv implements BaseTemplateSrv {
 
     let value = variable.current.value;
     let text = variable.current.text;
+
+    if (variableName === 'org_id' && org_id) {
+      if (this.isEmptyValue(value) && org_id) {
+        FnLoggerService.info('Using org_id from session as fallback in variable replacement');
+        value = org_id;
+        text = org_id;
+      }
+    } else if (variableName === 'self_hosted_id' && self_hosted_id) {
+      if (this.isEmptyValue(value) && self_hosted_id) {
+        FnLoggerService.info('Using self_hosted_id from session as fallback in variable replacement');
+        value = self_hosted_id;
+        text = self_hosted_id;
+      }
+    }
 
     if (this.isAllValue(value)) {
       value = this.getAllValue(variable);
@@ -367,11 +434,13 @@ export class TemplateSrv implements BaseTemplateSrv {
   private _replaceWithVariableRegex(text: string, format: string | Function | undefined, replace: ReplaceFunction) {
     this.regex.lastIndex = 0;
 
-    return text.replace(this.regex, (match, var1, var2, fmt2, var3, fieldPath, fmt3) => {
-      const variableName = var1 || var2 || var3;
-      const fmt = fmt2 || fmt3 || format;
-      return replace(match, variableName, fieldPath, fmt);
-    });
+    return (
+      text?.replace(this.regex, (match, var1, var2, fmt2, var3, fieldPath, fmt3) => {
+        const variableName = var1 || var2 || var3;
+        const fmt = fmt2 || fmt3 || format;
+        return replace(match, variableName, fieldPath, fmt);
+      }) || ''
+    );
   }
 
   isAllValue(value: unknown) {

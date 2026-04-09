@@ -53,8 +53,21 @@ export const optionPickerFactory = <Model extends VariableWithOptions | Variable
       };
     }
 
+    const p = getVariablesState(rootStateKey, state).optionsPicker;
+    const isMfeTeamFilter =
+      state.fnGlobalState.FNDashboard && state.fnGlobalState.metadata.teams.length && p.id === 'team';
+
+    const teamFilter = isMfeTeamFilter
+      ? state.fnGlobalState.metadata.teams.map((t) => ({
+          text: t,
+          value: t,
+          selected: false,
+        }))
+      : [];
+
     return {
-      picker: getVariablesState(rootStateKey, state).optionsPicker,
+      picker: { ...p, ...(teamFilter.length && { options: [...p.options, ...teamFilter] }) },
+      mfeState: state.fnGlobalState,
     };
   };
 
@@ -149,7 +162,9 @@ export const optionPickerFactory = <Model extends VariableWithOptions | Variable
           <VariableInput
             id={VARIABLE_PREFIX + id}
             value={picker.queryValue}
-            onChange={this.onFilterOrSearchOptions}
+            onChange={(value) => {
+              this.onFilterOrSearchOptions(value);
+            }}
             onNavigate={this.onNavigate}
             aria-expanded={true}
             aria-controls={`options-${id}`}

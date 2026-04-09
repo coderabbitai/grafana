@@ -53,8 +53,8 @@ export interface ThemeTypographyInput {
   htmlFontSize?: number;
 }
 
-const defaultFontFamily = '"Inter", "Helvetica", "Arial", sans-serif';
-const defaultFontFamilyMonospace = "'Roboto Mono', monospace";
+const defaultFontFamily = '"IBM Plex Mono", monospace';
+const defaultFontFamilyMonospace = '"IBM Plex Mono", monospace';
 
 export function createTypography(colors: ThemeColors, typographyInput: ThemeTypographyInput = {}): ThemeTypography {
   const {
@@ -62,13 +62,13 @@ export function createTypography(colors: ThemeColors, typographyInput: ThemeTypo
     fontFamilyMonospace = defaultFontFamilyMonospace,
     // The default font size of the Material Specification.
     fontSize = 14, // px
-    fontWeightLight = 300,
-    fontWeightRegular = 400,
-    fontWeightMedium = 500,
+    fontWeightLight = 200,
+    fontWeightRegular = 300,
+    fontWeightMedium = 400,
     fontWeightBold = 500,
     // Tell Grafana-UI what's the font-size on the html element.
     // 16px is the default font-size used by browsers.
-    htmlFontSize = 14,
+    htmlFontSize = 16,
   } = typographyInput;
 
   if (process.env.NODE_ENV !== 'production') {

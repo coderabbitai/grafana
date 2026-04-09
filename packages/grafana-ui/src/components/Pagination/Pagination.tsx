@@ -2,7 +2,7 @@ import { css, cx } from '@emotion/css';
 import { useMemo } from 'react';
 
 import { useStyles2 } from '../../themes';
-import { Button, ButtonVariant } from '../Button';
+import { Button } from '../Button';
 import { Icon } from '../Icon/Icon';
 
 export interface Props {
@@ -34,9 +34,9 @@ export const Pagination = ({
     const pages = [...new Array(numberOfPages).keys()];
 
     const condensePages = numberOfPages > pageLengthToCondense;
-    const getListItem = (page: number, variant: 'primary' | 'secondary') => (
+    const getListItem = (page: number, fill?: 'outline' | 'ghost') => (
       <li key={page} className={styles.item}>
-        <Button size="sm" variant={variant} onClick={() => onNavigate(page)}>
+        <Button size="sm" onClick={() => onNavigate(page)} fill={fill}>
           {page}
         </Button>
       </li>
@@ -44,7 +44,7 @@ export const Pagination = ({
 
     return pages.reduce<JSX.Element[]>((pagesToRender, pageIndex) => {
       const page = pageIndex + 1;
-      const variant: ButtonVariant = page === currentPage ? 'primary' : 'secondary';
+      const fill: 'outline' | 'ghost' = page === currentPage ? 'ghost' : 'outline';
 
       // The indexes at which to start and stop condensing pages
       const lowerBoundIndex = pageLengthToCondense;
@@ -72,7 +72,7 @@ export const Pagination = ({
           (currentPageIsBetweenBounds && page >= currentPage - pageOffset && page <= currentPage + pageOffset)
         ) {
           // Renders a button for the page
-          pagesToRender.push(getListItem(page, variant));
+          pagesToRender.push(getListItem(page, fill));
         } else if (
           (page === lowerBoundIndex && currentPage < lowerBoundIndex) ||
           (page === upperBoundIndex && currentPage > upperBoundIndex) ||
@@ -87,7 +87,7 @@ export const Pagination = ({
           );
         }
       } else {
-        pagesToRender.push(getListItem(page, variant));
+        pagesToRender.push(getListItem(page, fill));
       }
       return pagesToRender;
     }, []);
@@ -104,9 +104,9 @@ export const Pagination = ({
           <Button
             aria-label={`previous page`}
             size="sm"
-            variant="secondary"
             onClick={() => onNavigate(currentPage - 1)}
             disabled={currentPage === 1}
+            fill="outline"
           >
             <Icon name="angle-left" />
           </Button>
@@ -116,7 +116,7 @@ export const Pagination = ({
           <Button
             aria-label={`next page`}
             size="sm"
-            variant="secondary"
+            fill="outline"
             onClick={() => onNavigate(currentPage + 1)}
             disabled={currentPage === numberOfPages}
           >

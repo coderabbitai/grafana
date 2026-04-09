@@ -1,0 +1,11 @@
+metadata:
+  repository: https://github.com/fluxninja/grafana
+
+applications:
+  grafana:
+    image:
+      name: grafana
+      dockerfile: Dockerfile
+    argo_manifests:
+      - app_path: apps/app-of-apps/cloud/cloud-prometheus.yaml
+        image_prefix: NINJA_GRAFANA_

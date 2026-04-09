@@ -65,6 +65,7 @@ export interface DashboardMeta {
   hasUnsavedFolderChange?: boolean;
   annotationsPermissions?: AnnotationsPermissions;
   publicDashboardEnabled?: boolean;
+  publicDashboardAccessToken?: string;
   dashboardNotFound?: boolean;
   isEmbedded?: boolean;
   isNew?: boolean;
@@ -120,6 +121,7 @@ export interface DashboardInitError {
 export enum KioskMode {
   TV = 'tv',
   Full = 'full',
+  FN = 'fluxNinja',
 }
 
 export type GetMutableDashboardModelFn = () => DashboardModel | null;

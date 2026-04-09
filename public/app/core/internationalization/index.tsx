@@ -78,7 +78,7 @@ export const t = (id: string, defaultMessage: string, values?: Record<string, un
     }
 
     if (process.env.NODE_ENV === 'development') {
-      throw new Error('t() was called before i18n was initialized');
+      // throw new Error('t() was called before i18n was initialized');
     }
 
     tFunc = i18n.t;

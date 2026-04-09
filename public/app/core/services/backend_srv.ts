@@ -65,6 +65,7 @@ export class BackendSrv implements BackendService {
   private readonly responseQueue: ResponseQueue;
   private _tokenRotationInProgress?: Observable<FetchResponse> | null = null;
   private deviceID?: string | null = null;
+  private grafanaPrefix: boolean;
 
   private dependencies: BackendSrvDependencies = {
     fromFetch: fromFetch,
@@ -83,6 +84,7 @@ export class BackendSrv implements BackendService {
       };
     }
 
+    this.grafanaPrefix = false;
     this.noBackendCache = false;
     this.internalFetch = this.internalFetch.bind(this);
     this.fetchQueue = new FetchQueue();
@@ -108,6 +110,12 @@ export class BackendSrv implements BackendService {
   }
 
   fetch<T>(options: BackendSrvRequest): Observable<FetchResponse<T>> {
+    // prefix "/grafana" to options.url
+    if (this.grafanaPrefix) {
+      if (options.url.indexOf('/grafana') !== 0) {
+        options.url = '/grafana' + options.url;
+      }
+    }
     // We need to match an entry added to the queue stream with the entry that is eventually added to the response stream
     const id = uuidv4();
     const fetchQueue = this.fetchQueue;
@@ -516,13 +524,20 @@ export class BackendSrv implements BackendService {
     return getDashboardAPI().getDashboardDTO(uid);
   }
 
-  validateDashboard(dashboard: DashboardModel): Promise<ValidateDashboardResponse> {
-    // support for this function will be implemented in the k8s flavored api-server
-    // hidden by experimental feature flag:
-    //  config.featureToggles.showDashboardValidationWarnings
-    return Promise.resolve({
-      isValid: false,
-      message: 'dashboard validation is not supported',
+  getDashboardByUidVersion(uid: string, version: number): Promise<DashboardDTO> {
+    return this.get<DashboardDTO>(`/api/dashboards/uid/${uid}/versions/${version}`);
+  }
+
+  validateDashboard(dashboard: DashboardModel) {
+    // We want to send the dashboard as a JSON string (in the JSON body payload) so we can get accurate error line numbers back
+    const dashboardJson = JSON.stringify(dashboard, replaceJsonNulls, 2);
+
+    return this.request<ValidateDashboardResponse>({
+      method: 'POST',
+      url: `/api/dashboards/validate`,
+      data: { dashboard: dashboardJson },
+      showSuccessAlert: false,
+      showErrorAlert: false,
     });
   }
 
@@ -540,6 +555,10 @@ export class BackendSrv implements BackendService {
       showErrorAlert: false,
     });
   }
+
+  setGrafanaPrefix(prefix: boolean) {
+    this.grafanaPrefix = prefix;
+  }
 }
 
 // Used for testing and things that really need BackendSrv
@@ -549,4 +568,11 @@ export const getBackendSrv = (): BackendSrv => backendSrv;
 interface ValidateDashboardResponse {
   isValid: boolean;
   message?: string;
+}
+
+function replaceJsonNulls<T extends unknown>(key: string, value: T): T | undefined {
+  if (typeof value === 'number' && !isFinite(value)) {
+    return undefined;
+  }
+  return value;
 }

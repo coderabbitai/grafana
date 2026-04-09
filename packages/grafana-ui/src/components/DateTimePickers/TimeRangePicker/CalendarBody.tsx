@@ -111,6 +111,7 @@ export const getBodyStyles = (theme: GrafanaTheme2) => {
       zIndex: theme.zIndex.modal,
       backgroundColor: theme.colors.background.primary,
       width: '268px',
+      borderRadius: theme.shape.borderRadius(),
 
       '.react-calendar__navigation': {
         display: 'flex',
@@ -180,6 +181,9 @@ export const getBodyStyles = (theme: GrafanaTheme2) => {
       [`${hasActiveSelector}, .react-calendar__tile--rangeStart`]: {
         borderTopLeftRadius: '20px',
         borderBottomLeftRadius: '20px',
+      },
+      '& button': {
+        borderRadius: 0,
       },
 
       [`${hasActiveSelector}, .react-calendar__tile--rangeEnd`]: {

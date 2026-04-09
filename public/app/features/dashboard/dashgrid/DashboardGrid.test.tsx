@@ -17,7 +17,7 @@ import { DashboardMeta } from 'app/types';
 import { DashboardModel } from '../state';
 import { createDashboardModelFixture } from '../state/__fixtures__/dashboardFixtures';
 
-import { DashboardGrid, PANEL_FILTER_VARIABLE, Props } from './DashboardGrid';
+import { DashboardGrid, Props } from './DashboardGrid';
 import { Props as LazyLoaderProps } from './LazyLoader';
 
 jest.mock('@grafana/runtime', () => ({
@@ -133,7 +133,7 @@ describe('DashboardGrid', () => {
           refreshAll: false,
           variable: {
             type: 'textbox',
-            id: PANEL_FILTER_VARIABLE,
+            id: '1',
             current: {
               value: 'My graph',
             },
@@ -158,7 +158,7 @@ describe('DashboardGrid', () => {
       isEditable: true,
       dashboard: getTestDashboard(undefined, undefined, () => [
         {
-          id: PANEL_FILTER_VARIABLE,
+          id: '1',
           type: 'textbox',
           query: 'My tab',
         } as TextBoxVariableModel,

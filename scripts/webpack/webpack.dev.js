@@ -1,9 +1,12 @@
 'use strict';
-const { getPackagesSync } = require('@manypkg/get-packages');
+
 const browserslist = require('browserslist');
+const CssMinimizerPlugin = require('css-minimizer-webpack-plugin');
+const { EsbuildPlugin } = require('esbuild-loader');
 const { resolveToEsbuildTarget } = require('esbuild-plugin-browserslist');
 const ESLintPlugin = require('eslint-webpack-plugin');
 const ForkTsCheckerWebpackPlugin = require('fork-ts-checker-webpack-plugin');
+const HtmlWebpackPlugin = require('html-webpack-plugin');
 const MiniCssExtractPlugin = require('mini-css-extract-plugin');
 const path = require('path');
 const { DefinePlugin, EnvironmentPlugin } = require('webpack');
@@ -12,6 +15,7 @@ const { merge } = require('webpack-merge');
 const WebpackBar = require('webpackbar');
 
 const getEnvConfig = require('./env-util.js');
+const HTMLWebpackCSSChunks = require('./plugins/HTMLWebpackCSSChunks');
 const common = require('./webpack.common.js');
 const esbuildTargets = resolveToEsbuildTarget(browserslist(), { printUnknownTargets: false });
 // esbuild-loader 3.0.0+ requires format to be set to prevent it
@@ -19,47 +23,25 @@ const esbuildTargets = resolveToEsbuildTarget(browserslist(), { printUnknownTarg
 const esbuildOptions = {
   target: esbuildTargets,
   format: undefined,
-  jsx: 'automatic',
 };
 
-// To speed up webpack and prevent unnecessary rebuilds we ignore decoupled packages
-function getDecoupledPlugins() {
-  const { packages } = getPackagesSync(process.cwd());
-  return packages.filter((pkg) => pkg.dir.includes('plugins/datasource')).map((pkg) => `${pkg.dir}/**`);
-}
-
 const envConfig = getEnvConfig();
-
 module.exports = (env = {}) => {
   return merge(common, {
-    devtool: 'source-map',
+    devtool: false,
     mode: 'development',
 
     entry: {
       app: './public/app/index.ts',
       dark: './public/sass/grafana.dark.scss',
       light: './public/sass/grafana.light.scss',
+      fn_dashboard: './public/app/fn_dashboard.ts',
+      swagger: './public/swagger/index.tsx',
     },
 
     // If we enabled watch option via CLI
     watchOptions: {
-      ignored: ['/node_modules/', ...getDecoupledPlugins()],
-    },
-
-    resolve: {
-      alias: {
-        // Packages linked for development need react to be resolved from the same location
-        react: path.resolve('./node_modules/react'),
-
-        // Also Grafana packages need to be resolved from the same location so they share
-        // the same singletons
-        '@grafana/runtime': path.resolve(__dirname, '../../packages/grafana-runtime'),
-        '@grafana/data': path.resolve(__dirname, '../../packages/grafana-data'),
-
-        // This is required to correctly resolve react-router-dom when linking with
-        //  local version of @grafana/scenes
-        'react-router-dom': path.resolve('./node_modules/react-router-dom'),
-      },
+      ignored: /node_modules/,
     },
 
     module: {
@@ -67,6 +49,7 @@ module.exports = (env = {}) => {
       rules: [
         {
           test: /\.tsx?$/,
+          exclude: /node_modules/,
           use: {
             loader: 'esbuild-loader',
             options: esbuildOptions,
@@ -79,20 +62,27 @@ module.exports = (env = {}) => {
       ],
     },
 
-    // infrastructureLogging: { level: 'error' },
-
     // https://webpack.js.org/guides/build-performance/#output-without-path-info
     output: {
       pathinfo: false,
     },
 
     // https://webpack.js.org/guides/build-performance/#avoid-extra-optimization-steps
+    // optimization: {
+    //   moduleIds: 'named',
+    //   runtimeChunk: true,
+    //   removeAvailableModules: false,
+    //   removeEmptyChunks: false,
+    //   splitChunks: false,
+    // },
     optimization: {
       moduleIds: 'named',
       runtimeChunk: true,
       removeAvailableModules: false,
       removeEmptyChunks: false,
       splitChunks: false,
+      minimize: parseInt(env.noMinify, 10) !== 1,
+      minimizer: [new EsbuildPlugin(esbuildOptions), new CssMinimizerPlugin()],
     },
 
     // enable persistent cache for faster cold starts
@@ -103,6 +93,11 @@ module.exports = (env = {}) => {
         config: [__filename],
       },
     },
+
+    performance: {
+      hints: false,
+    },
+    parallelism: 2,
 
     plugins: [
       parseInt(env.noTsCheck, 10)
@@ -118,21 +113,22 @@ module.exports = (env = {}) => {
               },
             },
           }),
-      parseInt(env.noLint, 10)
-        ? new DefinePlugin({}) // bogus plugin to satisfy webpack API
-        : new ESLintPlugin({
-            cache: true,
-            lintDirtyModulesOnly: true, // don't lint on start, only lint changed files
-            extensions: ['.ts', '.tsx'],
-          }),
+      new ESLintPlugin({
+        cache: true,
+        lintDirtyModulesOnly: true, // don't lint on start, only lint changed files
+        extensions: ['.ts', '.tsx'],
+      }),
       new MiniCssExtractPlugin({
         filename: 'grafana.[name].[contenthash].css',
       }),
-      new DefinePlugin({
-        'process.env': {
-          NODE_ENV: JSON.stringify('development'),
-        },
+      new HtmlWebpackPlugin({
+        filename: path.resolve(__dirname, '../../public/microfrontends/fn_dashboard/index.html'),
+        template: path.resolve(__dirname, '../../public/views/index-microfrontend-template.html'),
+        inject: false,
+        chunksSortMode: 'none',
+        excludeChunks: ['dark', 'light', 'app', 'swagger'],
       }),
+      new HTMLWebpackCSSChunks(),
       new WebpackAssetsManifest({
         entrypoints: true,
         integrity: true,
@@ -143,8 +139,12 @@ module.exports = (env = {}) => {
         name: 'Grafana',
       }),
       new EnvironmentPlugin(envConfig),
+      new DefinePlugin({
+        'process.env': {
+          NODE_ENV: JSON.stringify('development'),
+          SHOULD_LOG: JSON.stringify(process.env.SHOULD_LOG),
+        },
+      }),
     ],
-
-    stats: 'minimal',
   });
 };

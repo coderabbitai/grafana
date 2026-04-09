@@ -58,7 +58,7 @@ export class DashboardPanelUnconnected extends PureComponent<Props> {
     }
   }
 
-  onInstanceStateChange = (value: unknown) => {
+  onInstanceStateChange = (value: any) => {
     this.props.setPanelInstanceState({ key: this.props.stateKey, value });
   };
 

@@ -6,6 +6,7 @@ import { ApiKey, OrgRole } from 'app/types';
 
 import { mockToolkitActionCreator } from '../../../test/core/redux/mocks';
 import { silenceConsoleOutput } from '../../../test/core/utils/silenceConsoleOutput';
+import { configureStore } from '../../store/configureStore';
 
 import { ApiKeysPageUnconnected, Props } from './ApiKeysPage';
 import { getMultipleMockKeys } from './__mocks__/apiKeysMock';
@@ -21,6 +22,7 @@ jest.mock('app/core/core', () => {
 });
 
 const setup = (propOverrides: Partial<Props>) => {
+  const store = configureStore();
   const loadApiKeysMock = jest.fn();
   const deleteApiKeyMock = jest.fn();
   const migrateApiKeyMock = jest.fn();
@@ -49,7 +51,7 @@ const setup = (propOverrides: Partial<Props>) => {
   Object.assign(props, propOverrides);
 
   const { rerender } = render(
-    <TestProvider>
+    <TestProvider store={store}>
       <ApiKeysPageUnconnected {...props} />
     </TestProvider>
   );

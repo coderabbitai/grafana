@@ -80,7 +80,7 @@ export function TraceToMetricsSettings({ options, onOptionsChange }: Props) {
       <InlineFieldRow>
         <IntervalInput
           label={getTimeShiftLabel('start')}
-          tooltip={getTimeShiftTooltip('start', '-2m')}
+          tooltip={getTimeShiftTooltip('start', '')}
           value={options.jsonData.tracesToMetrics?.spanStartTimeShift || ''}
           onChange={(val) => {
             updateDatasourcePluginJsonDataOption({ onOptionsChange, options }, 'tracesToMetrics', {
@@ -96,7 +96,7 @@ export function TraceToMetricsSettings({ options, onOptionsChange }: Props) {
       <InlineFieldRow>
         <IntervalInput
           label={getTimeShiftLabel('end')}
-          tooltip={getTimeShiftTooltip('end', '2m')}
+          tooltip={getTimeShiftTooltip('end', '')}
           value={options.jsonData.tracesToMetrics?.spanEndTimeShift || ''}
           onChange={(val) => {
             updateDatasourcePluginJsonDataOption({ onOptionsChange, options }, 'tracesToMetrics', {

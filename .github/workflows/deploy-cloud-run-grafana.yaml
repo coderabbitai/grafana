@@ -1,0 +1,62 @@
+name: Deploy Grafana Server Cloud Run on Dev
+
+on:
+  push:
+    branches:
+      - '**'
+    paths:
+      - "/**"
+  workflow_dispatch:
+
+jobs:
+  build_and_deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Free disk space
+        run: |
+          sudo rm -rf /usr/share/dotnet /opt/ghc /usr/local/share/boost
+          sudo rm -rf "$AGENT_TOOLSDIRECTORY" || true
+          sudo docker system prune -af || true
+          df -h
+
+      - uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GOOGLECLOUDSA }}
+
+      - uses: docker/setup-buildx-action@v3
+
+      # - name: Cache Docker layers
+      #   uses: actions/cache@v4
+      #   with:
+      #     path: /tmp/.buildx-cache
+      #     key: ${{ runner.os }}-${{ github.workflow }}-${{ github.sha }}
+      #     restore-keys: ${{ runner.os }}-${{ github.workflow }}-
+
+      - run: gcloud auth configure-docker
+
+      - uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: true
+          tags: gcr.io/coderabbit/grafana:latest
+          # cache-from: type=local,src=/tmp/.buildx-cache
+          # cache-to: type=local,dest=/tmp/.buildx-cache-new
+
+      # - name: Move Docker cache
+      #   run: |
+      #     rm -rf /tmp/.buildx-cache
+      #     mv /tmp/.buildx-cache-new /tmp/.buildx-cache
+
+      # - name: Deploy to Cloud Run
+      #   run: gcloud run deploy grafana --image gcr.io/coderabbit/grafana:latest --region us-central1 --allow-unauthenticated --vpc-connector=coderabbitai-dev-cr
+
+
+      - name: Trigger a repository dispatch
+        run: |
+          curl -X POST \
+          -H "Authorization: token ${{ secrets.PAT_TRIGGER_GRAFANA }}" \
+          -H "Accept: application/vnd.github.everest-preview+json" \
+          https://api.github.com/repos/coderabbitai/mono/dispatches \
+          -d "{\"event_type\": \"trigger-grafana-micro-frontend-dev\", \"client_payload\": {\"ref\": \"${GITHUB_REF}\"}}"

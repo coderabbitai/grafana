@@ -381,7 +381,7 @@ const getStyles = (theme: GrafanaTheme2) => ({
   container: css({
     padding: theme.spacing(1),
     border: `1px ${theme.colors.border.weak} solid`,
-    borderRadius: theme.shape.radius.default,
+    borderRadius: theme.shape.borderRadius(),
     backgroundColor: theme.colors.background.primary,
     zIndex: theme.zIndex.modal,
   }),

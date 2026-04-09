@@ -77,7 +77,7 @@ export function getGlobalStyles(theme: GrafanaTheme2) {
           cursor: 'grab',
           flexGrow: 1,
           border: `1px solid ${theme.components.input.borderColor}`,
-          borderRadius: `${theme.shape.radius.default}`,
+          borderRadius: `${theme.shape.borderRadius()}`,
           background: `${theme.colors.background.secondary}`,
           minHeight: `${theme.spacing.gridSize * 4}px`,
           '&:hover': {

@@ -116,6 +116,9 @@ export const onDashboardLoadedHandler = ({
       e.metrics_queries_with_account_count += +Boolean(
         config.featureToggles.cloudWatchCrossAccountQuerying && isMetricSearchBuilder(q) && q.accountId
       );
+      e.metrics_queries_with_account_count += +Boolean(
+        config.featureToggles.cloudWatchCrossAccountQuerying && isMetricSearchBuilder(q) && q.accountId
+      );
     }
 
     reportInteraction('grafana_ds_cloudwatch_dashboard_loaded', e);

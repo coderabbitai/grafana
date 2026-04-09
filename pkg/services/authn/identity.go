@@ -72,8 +72,9 @@ type Identity struct {
 	// Permissions is the list of permissions the entity has.
 	Permissions map[int64]map[string][]string
 	// IDToken is a signed token representing the identity that can be forwarded to plugins and external services.
-	IDToken       string
-	IDTokenClaims *authn.Claims[authn.IDTokenClaims]
+	IDToken           string
+	IDTokenClaims     *authn.Claims[authn.IDTokenClaims]
+	AccessTokenClaims *authn.Claims[authn.AccessTokenClaims]
 }
 
 // Access implements claims.AuthInfo.

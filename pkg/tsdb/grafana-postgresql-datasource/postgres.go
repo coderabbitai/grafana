@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"os"
 	"reflect"
 	"strconv"
 	"strings"
@@ -22,6 +23,10 @@ import (
 	"github.com/grafana/grafana/pkg/tsdb/grafana-postgresql-datasource/sqleng"
 )
 
+const (
+	CR_POSTGRES_URL = "GF_CR_POSTGRES_URL"
+)
+
 func ProvideService(cfg *setting.Cfg) *Service {
 	logger := backend.NewLoggerWith("logger", "tsdb.postgres")
 	s := &Service{
@@ -29,6 +34,32 @@ func ProvideService(cfg *setting.Cfg) *Service {
 		logger:     logger,
 	}
 	s.im = datasource.NewInstanceManager(s.newInstanceSettings())
+
+	// Initialize CodeRabbit organization database connection if configured
+	postgresURL := os.Getenv(CR_POSTGRES_URL)
+	if postgresURL != "" {
+		logger.Info("CodeRabbit postgres URL found", "env_var", CR_POSTGRES_URL)
+		connector, err := pq.NewConnector(postgresURL)
+		if err != nil {
+			logger.Error("CodeRabbit postgres connector creation failed", "error", err)
+		} else {
+			s.crDB = sql.OpenDB(connector)
+			s.crDB.SetMaxOpenConns(40)
+			s.crDB.SetMaxIdleConns(10)
+			s.crDB.SetConnMaxLifetime(time.Hour)
+			s.crDB.SetConnMaxIdleTime(5 * time.Minute)
+
+			if err := s.crDB.Ping(); err != nil {
+				logger.Error("CodeRabbit postgres connection failed", "error", err)
+				s.crDB = nil
+			} else {
+				logger.Info("Successfully connected to CodeRabbit postgres database")
+			}
+		}
+	} else {
+		logger.Info("CodeRabbit postgres URL not configured", "env_var", CR_POSTGRES_URL)
+	}
+
 	return s
 }
 
@@ -36,6 +67,7 @@ type Service struct {
 	tlsManager tlsSettingsProvider
 	im         instancemgmt.InstanceManager
 	logger     log.Logger
+	crDB       *sql.DB // CodeRabbit organization database connection
 }
 
 func (s *Service) getDSInfo(ctx context.Context, pluginCtx backend.PluginContext) (*sqleng.DataSourceHandler, error) {
@@ -55,30 +87,7 @@ func (s *Service) QueryData(ctx context.Context, req *backend.QueryDataRequest) 
 	return dsInfo.QueryData(ctx, req)
 }
 
-func newPostgres(ctx context.Context, userFacingDefaultError string, rowLimit int64, dsInfo sqleng.DataSourceInfo, cnnstr string, logger log.Logger, settings backend.DataSourceInstanceSettings) (*sql.DB, *sqleng.DataSourceHandler, error) {
-	connector, err := pq.NewConnector(cnnstr)
-	if err != nil {
-		logger.Error("postgres connector creation failed", "error", err)
-		return nil, nil, fmt.Errorf("postgres connector creation failed")
-	}
-
-	proxyClient, err := settings.ProxyClient(ctx)
-	if err != nil {
-		logger.Error("postgres proxy creation failed", "error", err)
-		return nil, nil, fmt.Errorf("postgres proxy creation failed")
-	}
-
-	if proxyClient.SecureSocksProxyEnabled() {
-		dialer, err := proxyClient.NewSecureSocksProxyContextDialer()
-		if err != nil {
-			logger.Error("postgres proxy creation failed", "error", err)
-			return nil, nil, fmt.Errorf("postgres proxy creation failed")
-		}
-		postgresDialer := newPostgresProxyDialer(dialer)
-		// update the postgres dialer with the proxy dialer
-		connector.Dialer(postgresDialer)
-	}
-
+func newPostgres(ctx context.Context, userFacingDefaultError string, rowLimit int64, dsInfo sqleng.DataSourceInfo, cnnstr string, logger log.Logger, settings backend.DataSourceInstanceSettings, crDB *sql.DB) (*sql.DB, *sqleng.DataSourceHandler, error) {
 	config := sqleng.DataPluginConfiguration{
 		DSInfo:            dsInfo,
 		MetricColumnTypes: []string{"UNKNOWN", "TEXT", "VARCHAR", "CHAR"},
@@ -86,12 +95,41 @@ func newPostgres(ctx context.Context, userFacingDefaultError string, rowLimit in
 	}
 
 	queryResultTransformer := postgresQueryResultTransformer{}
+	var db *sql.DB
 
-	db := sql.OpenDB(connector)
+	if crDB != nil {
+		logger.Info("[Postgres Datasource]:: Using CodeRabbit database connection")
+		db = crDB
+	} else {
+		connector, err := pq.NewConnector(cnnstr)
+		if err != nil {
+			logger.Error("postgres connector creation failed", "error", err)
+			return nil, nil, fmt.Errorf("postgres connector creation failed")
+		}
 
-	db.SetMaxOpenConns(config.DSInfo.JsonData.MaxOpenConns)
-	db.SetMaxIdleConns(config.DSInfo.JsonData.MaxIdleConns)
-	db.SetConnMaxLifetime(time.Duration(config.DSInfo.JsonData.ConnMaxLifetime) * time.Second)
+		proxyClient, err := settings.ProxyClient(ctx)
+		if err != nil {
+			logger.Error("postgres proxy creation failed", "error", err)
+			return nil, nil, fmt.Errorf("postgres proxy creation failed")
+		}
+
+		if proxyClient.SecureSocksProxyEnabled() {
+			dialer, err := proxyClient.NewSecureSocksProxyContextDialer()
+			if err != nil {
+				logger.Error("postgres proxy creation failed", "error", err)
+				return nil, nil, fmt.Errorf("postgres proxy creation failed")
+			}
+			postgresDialer := newPostgresProxyDialer(dialer)
+			// update the postgres dialer with the proxy dialer
+			connector.Dialer(postgresDialer)
+		}
+
+		db = sql.OpenDB(connector)
+
+		db.SetMaxOpenConns(config.DSInfo.JsonData.MaxOpenConns)
+		db.SetMaxIdleConns(config.DSInfo.JsonData.MaxIdleConns)
+		db.SetConnMaxLifetime(time.Duration(config.DSInfo.JsonData.ConnMaxLifetime) * time.Second)
+	}
 
 	handler, err := sqleng.NewQueryDataHandler(userFacingDefaultError, db, config, &queryResultTransformer, newPostgresMacroEngine(dsInfo.JsonData.Timescaledb),
 		logger)
@@ -153,7 +191,7 @@ func (s *Service) newInstanceSettings() datasource.InstanceFactoryFunc {
 			return nil, err
 		}
 
-		_, handler, err := newPostgres(ctx, userFacingDefaultError, sqlCfg.RowLimit, dsInfo, cnnstr, logger, settings)
+		_, handler, err := newPostgres(ctx, userFacingDefaultError, sqlCfg.RowLimit, dsInfo, cnnstr, logger, settings, s.crDB)
 
 		if err != nil {
 			logger.Error("Failed connecting to Postgres", "err", err)

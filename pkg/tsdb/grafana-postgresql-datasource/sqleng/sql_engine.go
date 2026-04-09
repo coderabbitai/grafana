@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"net"
+	"os"
 	"regexp"
 	"runtime/debug"
 	"strconv"
@@ -19,10 +20,16 @@ import (
 	"github.com/grafana/grafana-plugin-sdk-go/backend/log"
 	"github.com/grafana/grafana-plugin-sdk-go/data"
 	"github.com/grafana/grafana-plugin-sdk-go/data/sqlutil"
+	"github.com/grafana/grafana/pkg/services/contexthandler"
 )
 
 // MetaKeyExecutedQueryString is the key where the executed query should get stored
-const MetaKeyExecutedQueryString = "executedQueryString"
+const (
+	MetaKeyExecutedQueryString   = "executedQueryString"
+	headerCodeRabbitOrg          = "X-CodeRabbit-Org-Id"
+	headerCodeRabbitSelfHostedId = "X-CodeRabbit-Self-Hosted-Instance-Id"
+	CR_POSTGRES_URL              = "GF_CR_POSTGRES_URL"
+)
 
 // SQLMacroEngine interpolates macros into sql. It takes in the Query to have access to query context and
 // timeRange to be able to generate queries that use from and to.
@@ -144,6 +151,11 @@ type DBDataResponse struct {
 
 func (e *DataSourceHandler) Dispose() {
 	e.log.Debug("Disposing DB...")
+	crPostgres := os.Getenv(CR_POSTGRES_URL)
+	if crPostgres != "" {
+		e.log.Info("CR Postgres detected, skipping DB dispose")
+		return
+	}
 	if e.db != nil {
 		if err := e.db.Close(); err != nil {
 			e.log.Error("Failed to dispose db", "error", err)
@@ -197,6 +209,28 @@ func (e *DataSourceHandler) QueryData(ctx context.Context, req *backend.QueryDat
 	return result, nil
 }
 
+func (e *DataSourceHandler) findCodeRabbitOrgId(ctx context.Context) string {
+	codeRabbitOrgId := ""
+	reqCtx := contexthandler.FromContext(ctx)
+	if reqCtx != nil && reqCtx.Req != nil {
+		codeRabbitOrgId = reqCtx.Req.Header.Get(headerCodeRabbitOrg)
+	} else {
+		e.log.Debug("Request context or request is nil, cannot extract CodeRabbit Org ID from headers")
+	}
+	return codeRabbitOrgId
+}
+
+func (e *DataSourceHandler) findCodeRabbitSelfHostedId(ctx context.Context) string {
+	codeRabbitSelfHostedId := ""
+	reqCtx := contexthandler.FromContext(ctx)
+	if reqCtx != nil && reqCtx.Req != nil {
+		codeRabbitSelfHostedId = reqCtx.Req.Header.Get(headerCodeRabbitSelfHostedId)
+	} else {
+		e.log.Debug("Request context or request is nil, cannot extract CodeRabbit Self-Hosted Instance ID from headers")
+	}
+	return codeRabbitSelfHostedId
+}
+
 func (e *DataSourceHandler) executeQuery(query backend.DataQuery, wg *sync.WaitGroup, queryContext context.Context,
 	ch chan DBDataResponse, queryJson QueryJson) {
 	defer wg.Done()
@@ -247,14 +281,73 @@ func (e *DataSourceHandler) executeQuery(query backend.DataQuery, wg *sync.WaitG
 		return
 	}
 
-	rows, err := e.db.QueryContext(queryContext, interpolatedQuery)
-	if err != nil {
-		errAppendDebug("db query error", e.TransformQueryError(logger, err), interpolatedQuery)
-		return
+	codeRabbitOrgId := e.findCodeRabbitOrgId(queryContext)
+	codeRabbitSelfHostedId := e.findCodeRabbitSelfHostedId(queryContext)
+	queryDB := e.db
+
+	var (
+		rows      *sql.Rows
+		tx        *sql.Tx
+		committed bool
+	)
+
+	if codeRabbitOrgId != "" || codeRabbitSelfHostedId != "" {
+		const orgSessionVar = "app.current_org_id"
+		const selfHostedSessionVar = "app.current_self_hosted_id"
+
+		sessionVarName := orgSessionVar
+		identifier := strings.ReplaceAll(codeRabbitOrgId, "'", "''")
+		escapedSelfHostedId := strings.ReplaceAll(codeRabbitSelfHostedId, "'", "''")
+
+		if identifier != "" && escapedSelfHostedId == "" {
+			logger.Info(fmt.Sprintf("Executing query for Org ID: %s", identifier))
+		}
+
+		if escapedSelfHostedId != "" {
+			logger.Info(fmt.Sprintf("Executing query for Self-Hosted Instance ID: %s", escapedSelfHostedId))
+			sessionVarName = selfHostedSessionVar
+			identifier = escapedSelfHostedId
+		}
+
+		// Use a read-only transaction with SET LOCAL to scope the identifier to this request only.
+		// SET LOCAL automatically resets when the transaction ends, preventing cross-request pollution.
+		// Read-only transactions work even on read-only replicas.
+		tx, err = queryDB.BeginTx(queryContext, &sql.TxOptions{ReadOnly: true})
+		if err != nil {
+			errAppendDebug("failed to begin read-only transaction", e.TransformQueryError(logger, err), interpolatedQuery)
+			return
+		}
+
+		setVarQuery := fmt.Sprintf("SET LOCAL %s = '%s'", sessionVarName, identifier)
+		logger.Info(fmt.Sprintf("Setting session variable for query: %s", setVarQuery))
+		if _, err := tx.ExecContext(queryContext, setVarQuery); err != nil {
+			errAppendDebug(fmt.Sprintf("failed to set %s", sessionVarName), e.TransformQueryError(logger, err), interpolatedQuery)
+			return
+		}
+
+		rows, err = tx.QueryContext(queryContext, interpolatedQuery)
+		logger.Info(fmt.Sprintf("Executed query for %s: %s", sessionVarName, identifier))
+		if err != nil {
+			errAppendDebug("db query error", e.TransformQueryError(logger, err), interpolatedQuery)
+			return
+		}
+	} else {
+		logger.Info("Executing query without Org ID/ Self-Hosted Instance ID set")
+		rows, err = queryDB.QueryContext(queryContext, interpolatedQuery)
+		if err != nil {
+			errAppendDebug("db query error", e.TransformQueryError(logger, err), interpolatedQuery)
+			return
+		}
 	}
+
 	defer func() {
-		if err := rows.Close(); err != nil {
-			logger.Warn("Failed to close rows", "err", err)
+		if rows != nil {
+			if err := rows.Close(); err != nil {
+				logger.Warn("Failed to close rows", "err", err)
+			}
+		}
+		if tx != nil && !committed {
+			_ = tx.Rollback()
 		}
 	}()
 
@@ -270,6 +363,16 @@ func (e *DataSourceHandler) executeQuery(query backend.DataQuery, wg *sync.WaitG
 	if err != nil {
 		errAppendDebug("convert frame from rows error", err, interpolatedQuery)
 		return
+	}
+
+	// If we used a tx, commit now that we've read everything. Any failure here
+	// will roll back in the deferred cleanup.
+	if tx != nil {
+		if err := tx.Commit(); err != nil {
+			errAppendDebug("failed to commit read-only transaction", e.TransformQueryError(logger, err), interpolatedQuery)
+			return
+		}
+		committed = true
 	}
 
 	if frame.Meta == nil {
