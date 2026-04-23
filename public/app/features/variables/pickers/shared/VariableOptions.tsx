@@ -137,8 +137,6 @@ class VariableOptions extends PureComponent<Props> {
 }
 
 const getStyles = stylesFactory((theme: GrafanaTheme2) => {
-  const checkboxImageUrl = theme.isDark ? 'public/img/checkbox.png' : 'public/img/checkbox_white.png';
-
   return {
     hideVariableOptionIcon: css({
       display: 'none',
@@ -167,17 +165,40 @@ const getStyles = stylesFactory((theme: GrafanaTheme2) => {
     }),
     variableOptionIcon: css({
       display: 'inline-block',
-      width: '24px',
-      height: '18px',
+      width: '14px',
+      height: '14px',
       position: 'relative',
-      top: '4px',
-      background: `url(${checkboxImageUrl}) left top no-repeat`,
+      top: '2px',
+      marginRight: theme.spacing(1),
+      border: `1px solid ${theme.colors.border.strong}`,
+      borderRadius: 0,
+      backgroundColor: theme.colors.background.secondary,
+      flexShrink: 0,
     }),
     variableOptionIconManySelected: css({
-      background: `url(${checkboxImageUrl}) 0px -36px no-repeat`,
+      '&::after': {
+        content: '""',
+        position: 'absolute',
+        top: '50%',
+        left: '2px',
+        right: '2px',
+        height: '2px',
+        transform: 'translateY(-50%)',
+        backgroundColor: theme.colors.text.primary,
+      },
     }),
     variableOptionIconSelected: css({
-      background: `url(${checkboxImageUrl}) 0px -18px no-repeat`,
+      '&::after': {
+        content: '""',
+        position: 'absolute',
+        left: '3px',
+        top: '0px',
+        width: '5px',
+        height: '9px',
+        border: `solid ${theme.colors.text.primary}`,
+        borderWidth: '0 2px 2px 0',
+        transform: 'rotate(45deg)',
+      },
     }),
     variableValueDropdown: css({
       backgroundColor: theme.colors.background.primary,
