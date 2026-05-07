@@ -30,8 +30,9 @@ const (
 func ProvideService(cfg *setting.Cfg) *Service {
 	logger := backend.NewLoggerWith("logger", "tsdb.postgres")
 	s := &Service{
-		tlsManager: newTLSManager(logger, cfg.DataPath),
-		logger:     logger,
+		tlsManager:        newTLSManager(logger, cfg.DataPath),
+		logger:            logger,
+		rendererAuthToken: cfg.RendererAuthToken,
 	}
 	s.im = datasource.NewInstanceManager(s.newInstanceSettings())
 
@@ -64,10 +65,11 @@ func ProvideService(cfg *setting.Cfg) *Service {
 }
 
 type Service struct {
-	tlsManager tlsSettingsProvider
-	im         instancemgmt.InstanceManager
-	logger     log.Logger
-	crDB       *sql.DB // CodeRabbit organization database connection
+	tlsManager        tlsSettingsProvider
+	im                instancemgmt.InstanceManager
+	logger            log.Logger
+	crDB              *sql.DB // CodeRabbit organization database connection
+	rendererAuthToken string
 }
 
 func (s *Service) getDSInfo(ctx context.Context, pluginCtx backend.PluginContext) (*sqleng.DataSourceHandler, error) {
@@ -87,11 +89,12 @@ func (s *Service) QueryData(ctx context.Context, req *backend.QueryDataRequest) 
 	return dsInfo.QueryData(ctx, req)
 }
 
-func newPostgres(ctx context.Context, userFacingDefaultError string, rowLimit int64, dsInfo sqleng.DataSourceInfo, cnnstr string, logger log.Logger, settings backend.DataSourceInstanceSettings, crDB *sql.DB) (*sql.DB, *sqleng.DataSourceHandler, error) {
+func newPostgres(ctx context.Context, userFacingDefaultError string, rowLimit int64, dsInfo sqleng.DataSourceInfo, cnnstr string, logger log.Logger, settings backend.DataSourceInstanceSettings, crDB *sql.DB, rendererAuthToken string) (*sql.DB, *sqleng.DataSourceHandler, error) {
 	config := sqleng.DataPluginConfiguration{
 		DSInfo:            dsInfo,
 		MetricColumnTypes: []string{"UNKNOWN", "TEXT", "VARCHAR", "CHAR"},
 		RowLimit:          rowLimit,
+		RendererAuthToken: rendererAuthToken,
 	}
 
 	queryResultTransformer := postgresQueryResultTransformer{}
@@ -191,7 +194,7 @@ func (s *Service) newInstanceSettings() datasource.InstanceFactoryFunc {
 			return nil, err
 		}
 
-		_, handler, err := newPostgres(ctx, userFacingDefaultError, sqlCfg.RowLimit, dsInfo, cnnstr, logger, settings, s.crDB)
+		_, handler, err := newPostgres(ctx, userFacingDefaultError, sqlCfg.RowLimit, dsInfo, cnnstr, logger, settings, s.crDB, s.rendererAuthToken)
 
 		if err != nil {
 			logger.Error("Failed connecting to Postgres", "err", err)
