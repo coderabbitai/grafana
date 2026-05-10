@@ -236,7 +236,7 @@ func (e *DataSourceHandler) findCodeRabbitIdentifiers(ctx context.Context) codeR
 		return e.findCodeRabbitIdentifiersFromRequest(reqCtx.Req)
 	}
 
-	e.log.Debug("Request context or request is nil, cannot extract CodeRabbit identifiers")
+	e.log.Warn("Request context or request is nil, cannot extract CodeRabbit identifiers from context")
 	return codeRabbitRenderContext{}
 }
 
@@ -252,15 +252,28 @@ func (e *DataSourceHandler) findCodeRabbitIdentifiersFromRequest(req *http.Reque
 
 	renderContextToken := findCodeRabbitRenderContextToken(req)
 	if renderContextToken == "" {
+		urlStr := ""
+		if req.URL != nil {
+			urlStr = req.URL.String()
+		}
+		e.log.Info("No CodeRabbit render context token found",
+			"url", urlStr,
+			"referer", req.Header.Get("Referer"),
+			"has_cr_header", req.Header.Get(headerCodeRabbitRenderContext) != "",
+		)
 		return codeRabbitRenderContext{}
 	}
 
 	renderContext, err := decodeCodeRabbitRenderContextToken(renderContextToken, e.rendererAuthToken)
 	if err != nil {
-		e.log.Warn("Failed to decode CodeRabbit render context token", "err", err)
+		e.log.Warn("Failed to decode CodeRabbit render context token",
+			"err", err,
+			"rendererAuthTokenEmpty", e.rendererAuthToken == "",
+		)
 		return codeRabbitRenderContext{}
 	}
 
+	e.log.Info("Decoded CodeRabbit render context token", "orgID", renderContext.orgID)
 	return renderContext
 }
 

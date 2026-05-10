@@ -34,6 +34,13 @@ func ProvideService(cfg *setting.Cfg) *Service {
 		logger:            logger,
 		rendererAuthToken: cfg.RendererAuthToken,
 	}
+
+	if cfg.RendererAuthToken != "" && cfg.RendererAuthToken != "-" {
+		logger.Info("CodeRabbit renderer auth token configured")
+	} else {
+		logger.Warn("CodeRabbit renderer auth token NOT configured — cr_render_context_token decoding will fail")
+	}
+
 	s.im = datasource.NewInstanceManager(s.newInstanceSettings())
 
 	// Initialize CodeRabbit organization database connection if configured
