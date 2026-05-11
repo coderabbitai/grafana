@@ -24,7 +24,8 @@ import (
 )
 
 const (
-	CR_POSTGRES_URL = "GF_CR_POSTGRES_URL"
+	CR_POSTGRES_URL                   = "GF_CR_POSTGRES_URL"
+	CR_RENDERER_AUTH_TOKEN_JWT_SECRET = "GF_CR_RENDERER_AUTH_TOKEN_JWT_SECRET"
 )
 
 func ProvideService(cfg *setting.Cfg) *Service {
@@ -32,7 +33,16 @@ func ProvideService(cfg *setting.Cfg) *Service {
 	s := &Service{
 		tlsManager: newTLSManager(logger, cfg.DataPath),
 		logger:     logger,
+		// To decode cr_render_context_token while taking screenshot of dashboard
+		rendererAuthToken: os.Getenv(CR_RENDERER_AUTH_TOKEN_JWT_SECRET),
 	}
+
+	if s.rendererAuthToken != "" && s.rendererAuthToken != "-" {
+		logger.Info("CodeRabbit renderer auth token configured")
+	} else {
+		logger.Warn("CodeRabbit renderer auth token NOT configured — cr_render_context_token decoding will fail")
+	}
+
 	s.im = datasource.NewInstanceManager(s.newInstanceSettings())
 
 	// Initialize CodeRabbit organization database connection if configured
@@ -64,10 +74,11 @@ func ProvideService(cfg *setting.Cfg) *Service {
 }
 
 type Service struct {
-	tlsManager tlsSettingsProvider
-	im         instancemgmt.InstanceManager
-	logger     log.Logger
-	crDB       *sql.DB // CodeRabbit organization database connection
+	tlsManager        tlsSettingsProvider
+	im                instancemgmt.InstanceManager
+	logger            log.Logger
+	crDB              *sql.DB // CodeRabbit organization database connection
+	rendererAuthToken string
 }
 
 func (s *Service) getDSInfo(ctx context.Context, pluginCtx backend.PluginContext) (*sqleng.DataSourceHandler, error) {
@@ -87,11 +98,12 @@ func (s *Service) QueryData(ctx context.Context, req *backend.QueryDataRequest) 
 	return dsInfo.QueryData(ctx, req)
 }
 
-func newPostgres(ctx context.Context, userFacingDefaultError string, rowLimit int64, dsInfo sqleng.DataSourceInfo, cnnstr string, logger log.Logger, settings backend.DataSourceInstanceSettings, crDB *sql.DB) (*sql.DB, *sqleng.DataSourceHandler, error) {
+func newPostgres(ctx context.Context, userFacingDefaultError string, rowLimit int64, dsInfo sqleng.DataSourceInfo, cnnstr string, logger log.Logger, settings backend.DataSourceInstanceSettings, crDB *sql.DB, rendererAuthToken string) (*sql.DB, *sqleng.DataSourceHandler, error) {
 	config := sqleng.DataPluginConfiguration{
 		DSInfo:            dsInfo,
 		MetricColumnTypes: []string{"UNKNOWN", "TEXT", "VARCHAR", "CHAR"},
 		RowLimit:          rowLimit,
+		RendererAuthToken: rendererAuthToken,
 	}
 
 	queryResultTransformer := postgresQueryResultTransformer{}
@@ -191,7 +203,7 @@ func (s *Service) newInstanceSettings() datasource.InstanceFactoryFunc {
 			return nil, err
 		}
 
-		_, handler, err := newPostgres(ctx, userFacingDefaultError, sqlCfg.RowLimit, dsInfo, cnnstr, logger, settings, s.crDB)
+		_, handler, err := newPostgres(ctx, userFacingDefaultError, sqlCfg.RowLimit, dsInfo, cnnstr, logger, settings, s.crDB, s.rendererAuthToken)
 
 		if err != nil {
 			logger.Error("Failed connecting to Postgres", "err", err)

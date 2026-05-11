@@ -7,6 +7,8 @@ import (
 	"errors"
 	"fmt"
 	"net"
+	"net/http"
+	"net/url"
 	"os"
 	"regexp"
 	"runtime/debug"
@@ -15,6 +17,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/golang-jwt/jwt/v4"
 	"github.com/grafana/grafana-plugin-sdk-go/backend"
 	"github.com/grafana/grafana-plugin-sdk-go/backend/gtime"
 	"github.com/grafana/grafana-plugin-sdk-go/backend/log"
@@ -25,10 +28,12 @@ import (
 
 // MetaKeyExecutedQueryString is the key where the executed query should get stored
 const (
-	MetaKeyExecutedQueryString   = "executedQueryString"
-	headerCodeRabbitOrg          = "X-CodeRabbit-Org-Id"
-	headerCodeRabbitSelfHostedId = "X-CodeRabbit-Self-Hosted-Instance-Id"
-	CR_POSTGRES_URL              = "GF_CR_POSTGRES_URL"
+	MetaKeyExecutedQueryString        = "executedQueryString"
+	headerCodeRabbitOrg               = "X-CodeRabbit-Org-Id"
+	headerCodeRabbitSelfHostedId      = "X-CodeRabbit-Self-Hosted-Instance-Id"
+	headerCodeRabbitRenderContext     = "X-CodeRabbit-Render-Context-Token"
+	queryCodeRabbitRenderContextToken = "cr_render_context_token"
+	CR_POSTGRES_URL                   = "GF_CR_POSTGRES_URL"
 )
 
 // SQLMacroEngine interpolates macros into sql. It takes in the Query to have access to query context and
@@ -83,6 +88,7 @@ type DataPluginConfiguration struct {
 	TimeColumnNames   []string
 	MetricColumnTypes []string
 	RowLimit          int64
+	RendererAuthToken string
 }
 
 type DataSourceHandler struct {
@@ -95,6 +101,7 @@ type DataSourceHandler struct {
 	dsInfo                 DataSourceInfo
 	rowLimit               int64
 	userError              string
+	rendererAuthToken      string
 }
 
 type QueryJson struct {
@@ -130,6 +137,7 @@ func NewQueryDataHandler(userFacingDefaultError string, db *sql.DB, config DataP
 		dsInfo:                 config.DSInfo,
 		rowLimit:               config.RowLimit,
 		userError:              userFacingDefaultError,
+		rendererAuthToken:      config.RendererAuthToken,
 	}
 
 	if len(config.TimeColumnNames) > 0 {
@@ -209,26 +217,140 @@ func (e *DataSourceHandler) QueryData(ctx context.Context, req *backend.QueryDat
 	return result, nil
 }
 
-func (e *DataSourceHandler) findCodeRabbitOrgId(ctx context.Context) string {
-	codeRabbitOrgId := ""
-	reqCtx := contexthandler.FromContext(ctx)
-	if reqCtx != nil && reqCtx.Req != nil {
-		codeRabbitOrgId = reqCtx.Req.Header.Get(headerCodeRabbitOrg)
-	} else {
-		e.log.Debug("Request context or request is nil, cannot extract CodeRabbit Org ID from headers")
-	}
-	return codeRabbitOrgId
+type codeRabbitRenderContextClaims struct {
+	OrgID                     string `json:"orgId,omitempty"`
+	OrgIDSnake                string `json:"org_id,omitempty"`
+	SelfHostedInstanceID      string `json:"selfHostedInstanceId,omitempty"`
+	SelfHostedInstanceIDSnake string `json:"self_hosted_instance_id,omitempty"`
+	jwt.RegisteredClaims
 }
 
-func (e *DataSourceHandler) findCodeRabbitSelfHostedId(ctx context.Context) string {
-	codeRabbitSelfHostedId := ""
+type codeRabbitRenderContext struct {
+	orgID                string
+	selfHostedInstanceID string
+}
+
+func (e *DataSourceHandler) findCodeRabbitIdentifiers(ctx context.Context) codeRabbitRenderContext {
 	reqCtx := contexthandler.FromContext(ctx)
 	if reqCtx != nil && reqCtx.Req != nil {
-		codeRabbitSelfHostedId = reqCtx.Req.Header.Get(headerCodeRabbitSelfHostedId)
-	} else {
-		e.log.Debug("Request context or request is nil, cannot extract CodeRabbit Self-Hosted Instance ID from headers")
+		return e.findCodeRabbitIdentifiersFromRequest(reqCtx.Req)
 	}
-	return codeRabbitSelfHostedId
+
+	e.log.Warn("Request context or request is nil, cannot extract CodeRabbit identifiers from context")
+	return codeRabbitRenderContext{}
+}
+
+func (e *DataSourceHandler) findCodeRabbitIdentifiersFromRequest(req *http.Request) codeRabbitRenderContext {
+	codeRabbitOrgID := req.Header.Get(headerCodeRabbitOrg)
+	codeRabbitSelfHostedID := req.Header.Get(headerCodeRabbitSelfHostedId)
+	if codeRabbitOrgID != "" || codeRabbitSelfHostedID != "" {
+		return codeRabbitRenderContext{
+			orgID:                codeRabbitOrgID,
+			selfHostedInstanceID: codeRabbitSelfHostedID,
+		}
+	}
+
+	renderContextToken := findCodeRabbitRenderContextToken(req)
+	if renderContextToken == "" {
+		urlStr := ""
+		if req.URL != nil {
+			urlStr = req.URL.String()
+		}
+		e.log.Info("No CodeRabbit render context token found",
+			"url", urlStr,
+			"referer", req.Header.Get("Referer"),
+			"has_cr_header", req.Header.Get(headerCodeRabbitRenderContext) != "",
+		)
+		return codeRabbitRenderContext{}
+	}
+
+	renderContext, err := decodeCodeRabbitRenderContextToken(renderContextToken, e.rendererAuthToken)
+	if err != nil {
+		e.log.Warn("Failed to decode CodeRabbit render context token",
+			"err", err,
+			"rendererAuthTokenEmpty", e.rendererAuthToken == "",
+		)
+		return codeRabbitRenderContext{}
+	}
+
+	e.log.Info("Decoded CodeRabbit render context token", "orgID", renderContext.orgID)
+	return renderContext
+}
+
+func findCodeRabbitRenderContextToken(req *http.Request) string {
+	if req == nil {
+		return ""
+	}
+
+	if renderContextToken := req.Header.Get(headerCodeRabbitRenderContext); renderContextToken != "" {
+		return renderContextToken
+	}
+
+	if req.URL != nil {
+		if renderContextToken := req.URL.Query().Get(queryCodeRabbitRenderContextToken); renderContextToken != "" {
+			return renderContextToken
+		}
+	}
+
+	referer := req.Referer()
+	if referer == "" {
+		return ""
+	}
+
+	refererURL, err := url.Parse(referer)
+	if err != nil {
+		return ""
+	}
+
+	return refererURL.Query().Get(queryCodeRabbitRenderContextToken)
+}
+
+func decodeCodeRabbitRenderContextToken(renderContextToken string, rendererAuthToken string) (codeRabbitRenderContext, error) {
+	if rendererAuthToken == "" {
+		return codeRabbitRenderContext{}, errors.New("renderer auth token is not configured")
+	}
+
+	claims := new(codeRabbitRenderContextClaims)
+	token, err := jwt.ParseWithClaims(renderContextToken, claims, func(_ *jwt.Token) (any, error) {
+		return []byte(rendererAuthToken), nil
+	}, jwt.WithValidMethods([]string{jwt.SigningMethodHS512.Alg()}))
+	if err != nil {
+		return codeRabbitRenderContext{}, err
+	}
+
+	if token == nil || !token.Valid {
+		return codeRabbitRenderContext{}, errors.New("invalid render context token")
+	}
+
+	if claims.ExpiresAt == nil {
+		return codeRabbitRenderContext{}, errors.New("render context token must include an expiration")
+	}
+
+	codeRabbitOrgID := strings.TrimSpace(firstNonEmpty(claims.OrgID, claims.OrgIDSnake))
+	codeRabbitSelfHostedID := strings.TrimSpace(firstNonEmpty(claims.SelfHostedInstanceID, claims.SelfHostedInstanceIDSnake))
+
+	if codeRabbitOrgID == "" && codeRabbitSelfHostedID == "" {
+		return codeRabbitRenderContext{}, errors.New("render context token must include an orgId or selfHostedInstanceId")
+	}
+
+	if codeRabbitOrgID != "" && codeRabbitSelfHostedID != "" {
+		return codeRabbitRenderContext{}, errors.New("render context token cannot include both orgId and selfHostedInstanceId")
+	}
+
+	return codeRabbitRenderContext{
+		orgID:                codeRabbitOrgID,
+		selfHostedInstanceID: codeRabbitSelfHostedID,
+	}, nil
+}
+
+func firstNonEmpty(values ...string) string {
+	for _, value := range values {
+		if value != "" {
+			return value
+		}
+	}
+
+	return ""
 }
 
 func (e *DataSourceHandler) executeQuery(query backend.DataQuery, wg *sync.WaitGroup, queryContext context.Context,
@@ -281,8 +403,9 @@ func (e *DataSourceHandler) executeQuery(query backend.DataQuery, wg *sync.WaitG
 		return
 	}
 
-	codeRabbitOrgId := e.findCodeRabbitOrgId(queryContext)
-	codeRabbitSelfHostedId := e.findCodeRabbitSelfHostedId(queryContext)
+	codeRabbitContext := e.findCodeRabbitIdentifiers(queryContext)
+	codeRabbitOrgId := codeRabbitContext.orgID
+	codeRabbitSelfHostedId := codeRabbitContext.selfHostedInstanceID
 	queryDB := e.db
 
 	var (
