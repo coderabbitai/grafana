@@ -24,18 +24,20 @@ import (
 )
 
 const (
-	CR_POSTGRES_URL = "GF_CR_POSTGRES_URL"
+	CR_POSTGRES_URL                   = "GF_CR_POSTGRES_URL"
+	CR_RENDERER_AUTH_TOKEN_JWT_SECRET = "GF_CR_RENDERER_AUTH_TOKEN_JWT_SECRET"
 )
 
 func ProvideService(cfg *setting.Cfg) *Service {
 	logger := backend.NewLoggerWith("logger", "tsdb.postgres")
 	s := &Service{
-		tlsManager:        newTLSManager(logger, cfg.DataPath),
-		logger:            logger,
-		rendererAuthToken: cfg.RendererAuthToken,
+		tlsManager: newTLSManager(logger, cfg.DataPath),
+		logger:     logger,
+		// To decode cr_render_context_token while taking screenshot of dashboard
+		rendererAuthToken: os.Getenv(CR_RENDERER_AUTH_TOKEN_JWT_SECRET),
 	}
 
-	if cfg.RendererAuthToken != "" && cfg.RendererAuthToken != "-" {
+	if s.rendererAuthToken != "" && s.rendererAuthToken != "-" {
 		logger.Info("CodeRabbit renderer auth token configured")
 	} else {
 		logger.Warn("CodeRabbit renderer auth token NOT configured — cr_render_context_token decoding will fail")
