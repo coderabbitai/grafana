@@ -8,7 +8,7 @@ require (
 	github.com/google/go-cmp v0.6.0
 	github.com/grafana/authlib/claims v0.0.0-20240828122726-9edfcbea43e2
 	github.com/grafana/grafana/pkg/apimachinery v0.0.0-20240701135906-559738ce6ae1
-	github.com/prometheus/client_golang v1.20.2
+	github.com/prometheus/client_golang v1.20.3
 	github.com/stretchr/testify v1.11.1
 	go.opentelemetry.io/otel/trace v1.29.0
 	k8s.io/apimachinery v0.31.0
@@ -67,7 +67,7 @@ require (
 	go.uber.org/multierr v1.11.0 // indirect
 	go.uber.org/zap v1.27.0 // indirect
 	golang.org/x/net v0.46.0 // indirect
-	golang.org/x/oauth2 v0.22.0 // indirect
+	golang.org/x/oauth2 v0.23.0 // indirect
 	golang.org/x/sys v0.37.0 // indirect
 	golang.org/x/term v0.36.0 // indirect
 	golang.org/x/text v0.30.0 // indirect

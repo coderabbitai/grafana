@@ -6,10 +6,10 @@ toolchain go1.24.10
 
 require (
 	github.com/grafana/dskit v0.0.0-20240827093408-28506cdffe6a
-	github.com/grafana/grafana-plugin-sdk-go v0.245.0
+	github.com/grafana/grafana-plugin-sdk-go v0.250.0
 	github.com/json-iterator/go v1.1.12
 	github.com/patrickmn/go-cache v2.1.0+incompatible
-	github.com/prometheus/client_golang v1.20.2
+	github.com/prometheus/client_golang v1.20.3
 	github.com/prometheus/common v0.57.0
 	github.com/prometheus/prometheus v1.8.2-0.20221021121301-51a44e6657c3
 	github.com/stretchr/testify v1.11.1
