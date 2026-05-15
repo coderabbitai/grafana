@@ -44,7 +44,7 @@ jobs:
         with:
           credentials_json: ${{ secrets.GOOGLECLOUDSA }}
 
-      - run: gcloud auth configure-docker
+      - run: gcloud auth configure-docker gcr.io --quiet
 
       - name: Push image to dev
         run: |
