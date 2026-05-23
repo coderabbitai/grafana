@@ -95,8 +95,8 @@ const getStyles = stylesFactory((theme: GrafanaTheme2) => {
       flex-direction: row;
       flex-wrap: wrap;
       align-content: flex-start;
-      align-items: flex-start;
-      gap: ${theme.spacing(1)} ${theme.spacing(2)};
+      align-items: center;
+      gap: ${theme.spacing(1)};
       padding: 0 0 ${theme.spacing(1)} 0;
     `,
     spacer: css({

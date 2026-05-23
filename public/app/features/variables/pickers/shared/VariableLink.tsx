@@ -6,6 +6,7 @@ import { selectors } from '@grafana/e2e-selectors';
 import { Icon, useStyles2 } from '@grafana/ui';
 import { LoadingIndicator } from '@grafana/ui/src/components/PanelChrome/LoadingIndicator';
 import { t } from 'app/core/internationalization';
+import { useSelector } from 'app/types';
 
 import { getStyles as getTagBadgeStyles } from '../../../../core/components/TagFilter/TagBadge';
 import { ALL_VARIABLE_TEXT } from '../../constants';
@@ -23,7 +24,8 @@ interface Props {
 }
 
 export const VariableLink = ({ loading, disabled, onClick: propsOnClick, text, onCancel, id }: Props) => {
-  const styles = useStyles2(getStyles);
+  const isFnDashboard = useSelector((state) => state.fnGlobalState.FNDashboard);
+  const styles = useStyles2(getStyles(isFnDashboard));
   const onClick = useCallback(
     (event: MouseEvent<HTMLButtonElement>) => {
       event.stopPropagation();
@@ -77,21 +79,33 @@ const VariableLinkText = ({ text }: VariableLinkTextProps) => {
   );
 };
 
-const getStyles = (theme: GrafanaTheme2) => {
+const getStyles = (isFnDashboard: boolean) => (theme: GrafanaTheme2) => {
   const tagBadgeStyles = getTagBadgeStyles(theme);
 
   return {
     container: css({
       maxWidth: '500px',
-      paddingRight: '10px',
-      padding: theme.spacing(0, 1),
-      backgroundColor: theme.components.input.background,
-      border: `1px solid ${theme.components.input.borderColor}`,
+      padding: isFnDashboard ? theme.spacing(0, 1.5) : theme.spacing(0, 1),
+      backgroundColor: isFnDashboard ? 'transparent' : theme.components.input.background,
+      border: `1px solid ${isFnDashboard ? theme.colors.border.weak : theme.components.input.borderColor}`,
       borderRadius: theme.shape.radius.default,
       display: 'flex',
       alignItems: 'center',
+      gap: theme.spacing(0.5),
       color: theme.colors.text.primary,
       height: theme.spacing(theme.components.height.md),
+      [theme.transitions.handleMotion('no-preference')]: {
+        transition: theme.transitions.create(['background', 'border-color', 'box-shadow', 'color'], {
+          duration: theme.transitions.duration.short,
+        }),
+      },
+
+      ...(isFnDashboard && {
+        '&:hover': {
+          backgroundColor: theme.colors.action.hover,
+          borderColor: theme.colors.border.medium,
+        },
+      }),
 
       [`.${tagBadgeStyles.badge}`]: {
         margin: '0 5px',

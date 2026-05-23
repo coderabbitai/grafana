@@ -59,28 +59,42 @@ export const PickerRenderer: FunctionComponent<Props> = (props) => {
 };
 
 const COMMON_PICKER_LABEL_STYLE: CSSProperties = {
-  border: 'none',
   fontWeight: 500,
   fontSize: '14px',
-  padding: '12px 6px',
   display: 'flex',
   alignItems: 'center',
+};
+
+const DEFAULT_PICKER_LABEL_STYLE: CSSProperties = {
+  ...COMMON_PICKER_LABEL_STYLE,
+  border: 'none',
+  padding: '12px 6px',
 };
 
 function PickerLabel({ variable }: PropsWithChildren<Props>): ReactElement | null {
   const labelOrName = useMemo(() => variable.label || variable.name, [variable]);
   const { FNDashboard } = useSelector<StoreState, FnGlobalState>(({ fnGlobalState }) => fnGlobalState);
   const {
-    colors: { background, text },
+    colors: { background, border, text },
   } = useTheme2();
 
-  const fnLabelStyle = useMemo(
-    () => ({
-      ...COMMON_PICKER_LABEL_STYLE,
-      color: text.primary,
-      backgroundColor: background.canvas,
-    }),
-    [background, text]
+  const labelStyle = useMemo(
+    () =>
+      FNDashboard
+        ? ({
+            ...COMMON_PICKER_LABEL_STYLE,
+            backgroundColor: 'transparent',
+            border: `1px solid ${border.weak}`,
+            color: text.primary,
+            height: 32,
+            padding: '0 10px',
+          } satisfies CSSProperties)
+        : ({
+            ...DEFAULT_PICKER_LABEL_STYLE,
+            color: text.primary,
+            backgroundColor: background.canvas,
+          } satisfies CSSProperties),
+    [FNDashboard, background, border, text]
   );
 
   if (variable.hide !== VariableHide.dontHide) {
@@ -94,7 +108,7 @@ function PickerLabel({ variable }: PropsWithChildren<Props>): ReactElement | nul
       <Tooltip content={variable.description} placement={'bottom'}>
         <label
           className="gf-form-label gf-form-label--variable"
-          style={fnLabelStyle}
+          style={labelStyle}
           data-testid={selectors.pages.Dashboard.SubMenu.submenuItemLabels(labelOrName)}
           htmlFor={elementId}
         >
@@ -106,7 +120,7 @@ function PickerLabel({ variable }: PropsWithChildren<Props>): ReactElement | nul
   return (
     <label
       className="gf-form-label gf-form-label--variable"
-      style={fnLabelStyle}
+      style={labelStyle}
       data-testid={selectors.pages.Dashboard.SubMenu.submenuItemLabels(labelOrName)}
       htmlFor={elementId}
     >

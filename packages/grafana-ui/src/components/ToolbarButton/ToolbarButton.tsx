@@ -5,7 +5,7 @@ import { forwardRef, ButtonHTMLAttributes, ReactNode } from 'react';
 import { GrafanaTheme2, IconName, isIconName } from '@grafana/data';
 import { selectors } from '@grafana/e2e-selectors';
 
-import { styleMixins, useStyles2, useTheme2 } from '../../themes';
+import { styleMixins, useStyles2 } from '../../themes';
 import { getFocusStyles, getMouseFocusStyles } from '../../themes/mixins';
 import { IconSize } from '../../types/icon';
 import { getPropertiesForVariant } from '../Button';
@@ -66,7 +66,6 @@ export const ToolbarButton = forwardRef<HTMLButtonElement, ToolbarButtonProps>(
     ref
   ) => {
     const styles = useStyles2(getStyles);
-    const theme2 = useTheme2();
 
     const buttonStyles = cx(
       {
@@ -93,7 +92,6 @@ export const ToolbarButton = forwardRef<HTMLButtonElement, ToolbarButtonProps>(
         {...rest}
         style={{
           display: isHidden ? 'none' : '',
-          border: `1px solid ${theme2.colors.border.weak}`,
         }}
       >
         {renderIcon(icon, iconSize)}
@@ -138,13 +136,15 @@ const getStyles = (theme: GrafanaTheme2) => {
   const primaryVariant = getPropertiesForVariant(theme, 'primary', 'solid');
   const destructiveVariant = getPropertiesForVariant(theme, 'destructive', 'solid');
 
-  const defaultOld = css({
+  // Neutral filled surface used by canvas and active variants
+  const canvasVariant = css({
     color: theme.colors.text.primary,
-    background: theme.colors.secondary.main,
+    background: theme.colors.background.secondary,
+    border: `1px solid ${theme.colors.border.weak}`,
 
     '&:hover': {
       color: theme.colors.text.primary,
-      background: theme.colors.secondary.shade,
+      background: theme.colors.action.hover,
       border: `1px solid ${theme.colors.border.medium}`,
     },
   });
@@ -157,10 +157,9 @@ const getStyles = (theme: GrafanaTheme2) => {
       alignItems: 'center',
       height: theme.spacing(theme.components.height.md),
       padding: theme.spacing(0, 1),
-      borderRadius: theme.shape.borderRadius(),
+      borderRadius: theme.shape.radius.default,
       lineHeight: `${theme.components.height.md * theme.spacing.gridSize - 2}px`,
       fontWeight: theme.typography.fontWeightMedium,
-      border: `1px solid ${theme.colors.secondary.border}`,
       whiteSpace: 'nowrap',
       transition: theme.transitions.create(['background', 'box-shadow', 'border-color', 'color'], {
         duration: theme.transitions.duration.short,
@@ -193,16 +192,17 @@ const getStyles = (theme: GrafanaTheme2) => {
     default: css({
       color: theme.colors.text.secondary,
       background: theme.colors.background.primary,
-      border: `1px solid transparent`,
+      border: `1px solid ${theme.colors.border.weak}`,
 
       '&:hover': {
         color: theme.colors.text.primary,
-        background: theme.colors.background.secondary,
+        background: theme.colors.action.hover,
+        border: `1px solid ${theme.colors.border.medium}`,
       },
     }),
-    canvas: defaultOld,
+    canvas: canvasVariant,
     active: cx(
-      defaultOld,
+      canvasVariant,
       css({
         '&::before': {
           display: 'block',

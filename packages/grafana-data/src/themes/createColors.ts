@@ -113,8 +113,8 @@ class DarkColors implements ThemeColorsBase<Partial<ThemeRichColor>> {
   };
 
   secondary = {
-    main: '#ff570a',
-    shade: '#a35829',
+    main: '#2d2a33',
+    shade: '#363240',
     contrastText: `rgba(${this.whiteBase},  1)`,
     text: this.text.primary,
     border: this.border.weak,
@@ -196,8 +196,8 @@ class LightColors implements ThemeColorsBase<Partial<ThemeRichColor>> {
   };
 
   secondary = {
-    main: '#ff570a',
-    shade: '#ffdcc3',
+    main: '#ede9f0',
+    shade: '#e4dfe9',
     contrastText: `rgba(${this.blackBase},  1)`,
     text: this.text.primary,
     border: this.border.weak,

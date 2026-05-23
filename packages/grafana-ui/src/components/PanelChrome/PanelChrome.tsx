@@ -379,14 +379,17 @@ const getContentStyle = (
 
 const getStyles = (isFNPanel?: boolean) => (theme: GrafanaTheme2) => {
   const { background, borderColor, padding } = theme.components.panel;
+  const focusStyles = getFocusStyles(theme);
+  const elevatedFocusShadow = `${focusStyles.boxShadow}, ${theme.shadows.z2}`;
 
   return {
     container: css({
       label: 'panel-container',
       backgroundColor: background,
       border: `1px solid ${borderColor}`,
+      borderRadius: theme.shape.borderRadius(2),
+      boxShadow: theme.shadows.z1,
       position: 'relative',
-      borderRadius: theme.shape.borderRadius(),
       height: '100%',
       display: 'flex',
       flexDirection: 'column',
@@ -396,18 +399,28 @@ const getStyles = (isFNPanel?: boolean) => (theme: GrafanaTheme2) => {
         visibility: 'hidden',
       },
 
-      '&:focus-visible, &:hover': {
-        // only show menu icon on hover or focused panel
+      '&:hover': {
+        boxShadow: theme.shadows.z2,
+        // only show menu icon on hover
         '.show-on-hover': {
           opacity: '1',
           visibility: 'visible',
         },
       },
 
-      '&:focus-visible': getFocusStyles(theme),
+      '&:focus-visible': {
+        ...focusStyles,
+        boxShadow: elevatedFocusShadow,
+        // only show menu icon when panel is focused
+        '.show-on-hover': {
+          opacity: '1',
+          visibility: 'visible',
+        },
+      },
 
-      // The not:(:focus) clause is so that this rule is only applied when decendants are focused (important otherwise the hover header is visible when panel is clicked).
+      // The not:(:focus) clause is so that this rule is only applied when descendants are focused (important otherwise the hover header is visible when panel is clicked).
       '&:focus-within:not(:focus)': {
+        boxShadow: theme.shadows.z2,
         '.show-on-hover': {
           visibility: 'visible',
           opacity: '1',
@@ -418,9 +431,11 @@ const getStyles = (isFNPanel?: boolean) => (theme: GrafanaTheme2) => {
       label: 'panel-transparent-container',
       backgroundColor: 'transparent',
       border: '1px solid transparent',
+      boxShadow: 'none',
       boxSizing: 'border-box',
       '&:hover': {
         border: `1px solid ${borderColor}`,
+        boxShadow: theme.shadows.z1,
       },
     }),
     loadingBarContainer: css({

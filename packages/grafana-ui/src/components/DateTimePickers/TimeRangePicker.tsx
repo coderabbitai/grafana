@@ -273,8 +273,13 @@ const getStyles = (theme: GrafanaTheme2) => {
     content: css({
       position: 'absolute',
       right: 0,
-      top: '116%',
+      top: `calc(100% + ${theme.spacing(1)})`,
       zIndex: theme.zIndex.dropdown,
+      background: theme.colors.background.secondary,
+      border: `1px solid ${theme.colors.border.weak}`,
+      borderRadius: theme.shape.radius.default,
+      boxShadow: theme.shadows.z2,
+      overflow: 'hidden',
 
       [theme.breakpoints.down('sm')]: {
         position: 'fixed',
@@ -295,10 +300,10 @@ const getLabelStyles = (theme: GrafanaTheme2) => {
       whiteSpace: 'nowrap',
     }),
     utc: css({
-      color: theme.v1.palette.orange,
+      color: theme.colors.text.secondary,
       fontSize: theme.typography.size.sm,
-      paddingLeft: '6px',
-      lineHeight: '28px',
+      paddingLeft: theme.spacing(0.75),
+      lineHeight: theme.typography.body.lineHeight,
       verticalAlign: 'bottom',
       fontWeight: theme.typography.fontWeightMedium,
     }),
