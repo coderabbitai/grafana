@@ -93,63 +93,63 @@ class DarkColors implements ThemeColorsBase<Partial<ThemeRichColor>> {
   whiteBase = '255, 255, 255';
 
   primary = {
-    main: '#F04006',
-    border: '#46404F',
-    text: '#F5F4F6',
+    main: '#ff570a',
+    border: '#a35829',
+    text: '#efedf0',
   };
 
   text = {
-    primary: '#F5F4F6',
-    secondary: '#D5D3DD',
-    disabled: '#D5D3DA',
-    link: '#F04006',
+    primary: '#efedf0',
+    secondary: '#b5b2b9',
+    disabled: '#6f6b75',
+    link: '#ffa057',
     maxContrast: palette.white,
   };
 
   border = {
-    weak: `rgba(${this.whiteBase}, 0.12)`,
-    medium: `rgba(${this.whiteBase}, 0.30)`,
-    strong: `rgba(${this.whiteBase}, 0.40)`,
+    weak: '#322f37',
+    medium: '#4a464f',
+    strong: '#625e68',
   };
 
   secondary = {
-    main: '#F04006',
-    shade: '#9E240E',
+    main: '#ff570a',
+    shade: '#a35829',
     contrastText: `rgba(${this.whiteBase},  1)`,
     text: this.text.primary,
     border: this.border.weak,
   };
 
   info = {
-    main: '#51A2FF',
-    text: palette.blueDarkText,
+    main: '#687ff5',
+    text: '#95afff',
   };
 
   error = {
-    main: '#FF6467',
-    text: palette.redDarkText,
-    border: palette.redDarkText,
+    main: '#e54d2e',
+    text: '#ff977d',
+    border: '#853a2d',
   };
 
   success = {
-    main: '#05DF72',
-    text: palette.greenDarkText,
+    main: '#46e1a5',
+    text: '#85f9c5',
   };
 
   warning = {
-    main: '#FDC700',
-    text: palette.orangeDarkText,
+    main: '#ffc53d',
+    text: '#ffca16',
   };
 
   background = {
-    primary: '#141116',
-    canvas: '#141116',
-    secondary: '#211E25',
+    primary: '#1a181d',
+    canvas: '#121014',
+    secondary: '#232127',
   };
 
   action = {
-    hover: `rgba(${this.whiteBase}, 0.12)`,
-    selected: '#F04006',
+    hover: 'rgba(255, 255, 255, 0.06)',
+    selected: '#ff570a',
     selectedBorder: palette.orangeDarkMain,
     hoverOpacity: 0.08,
     focus: `rgba(${this.whiteBase}, 0.12)`,
@@ -159,8 +159,8 @@ class DarkColors implements ThemeColorsBase<Partial<ThemeRichColor>> {
   };
 
   gradients = {
-    brandHorizontal: 'linear-gradient(90deg, #FF570A 0%, #F04006 100%)',
-    brandVertical: 'linear-gradient(0.01deg, #FF570A -31.2%, #F04006 113.07%)',
+    brandHorizontal: 'linear-gradient(90deg, #ff570a 0%, #ef4f00 100%)',
+    brandVertical: 'linear-gradient(0.01deg, #ff570a -31.2%, #ef4f00 113.07%)',
   };
 
   contrastThreshold = 3;
@@ -176,63 +176,63 @@ class LightColors implements ThemeColorsBase<Partial<ThemeRichColor>> {
   blackBase = '45, 51, 62';
 
   primary = {
-    main: '#F04006',
-    border: '#D5D3DD',
-    text: '#141116',
+    main: '#ff570a',
+    border: '#d0ccd5',
+    text: '#211f24',
   };
 
   text = {
-    primary: '#141116',
-    secondary: '#3A3441',
-    disabled: '#AFACB3',
-    link: '#F04006',
+    primary: '#211f24',
+    secondary: '#65616a',
+    disabled: '#8e8a94',
+    link: '#cc4e00',
     maxContrast: palette.black,
   };
 
   border = {
-    weak: `rgba(${this.blackBase}, 0.12)`,
-    medium: `rgba(${this.blackBase}, 0.30)`,
-    strong: `rgba(${this.blackBase}, .4)`,
+    weak: '#e3e0e7',
+    medium: '#d0ccd5',
+    strong: '#bdb9c2',
   };
 
   secondary = {
-    main: '#F04006',
-    shade: '#FFCFA8',
+    main: '#ff570a',
+    shade: '#ffdcc3',
     contrastText: `rgba(${this.blackBase},  1)`,
     text: this.text.primary,
     border: this.border.weak,
   };
 
   info = {
-    main: '#51A2FF',
-    text: palette.blueLightText,
+    main: '#687ff5',
+    text: '#4354c8',
   };
 
   error = {
-    main: '#FF6467',
-    text: palette.redLightText,
-    border: palette.redLightText,
+    main: '#dd4425',
+    text: '#d13415',
+    border: '#d13415',
   };
 
   success = {
-    main: '#05DF72',
-    text: palette.greenLightText,
+    main: '#46e1a5',
+    text: '#00885b',
   };
 
   warning = {
-    main: '#FDC700',
-    text: palette.orangeLightText,
+    main: '#ffc53d',
+    text: '#ab6400',
   };
 
   background = {
-    primary: '#FFFFFF',
-    canvas: '#FFFFFF',
-    secondary: '#F5F4F6',
+    primary: '#faf8fb',
+    canvas: '#e9e7ed',
+    secondary: '#fdfdfe',
   };
 
   action = {
-    hover: `rgba(${this.blackBase}, 0.12)`,
-    selected: '#F04006',
+    hover: 'rgba(0, 0, 0, 0.06)',
+    selected: '#ff570a',
     selectedBorder: palette.orangeLightMain,
     hoverOpacity: 0.08,
     focus: `rgba(${this.blackBase}, 0.12)`,
@@ -242,8 +242,8 @@ class LightColors implements ThemeColorsBase<Partial<ThemeRichColor>> {
   };
 
   gradients = {
-    brandHorizontal: 'linear-gradient(90deg, #FF570A 0%, #F04006 100%)',
-    brandVertical: 'linear-gradient(0.01deg, #FF570A -31.2%, #F04006 113.07%)',
+    brandHorizontal: 'linear-gradient(90deg, #ff570a 0%, #ef4f00 100%)',
+    brandVertical: 'linear-gradient(0.01deg, #ff570a -31.2%, #ef4f00 113.07%)',
   };
 
   contrastThreshold = 3;
