@@ -22,10 +22,10 @@ $colors-action-selected: #ff570a;
 $blue-light: #efedf0;
 $blue-base: #ff570a;
 $blue-shade: rgb(255, 120, 59);
-$red-base: #e54d2e;
-$red-shade: rgb(234, 112, 87);
-$green-base: #46e1a5;
-$green-shade: rgb(107, 231, 183);
+$red-base: #dc3b5d;
+$red-shade: rgb(227, 98, 125);
+$green-base: #30a46c;
+$green-shade: rgb(89, 182, 137);
 $orange-dark: #ff780a;
 
 $gray98: #f7f8fa;
@@ -80,20 +80,20 @@ $purple: #9933cc;
 $variable: #efedf0;
 
 $brand-primary: #eb7b18;
-$brand-success: #46e1a5;
+$brand-success: #30a46c;
 $brand-warning: #ffc53d;
-$brand-danger: #e54d2e;
+$brand-danger: #dc3b5d;
 
-$query-red: #ff977d;
-$query-green: #85f9c5;
+$query-red: #ff949d;
+$query-green: #7ce2b3;
 $query-purple: #fe85fc;
 $query-orange: #eb7b18;
 
 // Status colors
 // -------------------------¨
-$online: #85f9c5;
+$online: #7ce2b3;
 $warn: #ffca16;
-$critical: #ff977d;
+$critical: #ff949d;
 
 // Scaffolding
 // -------------------------
@@ -277,11 +277,11 @@ $tab-border-color: $dark-9;
 // Form states and alerts
 // -------------------------
 $warning-text-color: #ffca16;
-$error-text-color: #ff977d;
-$success-text-color: #85f9c5;
+$error-text-color: #ff949d;
+$success-text-color: #7ce2b3;
 
-$alert-error-bg: #e54d2e;
-$alert-success-bg: #46e1a5;
+$alert-error-bg: #dc3b5d;
+$alert-success-bg: #30a46c;
 $alert-warning-bg: #ffc53d;
 $alert-info-bg: #ffc53d;
 
@@ -295,7 +295,7 @@ $graph-tooltip-bg: $dark-1;
 $tooltipBackground: #232127;
 $tooltipColor: #efedf0;
 $tooltipArrowColor: #232127;
-$tooltipBackgroundError: #e54d2e;
+$tooltipBackgroundError: #dc3b5d;
 $tooltipShadow: 0px 4px 8px rgba(18, 16, 20, 0.75);
 
 $popover-bg: #1a181d;

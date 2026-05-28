@@ -75,26 +75,19 @@ function PickerLabel({ variable }: PropsWithChildren<Props>): ReactElement | nul
   const labelOrName = useMemo(() => variable.label || variable.name, [variable]);
   const { FNDashboard } = useSelector<StoreState, FnGlobalState>(({ fnGlobalState }) => fnGlobalState);
   const {
-    colors: { background, border, text },
+    colors: { background, text },
   } = useTheme2();
 
-  const labelStyle = useMemo(
-    () =>
-      FNDashboard
-        ? ({
-            ...COMMON_PICKER_LABEL_STYLE,
-            backgroundColor: 'transparent',
-            border: `1px solid ${border.weak}`,
-            color: text.primary,
-            height: 32,
-            padding: '0 10px',
-          } satisfies CSSProperties)
-        : ({
-            ...DEFAULT_PICKER_LABEL_STYLE,
-            color: text.primary,
-            backgroundColor: background.canvas,
-          } satisfies CSSProperties),
-    [FNDashboard, background, border, text]
+  // Use the same label style regardless of FN/non-FN mode so the top filter
+  // chips render identically in both contexts (FN mode previously had its own
+  // branch that visually drifted from the default styling).
+  const labelStyle = useMemo<CSSProperties>(
+    () => ({
+      ...DEFAULT_PICKER_LABEL_STYLE,
+      color: text.primary,
+      backgroundColor: background.canvas,
+    }),
+    [background, text]
   );
 
   if (variable.hide !== VariableHide.dontHide) {

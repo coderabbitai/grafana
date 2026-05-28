@@ -99,9 +99,9 @@ $height-lg: 48;
 // Typography
 // -------------------------
 /* stylelint-disable-next-line string-quotes */
-$font-family-sans-serif: "IBM Plex Mono", monospace;
+$font-family-sans-serif: "Geist Variable", ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
 /* stylelint-disable-next-line string-quotes */
-$font-family-monospace: "IBM Plex Mono", monospace;
+$font-family-monospace: "Hack", ui-monospace, "SFMono-Regular", "Menlo", "Monaco", "Consolas", "Liberation Mono", "Courier New", monospace;
 
 $font-file-path: '../fonts' !default;
 

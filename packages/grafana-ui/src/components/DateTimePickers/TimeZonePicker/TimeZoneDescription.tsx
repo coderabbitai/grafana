@@ -3,7 +3,7 @@ import { useMemo } from 'react';
 
 import { GrafanaTheme2, TimeZoneInfo } from '@grafana/data';
 
-import { useTheme2, useStyles2 } from '../../../themes';
+import { useStyles2 } from '../../../themes';
 
 interface Props {
   info?: TimeZoneInfo;
@@ -12,17 +12,12 @@ interface Props {
 export const TimeZoneDescription = ({ info }: Props) => {
   const styles = useStyles2(getStyles);
   const description = useDescription(info);
-  const { isDark } = useTheme2();
 
   if (!info) {
     return null;
   }
 
-  return (
-    <div className={styles.description} style={{ color: isDark ? '#F27A40' : '#BF470D' }}>
-      {description}
-    </div>
-  );
+  return <div className={styles.description}>{description}</div>;
 };
 
 const useDescription = (info?: TimeZoneInfo): string => {

@@ -41,6 +41,22 @@ const OPERATORS = Object.values(operatorSelectableValues);
 export const REGEX_OPERATOR = operatorSelectableValues['Contains'];
 const XPR_OPERATOR = operatorSelectableValues['Expression'];
 
+// Short labels used in the compact operator dropdown trigger. The full label
+// is still shown inside the dropdown menu (via OPERATORS) so users see the
+// canonical names; only the trigger button uses these abbreviated forms.
+const SHORT_OPERATOR_LABEL: Record<string, string> = {
+  Contains: '~',
+  Expression: 'fx',
+};
+
+const shortOperatorValue = (op: SelectableValue<string>): SelectableValue<string> => {
+  const short = op.value && SHORT_OPERATOR_LABEL[op.value];
+  if (!short) {
+    return op;
+  }
+  return { ...op, label: short };
+};
+
 const comparableValue = (value: string): string | number | Date | boolean => {
   value = value.trim().replace(/\\/g, '');
 
@@ -173,15 +189,20 @@ export const FilterList = ({
     <Stack direction="column" gap={0.25}>
       {!showOperators && <FilterInput placeholder="Filter values" onChange={setSearchFilter} value={searchFilter} />}
       {showOperators && (
-        <Stack direction="row" gap={0}>
-          <ButtonSelect
-            variant="canvas"
-            options={OPERATORS}
-            onChange={setOperator}
-            value={operator}
-            tooltip={operator.description}
-          />
-          <FilterInput placeholder="Filter values" onChange={setSearchFilter} value={searchFilter} />
+        <Stack direction="row" gap={0.5} alignItems="center">
+          <div className={styles.operatorWrap}>
+            <ButtonSelect
+              narrow
+              variant="canvas"
+              options={OPERATORS}
+              onChange={setOperator}
+              value={shortOperatorValue(operator)}
+              tooltip={operator.description}
+            />
+          </div>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <FilterInput placeholder="Filter values" onChange={setSearchFilter} value={searchFilter} />
+          </div>
         </Stack>
       )}
       {items.length > 0 ? (
@@ -240,6 +261,21 @@ function ItemRenderer({ index, style, data: { onCheckedChanged, items, values, c
 const getStyles = (theme: GrafanaTheme2) => ({
   filterList: css({
     label: 'filterList',
+    marginTop: theme.spacing(0.5),
+  }),
+  operatorWrap: css({
+    label: 'operatorWrap',
+    // Keep the operator trigger compact so the search input gets the rest of
+    // the row. The dropdown menu itself still uses the full operator labels.
+    flexShrink: 0,
+    // ToolbarButton in narrow mode renders ~24-32px wide depending on label.
+    minWidth: theme.spacing(4),
+    button: {
+      minWidth: theme.spacing(4),
+      paddingLeft: theme.spacing(0.75),
+      paddingRight: theme.spacing(0.75),
+      justifyContent: 'center',
+    },
   }),
   filterListRow: css({
     label: 'filterListRow',
@@ -247,7 +283,8 @@ const getStyles = (theme: GrafanaTheme2) => ({
     whiteSpace: 'nowrap',
     overflow: 'hidden',
     textOverflow: 'ellipsis',
-    padding: theme.spacing(0.5),
+    padding: theme.spacing(0.5, 1),
+    borderRadius: theme.shape.radius.default,
 
     ':hover': {
       backgroundColor: theme.colors.action.hover,
@@ -256,10 +293,12 @@ const getStyles = (theme: GrafanaTheme2) => ({
   selectDivider: css({
     label: 'selectDivider',
     width: '100%',
-    borderTop: `1px solid ${theme.colors.border.medium}`,
-    padding: theme.spacing(0.5, 2),
+    height: 1,
+    backgroundColor: theme.colors.border.weak,
+    margin: theme.spacing(1, 0, 0.5),
   }),
   noValuesLabel: css({
     paddingTop: theme.spacing(1),
+    color: theme.colors.text.secondary,
   }),
 });

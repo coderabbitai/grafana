@@ -84,7 +84,7 @@ export function getGlobalStyles(theme: GrafanaTheme2) {
             border: `1px solid ${theme.components.input.borderHover}`,
           },
           '&.rc-tree-node-selected': {
-            border: `1px solid ${theme.colors.primary.border}`,
+            border: `1px solid ${theme.colors.border.strong}`,
             opacity: 1,
           },
         },

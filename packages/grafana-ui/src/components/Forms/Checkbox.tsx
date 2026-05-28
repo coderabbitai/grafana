@@ -183,7 +183,10 @@ export const getCheckboxStyles = (theme: GrafanaTheme2, invalid = false) => {
       display: 'inline-block',
       width: theme.spacing(checkboxSize),
       height: theme.spacing(checkboxSize),
-      borderRadius: theme.shape.radius.default,
+      // Square corners on the checkbox so it reads as a checkbox rather than a
+      // soft rounded chip — matches the Carrot-aligned form-control style.
+      // eslint-disable-next-line @grafana/no-border-radius-literal
+      borderRadius: 0,
       background: theme.components.input.background,
       border: `1px solid ${getBorderColor(theme.components.input.borderColor)}`,
 

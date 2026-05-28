@@ -6,7 +6,6 @@ import { selectors } from '@grafana/e2e-selectors';
 import { Icon, useStyles2 } from '@grafana/ui';
 import { LoadingIndicator } from '@grafana/ui/src/components/PanelChrome/LoadingIndicator';
 import { t } from 'app/core/internationalization';
-import { useSelector } from 'app/types';
 
 import { getStyles as getTagBadgeStyles } from '../../../../core/components/TagFilter/TagBadge';
 import { ALL_VARIABLE_TEXT } from '../../constants';
@@ -24,8 +23,7 @@ interface Props {
 }
 
 export const VariableLink = ({ loading, disabled, onClick: propsOnClick, text, onCancel, id }: Props) => {
-  const isFnDashboard = useSelector((state) => state.fnGlobalState.FNDashboard);
-  const styles = useStyles2(getStyles(isFnDashboard));
+  const styles = useStyles2(getStyles);
   const onClick = useCallback(
     (event: MouseEvent<HTMLButtonElement>) => {
       event.stopPropagation();
@@ -79,15 +77,18 @@ const VariableLinkText = ({ text }: VariableLinkTextProps) => {
   );
 };
 
-const getStyles = (isFnDashboard: boolean) => (theme: GrafanaTheme2) => {
+// Use the same picker-link styles regardless of FN/non-FN mode so the top
+// filter chips look identical in both contexts.
+const getStyles = (theme: GrafanaTheme2) => {
   const tagBadgeStyles = getTagBadgeStyles(theme);
+  const focusBorderColor = theme.colors.border.strong;
 
   return {
     container: css({
       maxWidth: '500px',
-      padding: isFnDashboard ? theme.spacing(0, 1.5) : theme.spacing(0, 1),
-      backgroundColor: isFnDashboard ? 'transparent' : theme.components.input.background,
-      border: `1px solid ${isFnDashboard ? theme.colors.border.weak : theme.components.input.borderColor}`,
+      padding: theme.spacing(0, 1),
+      backgroundColor: theme.components.input.background,
+      border: `1px solid ${theme.components.input.borderColor}`,
       borderRadius: theme.shape.radius.default,
       display: 'flex',
       alignItems: 'center',
@@ -100,12 +101,13 @@ const getStyles = (isFnDashboard: boolean) => (theme: GrafanaTheme2) => {
         }),
       },
 
-      ...(isFnDashboard && {
-        '&:hover': {
-          backgroundColor: theme.colors.action.hover,
-          borderColor: theme.colors.border.medium,
-        },
-      }),
+      // Override the default (orange/info) focus styles so the variable picker
+      // border stays gray when selected/focused, matching the rest of the theme.
+      '&:focus, &:focus-visible, &:focus-within': {
+        outline: 'none',
+        borderColor: focusBorderColor,
+        boxShadow: `0 0 0 1px ${focusBorderColor}`,
+      },
 
       [`.${tagBadgeStyles.badge}`]: {
         margin: '0 5px',

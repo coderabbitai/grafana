@@ -1,4 +1,3 @@
-/* eslint-disable @grafana/no-unreduced-motion */
 import { cx, css } from '@emotion/css';
 import { forwardRef, ButtonHTMLAttributes, ReactNode } from 'react';
 
@@ -8,7 +7,6 @@ import { selectors } from '@grafana/e2e-selectors';
 import { styleMixins, useStyles2 } from '../../themes';
 import { getFocusStyles, getMouseFocusStyles } from '../../themes/mixins';
 import { IconSize } from '../../types/icon';
-import { getPropertiesForVariant } from '../Button';
 import { Icon } from '../Icon/Icon';
 import { Tooltip } from '../Tooltip';
 
@@ -133,19 +131,23 @@ function renderIcon(icon: IconName | React.ReactNode, iconSize?: IconSize) {
 }
 
 const getStyles = (theme: GrafanaTheme2) => {
-  const primaryVariant = getPropertiesForVariant(theme, 'primary', 'solid');
-  const destructiveVariant = getPropertiesForVariant(theme, 'destructive', 'solid');
-
-  // Neutral filled surface used by canvas and active variants
+  // Carrot-UI "outline" surface — used by canvas + active variants. Bordered button
+  // on a subtle base-2 fill with a soft shadow, hovering into action.hover.
   const canvasVariant = css({
     color: theme.colors.text.primary,
     background: theme.colors.background.secondary,
     border: `1px solid ${theme.colors.border.weak}`,
+    boxShadow: theme.shadows.z1,
 
     '&:hover': {
       color: theme.colors.text.primary,
       background: theme.colors.action.hover,
       border: `1px solid ${theme.colors.border.medium}`,
+    },
+
+    '&:active:not(:disabled)': {
+      background: theme.colors.action.hover,
+      boxShadow: 'inset 0 0 0 1px rgba(0, 0, 0, 0.08)',
     },
   });
 
@@ -156,14 +158,19 @@ const getStyles = (theme: GrafanaTheme2) => {
       display: 'flex',
       alignItems: 'center',
       height: theme.spacing(theme.components.height.md),
+      // Carrot-UI uses tighter horizontal padding (8px for md, 6px for narrow).
       padding: theme.spacing(0, 1),
       borderRadius: theme.shape.radius.default,
       lineHeight: `${theme.components.height.md * theme.spacing.gridSize - 2}px`,
       fontWeight: theme.typography.fontWeightMedium,
       whiteSpace: 'nowrap',
-      transition: theme.transitions.create(['background', 'box-shadow', 'border-color', 'color'], {
-        duration: theme.transitions.duration.short,
-      }),
+      userSelect: 'none',
+      [theme.transitions.handleMotion('no-preference', 'reduce')]: {
+        transition: theme.transitions.create(
+          ['background-color', 'border-color', 'color', 'box-shadow', 'transform'],
+          { duration: theme.transitions.duration.short }
+        ),
+      },
 
       '&:focus, &:focus-visible': {
         ...getFocusStyles(theme),
@@ -171,10 +178,6 @@ const getStyles = (theme: GrafanaTheme2) => {
       },
 
       '&:focus:not(:focus-visible)': getMouseFocusStyles(theme),
-
-      '&:hover': {
-        boxShadow: theme.shadows.z1,
-      },
 
       '&[disabled], &:disabled': {
         cursor: 'not-allowed',
@@ -189,21 +192,31 @@ const getStyles = (theme: GrafanaTheme2) => {
         },
       },
     }),
+    // Default toolbar surface — Carrot-UI "outline" treatment: subtle base-2 fill,
+    // 1px weak border, soft shadow; hover lifts to action.hover + medium border.
     default: css({
       color: theme.colors.text.secondary,
-      background: theme.colors.background.primary,
+      background: theme.colors.background.secondary,
       border: `1px solid ${theme.colors.border.weak}`,
+      boxShadow: theme.shadows.z1,
 
       '&:hover': {
         color: theme.colors.text.primary,
         background: theme.colors.action.hover,
         border: `1px solid ${theme.colors.border.medium}`,
       },
+
+      '&:active:not(:disabled)': {
+        background: theme.colors.action.hover,
+        boxShadow: 'inset 0 0 0 1px rgba(0, 0, 0, 0.08)',
+      },
     }),
     canvas: canvasVariant,
     active: cx(
       canvasVariant,
       css({
+        // Brand accent underline — kept as a Grafana-specific signature on top of
+        // the carrot-ui outline surface to indicate the active toolbar item.
         '&::before': {
           display: 'block',
           content: '" "',
@@ -217,10 +230,73 @@ const getStyles = (theme: GrafanaTheme2) => {
         },
       })
     ),
-    primary: css(primaryVariant),
-    destructive: css(destructiveVariant),
+    // Carrot-UI styled toolbar accent — keeps the outline surface but uses the
+    // primary accent colour for text + a brand-gradient bottom underline so it
+    // reads as a CTA without overwhelming the toolbar with a solid orange fill.
+    primary: css({
+      color: theme.colors.primary.text,
+      background: theme.colors.background.secondary,
+      border: `1px solid ${theme.colors.border.weak}`,
+      boxShadow: theme.shadows.z1,
+
+      '&:hover': {
+        color: theme.colors.primary.text,
+        background: theme.colors.action.hover,
+        border: `1px solid ${theme.colors.primary.borderTransparent}`,
+      },
+
+      '&:active:not(:disabled)': {
+        background: theme.colors.action.hover,
+        boxShadow: 'inset 0 0 0 1px rgba(0, 0, 0, 0.08)',
+      },
+
+      // Brand accent underline to signal a primary/CTA toolbar control.
+      '&::before': {
+        display: 'block',
+        content: '" "',
+        position: 'absolute',
+        left: 0,
+        right: 0,
+        height: '2px',
+        bottom: 0,
+        borderRadius: theme.shape.radius.default,
+        backgroundImage: theme.colors.gradients.brandHorizontal,
+      },
+    }),
+    // Destructive toolbar accent — outline surface tinted with error colour for
+    // text and a matching bottom stripe; avoids a heavy solid red fill that
+    // doesn't fit the carrot-ui toolbar visual language.
+    destructive: css({
+      color: theme.colors.error.text,
+      background: theme.colors.background.secondary,
+      border: `1px solid ${theme.colors.border.weak}`,
+      boxShadow: theme.shadows.z1,
+
+      '&:hover': {
+        color: theme.colors.error.text,
+        background: theme.colors.action.hover,
+        border: `1px solid ${theme.colors.error.borderTransparent}`,
+      },
+
+      '&:active:not(:disabled)': {
+        background: theme.colors.action.hover,
+        boxShadow: 'inset 0 0 0 1px rgba(0, 0, 0, 0.08)',
+      },
+
+      '&::before': {
+        display: 'block',
+        content: '" "',
+        position: 'absolute',
+        left: 0,
+        right: 0,
+        height: '2px',
+        bottom: 0,
+        borderRadius: theme.shape.radius.default,
+        background: theme.colors.error.main,
+      },
+    }),
     narrow: css({
-      padding: theme.spacing(0, 0.5),
+      padding: theme.spacing(0, 0.75),
     }),
     img: css({
       width: '16px',

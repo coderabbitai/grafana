@@ -138,17 +138,19 @@ export const TimeRangeContent = (props: Props) => {
   const fiscalYear = rangeUtil.convertRawToRange({ from: 'now/fy', to: 'now/fy' }, timeZone, fiscalYearStartMonth);
   const fiscalYearMessage = t('time-picker.range-content.fiscal-year', 'Fiscal year');
 
-  const fyTooltip = (
+  // Only render the fiscal-year tooltip wrapper when there is actually content
+  // to show. The wrapper has paddingLeft, so rendering an empty one steals
+  // horizontal space from the input row and makes the From/To inputs narrower
+  // than the Apply button below.
+  const fyTooltip = rangeUtil.isFiscal(value) ? (
     <div className={style.tooltip}>
-      {rangeUtil.isFiscal(value) ? (
-        <Tooltip
-          content={`${fiscalYearMessage}: ${fiscalYear.from.format('MMM-DD')} - ${fiscalYear.to.format('MMM-DD')}`}
-        >
-          <Icon name="info-circle" />
-        </Tooltip>
-      ) : null}
+      <Tooltip
+        content={`${fiscalYearMessage}: ${fiscalYear.from.format('MMM-DD')} - ${fiscalYear.to.format('MMM-DD')}`}
+      >
+        <Icon name="info-circle" />
+      </Tooltip>
     </div>
-  );
+  ) : null;
 
   const icon = (
     <Button
@@ -216,12 +218,9 @@ export const TimeRangeContent = (props: Props) => {
         <Button
           data-testid={selectors.components.TimePicker.applyTimeRange}
           type="button"
+          variant="secondary"
           onClick={onApply}
-          style={{
-            width: 205,
-            textAlign: 'center',
-            paddingLeft: 45,
-          }}
+          fullWidth
         >
           <Trans i18nKey="time-picker.range-content.apply-button">Apply time range</Trans>
         </Button>
@@ -284,6 +283,12 @@ function getStyles(theme: GrafanaTheme2) {
   return {
     fieldContainer: css({
       display: 'flex',
+      // Stretch the From/To field (and its inner Input) to fill the popover
+      // width so they line up with the full-width Apply button below.
+      '> div:first-of-type': {
+        flexGrow: 1,
+        minWidth: 0,
+      },
     }),
     buttonsContainer: css({
       display: 'flex',

@@ -125,15 +125,17 @@ class DarkColors implements ThemeColorsBase<Partial<ThemeRichColor>> {
     text: '#95afff',
   };
 
+  // Carrot UI danger tokens (dark): bg #dc3b5d, text #ff949d, border #883447
   error = {
-    main: '#e54d2e',
-    text: '#ff977d',
-    border: '#853a2d',
+    main: '#dc3b5d',
+    text: '#ff949d',
+    border: '#883447',
   };
 
+  // Carrot UI success tokens (dark): main #30a46c (green-9), text #7ce2b3 (green-11 dark)
   success = {
-    main: '#46e1a5',
-    text: '#85f9c5',
+    main: '#30a46c',
+    text: '#7ce2b3',
   };
 
   warning = {
@@ -208,15 +210,17 @@ class LightColors implements ThemeColorsBase<Partial<ThemeRichColor>> {
     text: '#4354c8',
   };
 
+  // Carrot UI danger tokens (light): bg #dc3b5d, text #ca244d, border #dc3b5d
   error = {
-    main: '#dd4425',
-    text: '#d13415',
-    border: '#d13415',
+    main: '#dc3b5d',
+    text: '#ca244d',
+    border: '#dc3b5d',
   };
 
+  // Carrot UI success tokens (light): main #30a46c (green-9), text #218358 (green-11)
   success = {
-    main: '#46e1a5',
-    text: '#00885b',
+    main: '#30a46c',
+    text: '#218358',
   };
 
   warning = {

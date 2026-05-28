@@ -151,6 +151,7 @@ export function TimeRangePicker(props: TimeRangePickerProps) {
           icon={timePickerIcon}
           isOpen={isOpen}
           variant={variant}
+          className={styles.pickerButton}
           fnText={fnText}
         >
           <TimePickerButtonLabel {...props} />
@@ -279,7 +280,6 @@ const getStyles = (theme: GrafanaTheme2) => {
       border: `1px solid ${theme.colors.border.weak}`,
       borderRadius: theme.shape.radius.default,
       boxShadow: theme.shadows.z2,
-      overflow: 'hidden',
 
       [theme.breakpoints.down('sm')]: {
         position: 'fixed',
@@ -287,6 +287,15 @@ const getStyles = (theme: GrafanaTheme2) => {
         top: '50%',
         transform: 'translate(50%, -50%)',
         zIndex: theme.zIndex.modal,
+      },
+    }),
+    // Override the ToolbarButton 'active' variant's orange brand gradient
+    // underline locally for the time-range picker so the control reads as a
+    // neutral toolbar item rather than an orange-accented one.
+    pickerButton: css({
+      '&::before': {
+        backgroundImage: 'none',
+        background: theme.colors.border.medium,
       },
     }),
   };

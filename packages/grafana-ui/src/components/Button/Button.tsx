@@ -212,23 +212,38 @@ export const getButtonStyles = (props: StyleProps) => {
   const variantStyles = getPropertiesForVariant(theme, variant, fill);
   const disabledStyles = getPropertiesForDisabled(theme, variant, fill);
   const focusStyle = getFocusStyles(theme);
-  const paddingMinusBorder = theme.spacing.gridSize * padding - 1;
+
+  // Carrot-UI uses tighter horizontal padding than Grafana's default. Convert the
+  // gridSize-based padding into px and shave off ~25% to match the reference design
+  // (sm: 6px, md: 8px, lg: 12px) while still respecting theme.spacing.gridSize for
+  // forks that customise it. Subtract the 1px border so the visual padding matches.
+  const horizontalPadding = Math.max(theme.spacing.gridSize * padding * 0.75 - 1, 0);
 
   return {
     button: css({
       label: 'button',
+      position: 'relative',
       display: 'inline-flex',
       alignItems: 'center',
+      justifyContent: 'center',
       fontSize: fontSize,
       fontWeight: theme.typography.fontWeightMedium,
       fontFamily: theme.typography.fontFamily,
-      padding: `0 ${paddingMinusBorder}px`,
+      padding: `0 ${horizontalPadding}px`,
       height: theme.spacing(height),
       // Deduct border from line-height for perfect vertical centering on windows and linux
       lineHeight: `${theme.spacing.gridSize * height - 2}px`,
       verticalAlign: 'middle',
       cursor: 'pointer',
+      whiteSpace: 'nowrap',
+      userSelect: 'none',
       borderRadius: theme.shape.radius.default,
+      [theme.transitions.handleMotion('no-preference', 'reduce')]: {
+        transition: theme.transitions.create(
+          ['background-color', 'border-color', 'color', 'box-shadow', 'transform'],
+          { duration: theme.transitions.duration.short }
+        ),
+      },
       '&:focus': focusStyle,
       '&:focus-visible': focusStyle,
       '&:focus:not(:focus-visible)': getMouseFocusStyles(theme),
@@ -273,8 +288,8 @@ function getButtonVariantStyles(theme: GrafanaTheme2, color: ThemeRichColor, fil
   let borderColor = 'transparent';
   let hoverBorderColor = 'transparent';
 
-  // Secondary button has some special rules as we lack theem color token to
-  // specify border color for normal button vs border color for outline button
+  // Secondary button has some special rules as we lack a theme color token to
+  // specify border color for normal button vs border color for outline button.
   if (color.name === 'secondary') {
     borderColor = color.border;
     hoverBorderColor = theme.colors.emphasize(color.border, 0.25);
@@ -282,30 +297,33 @@ function getButtonVariantStyles(theme: GrafanaTheme2, color: ThemeRichColor, fil
   }
 
   if (fill === 'outline') {
+    // Carrot-UI "outline" variant: bordered button on a subtle background fill.
     return {
-      background: 'transparent',
+      background: theme.colors.background.secondary,
       color: color.text,
       border: `1px solid ${outlineBorderColor}`,
-      transition: theme.transitions.create(['background-color', 'border-color', 'color'], {
-        duration: theme.transitions.duration.short,
-      }),
+      boxShadow: theme.shadows.z1,
 
       '&:hover': {
-        background: color.transparent,
+        background: theme.colors.action.hover,
         borderColor: theme.colors.emphasize(outlineBorderColor, 0.25),
         color: color.text,
+      },
+
+      // Carrot-UI "press" effect: the inner fill insets by 1px on active.
+      '&:active:not(:disabled)': {
+        background: theme.colors.action.hover,
+        boxShadow: 'inset 0 0 0 1px rgba(0, 0, 0, 0.08)',
       },
     };
   }
 
   if (fill === 'text') {
+    // Carrot-UI "transparent" variant: no background at rest, subtle hover fill.
     return {
       background: 'transparent',
       color: color.text,
       border: '1px solid transparent',
-      transition: theme.transitions.create(['background-color', 'color'], {
-        duration: theme.transitions.duration.short,
-      }),
 
       '&:focus': {
         outline: 'none',
@@ -313,36 +331,46 @@ function getButtonVariantStyles(theme: GrafanaTheme2, color: ThemeRichColor, fil
       },
 
       '&:hover': {
-        background: color.transparent,
+        background: theme.colors.action.hover,
         textDecoration: 'none',
+        color: color.text,
+      },
+
+      '&:active:not(:disabled)': {
+        background: theme.colors.action.hover,
       },
     };
   }
 
   if (fill === 'ghost') {
     return {
-      background: '#5d5a5990',
+      background: theme.colors.action.hover,
       color: color.text,
       border: `1px solid ${borderColor}`,
-      transition: theme.transitions.create(['background-color', 'box-shadow', 'border-color', 'color'], {
-        duration: theme.transitions.duration.short,
-      }),
+      '&:hover': {
+        background: theme.colors.action.selected,
+        color: color.text,
+      },
     };
   }
 
+  // Solid fill — Carrot-UI "primary" / "danger" style: filled with a subtle 1px
+  // tonal border, soft shadow, and a colour-shift on hover.
   return {
     background: color.main,
     color: color.contrastText,
-    border: `1px solid ${borderColor}`,
-    transition: theme.transitions.create(['background-color', 'box-shadow', 'border-color', 'color'], {
-      duration: theme.transitions.duration.short,
-    }),
+    border: `1px solid ${color.border ?? borderColor}`,
+    boxShadow: theme.shadows.z1,
 
     '&:hover': {
       background: color.shade,
       color: color.contrastText,
-      boxShadow: theme.shadows.z1,
-      borderColor: hoverBorderColor,
+      borderColor: hoverBorderColor !== 'transparent' ? hoverBorderColor : color.border,
+    },
+
+    '&:active:not(:disabled)': {
+      background: color.shade,
+      boxShadow: 'inset 0 0 0 1px rgba(0, 0, 0, 0.12)',
     },
   };
 }
@@ -353,6 +381,7 @@ function getPropertiesForDisabled(theme: GrafanaTheme2, variant: ButtonVariant, 
     boxShadow: 'none',
     color: theme.colors.text.disabled,
     transition: 'none',
+    opacity: theme.colors.action.disabledOpacity,
   };
 
   if (fill === 'text') {

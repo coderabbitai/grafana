@@ -123,15 +123,11 @@ export const TimePickerContent = (props: Props) => {
 };
 
 const NarrowScreenForm = (props: FormProps) => {
-  const { value, hideQuickRanges, onChange, timeZone, historyOptions = [], showHistory, onError, weekStart } = props;
+  const { value, hideQuickRanges, onChange, timeZone, onError, weekStart } = props;
   const styles = useStyles2(getNarrowScreenStyles);
   const isAbsolute = isDateTime(value.raw.from) || isDateTime(value.raw.to);
   const [collapsedFlag, setCollapsedFlag] = useState(!isAbsolute);
   const collapsed = hideQuickRanges ? false : collapsedFlag;
-
-  const onChangeTimeOption = (timeOption: TimeOption) => {
-    return onChange(mapOptionToTimeRange(timeOption, timeZone));
-  };
 
   return (
     <fieldset>
@@ -166,14 +162,7 @@ const NarrowScreenForm = (props: FormProps) => {
               weekStart={weekStart}
             />
           </div>
-          {showHistory && (
-            <TimeRangeList
-              title={t('time-picker.absolute.recent-title', 'Recently used absolute ranges')}
-              options={historyOptions}
-              onChange={onChangeTimeOption}
-              placeholderEmpty={null}
-            />
-          )}
+
         </div>
       )}
     </fieldset>
@@ -181,11 +170,8 @@ const NarrowScreenForm = (props: FormProps) => {
 };
 
 const FullScreenForm = (props: FormProps) => {
-  const { onChange, value, timeZone, fiscalYearStartMonth, isReversed, historyOptions, onError, weekStart } = props;
+  const { onChange, value, timeZone, fiscalYearStartMonth, isReversed, onError, weekStart } = props;
   const styles = useStyles2(getFullScreenStyles, props.hideQuickRanges);
-  const onChangeTimeOption = (timeOption: TimeOption) => {
-    return onChange(mapOptionToTimeRange(timeOption, timeZone));
-  };
 
   return (
     <>
@@ -212,16 +198,7 @@ const FullScreenForm = (props: FormProps) => {
           weekStart={weekStart}
         />
       </div>
-      {props.showHistory && (
-        <div className={styles.recent}>
-          <TimeRangeList
-            title={t('time-picker.absolute.recent-title', 'Recently used absolute ranges')}
-            options={historyOptions || []}
-            onChange={onChangeTimeOption}
-            placeholderEmpty={<></>}
-          />
-        </div>
-      )}
+
     </>
   );
 };

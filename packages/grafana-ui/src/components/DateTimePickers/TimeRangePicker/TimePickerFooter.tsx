@@ -64,7 +64,7 @@ export const TimePickerFooter = (props: Props) => {
     return null;
   }
 
-  const fnColor = theme.colors.mode === 'dark' ? '#F06929' : '#344054';
+  const fnColor = theme.colors.text.secondary;
 
   return (
     <div>
@@ -95,24 +95,26 @@ export const TimePickerFooter = (props: Props) => {
       </section>
       {isEditing ? (
         <div className={style.editContainer} id={timeSettingsId}>
-          <TabsBar>
-            <Tab
-              label={t('time-picker.footer.time-zone-option', 'Time zone')}
-              active={editMode === 'tz'}
-              onChangeTab={() => {
-                setEditMode('tz');
-              }}
-              aria-controls={timeZoneSettingsId}
-            />
-            <Tab
-              label={t('time-picker.footer.fiscal-year-option', 'Fiscal year')}
-              active={editMode === 'fy'}
-              onChangeTab={() => {
-                setEditMode('fy');
-              }}
-              aria-controls={fiscalYearSettingsId}
-            />
-          </TabsBar>
+          <div className={style.tabsOverride}>
+            <TabsBar>
+              <Tab
+                label={t('time-picker.footer.time-zone-option', 'Time zone')}
+                active={editMode === 'tz'}
+                onChangeTab={() => {
+                  setEditMode('tz');
+                }}
+                aria-controls={timeZoneSettingsId}
+              />
+              <Tab
+                label={t('time-picker.footer.fiscal-year-option', 'Fiscal year')}
+                active={editMode === 'fy'}
+                onChangeTab={() => {
+                  setEditMode('fy');
+                }}
+                aria-controls={fiscalYearSettingsId}
+              />
+            </TabsBar>
+          </div>
           <TabContent>
             {editMode === 'tz' ? (
               <section
@@ -205,6 +207,15 @@ const getStyle = stylesFactory((theme: GrafanaTheme2) => {
       flexDirection: 'row',
       alignItems: 'baseline',
       flexGrow: 1,
+    }),
+    // Override the shared Tab component's active underline (which uses the
+    // orange brand gradient) with a neutral gray for the time-zone /
+    // fiscal-year tabs inside the time-range picker only.
+    tabsOverride: css({
+      'button[role="tab"][aria-selected="true"]::before, a[role="tab"][aria-selected="true"]::before': {
+        backgroundImage: 'none',
+        backgroundColor: theme.colors.border.strong,
+      },
     }),
   };
 });
