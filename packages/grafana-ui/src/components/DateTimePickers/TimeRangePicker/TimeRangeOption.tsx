@@ -16,7 +16,8 @@ const getStyles = (theme: GrafanaTheme2) => {
       justifyContent: 'space-between',
     }),
     selected: css({
-      background: theme.colors.action.selected,
+      background: theme.colors.secondary.main,
+      color: theme.colors.secondary.text,
       fontWeight: theme.typography.fontWeightMedium,
     }),
     radio: css({

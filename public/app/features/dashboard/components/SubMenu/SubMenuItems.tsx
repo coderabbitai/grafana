@@ -17,7 +17,6 @@ export const SubMenuItems = ({ variables, readOnly }: Props) => {
   const [visibleVariables, setVisibleVariables] = useState<TypedVariableModel[]>([]);
 
   const hiddenVariables = useSelector((state) => state.fnGlobalState.hiddenVariables);
-
   const styles = useStyles2(getStyles);
 
   useEffect(() => {
@@ -47,9 +46,12 @@ export const SubMenuItems = ({ variables, readOnly }: Props) => {
   );
 };
 
+// Use the same submenu-item styles regardless of FN/non-FN mode so the top
+// filter row renders identically in both contexts.
 const getStyles = (theme: GrafanaTheme2) => ({
   submenuItem: css({
-    display: 'inline-block',
+    display: 'inline-flex',
+    alignItems: 'center',
 
     '.fa-caret-down': {
       fontSize: '75%',

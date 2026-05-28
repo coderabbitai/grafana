@@ -53,8 +53,13 @@ export interface ThemeTypographyInput {
   htmlFontSize?: number;
 }
 
-const defaultFontFamily = '"IBM Plex Mono", monospace';
-const defaultFontFamilyMonospace = '"IBM Plex Mono", monospace';
+// Carrot UI font stacks. Sans uses Geist Variable with system-ui fallbacks; mono uses
+// Hack with ui-monospace fallbacks. These match the --font-cui-sans / --font-cui-mono
+// custom properties published by the Carrot UI design system.
+const defaultFontFamily =
+  '"Geist Variable", ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji"';
+const defaultFontFamilyMonospace =
+  '"Hack", ui-monospace, "SFMono-Regular", "Menlo", "Monaco", "Consolas", "Liberation Mono", "Courier New", monospace';
 
 export function createTypography(colors: ThemeColors, typographyInput: ThemeTypographyInput = {}): ThemeTypography {
   const {

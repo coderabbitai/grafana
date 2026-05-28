@@ -31,19 +31,19 @@ export function getDashboardGridStyles(theme: GrafanaTheme2): CSSObject {
         position: 'unset !important' as 'unset',
         transform: 'translate(0px, 0px) !important',
         marginBottom: theme.spacing(2),
-        boxShadow: `0 8px 24px ${theme.colors.primary.border} !important`,
+        boxShadow: `${theme.shadows.z2} !important`,
         borderRadius: theme.shape.borderRadius(2),
       },
       '.panel-repeater-grid-item': {
         height: 'auto !important',
-        boxShadow: `0 8px 24px ${theme.colors.primary.border} !important`,
+        boxShadow: `${theme.shadows.z2} !important`,
         borderRadius: theme.shape.borderRadius(2),
       },
     },
 
     '.react-grid-item.react-grid-placeholder': {
-      boxShadow: `0 0 4px ${theme.colors.primary.border} !important`,
-      background: `${theme.colors.primary.transparent} !important`,
+      boxShadow: `0 0 0 1px ${theme.colors.border.medium} inset, ${theme.shadows.z1} !important`,
+      background: `${theme.colors.action.hover} !important`,
       zIndex: '-1 !important',
       opacity: 'unset !important',
     },
@@ -54,7 +54,7 @@ export function getDashboardGridStyles(theme: GrafanaTheme2): CSSObject {
     },
 
     '.react-grid-item > div:first-of-type': {
-      boxShadow: `0 0 4px ${theme.colors.primary.border} !important`,
+      boxShadow: `${theme.shadows.z1} !important`,
       borderRadius: theme.shape.borderRadius(2),
     },
 

@@ -128,7 +128,7 @@ export const getBodyStyles = (theme: GrafanaTheme2) => {
       '.react-calendar__month-view__weekdays': {
         backgroundColor: 'inherit',
         textAlign: 'center',
-        color: theme.colors.primary.text,
+        color: theme.colors.text.secondary,
 
         abbr: {
           border: 0,
@@ -155,9 +155,9 @@ export const getBodyStyles = (theme: GrafanaTheme2) => {
         },
 
       [`${hasActiveSelector}, .react-calendar__tile--active, .react-calendar__tile--active:hover`]: {
-        color: theme.colors.primary.contrastText,
+        color: theme.colors.secondary.text,
         fontWeight: theme.typography.fontWeightMedium,
-        background: theme.colors.primary.main,
+        background: theme.colors.secondary.main,
         boxShadow: 'none',
         border: '0px',
       },
@@ -165,12 +165,12 @@ export const getBodyStyles = (theme: GrafanaTheme2) => {
       '.react-calendar__tile--rangeEnd, .react-calendar__tile--rangeStart': {
         padding: 0,
         border: '0px',
-        color: theme.colors.primary.contrastText,
+        color: theme.colors.secondary.text,
         fontWeight: theme.typography.fontWeightMedium,
-        background: theme.colors.primary.main,
+        background: theme.colors.secondary.main,
 
         abbr: {
-          backgroundColor: theme.colors.primary.main,
+          backgroundColor: theme.colors.secondary.shade,
           borderRadius: '100px',
           display: 'block',
           paddingTop: '2px',

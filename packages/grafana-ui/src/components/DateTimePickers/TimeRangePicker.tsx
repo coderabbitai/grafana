@@ -151,6 +151,7 @@ export function TimeRangePicker(props: TimeRangePickerProps) {
           icon={timePickerIcon}
           isOpen={isOpen}
           variant={variant}
+          className={styles.pickerButton}
           fnText={fnText}
         >
           <TimePickerButtonLabel {...props} />
@@ -273,8 +274,12 @@ const getStyles = (theme: GrafanaTheme2) => {
     content: css({
       position: 'absolute',
       right: 0,
-      top: '116%',
+      top: `calc(100% + ${theme.spacing(1)})`,
       zIndex: theme.zIndex.dropdown,
+      background: theme.colors.background.secondary,
+      border: `1px solid ${theme.colors.border.weak}`,
+      borderRadius: theme.shape.radius.default,
+      boxShadow: theme.shadows.z2,
 
       [theme.breakpoints.down('sm')]: {
         position: 'fixed',
@@ -282,6 +287,15 @@ const getStyles = (theme: GrafanaTheme2) => {
         top: '50%',
         transform: 'translate(50%, -50%)',
         zIndex: theme.zIndex.modal,
+      },
+    }),
+    // Override the ToolbarButton 'active' variant's orange brand gradient
+    // underline locally for the time-range picker so the control reads as a
+    // neutral toolbar item rather than an orange-accented one.
+    pickerButton: css({
+      '&::before': {
+        backgroundImage: 'none',
+        background: theme.colors.border.medium,
       },
     }),
   };
@@ -295,10 +309,10 @@ const getLabelStyles = (theme: GrafanaTheme2) => {
       whiteSpace: 'nowrap',
     }),
     utc: css({
-      color: theme.v1.palette.orange,
+      color: theme.colors.text.secondary,
       fontSize: theme.typography.size.sm,
-      paddingLeft: '6px',
-      lineHeight: '28px',
+      paddingLeft: theme.spacing(0.75),
+      lineHeight: theme.typography.body.lineHeight,
       verticalAlign: 'bottom',
       fontWeight: theme.typography.fontWeightMedium,
     }),

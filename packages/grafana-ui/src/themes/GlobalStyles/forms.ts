@@ -225,9 +225,12 @@ export function getFormElementStyles(theme: GrafanaTheme2): CSSObject {
         display: 'none',
       },
 
-      // Customize the `:focus` state to imitate native WebKit styles.
-      '&:focus': {
-        borderColor: theme.colors.primary.border,
+      // Customize the `:focus` state to imitate native WebKit styles, but use a
+      // neutral gray border instead of the brand-color (orange) one so inputs
+      // match the rest of the Carrot-aligned theme.
+      '&:focus, &:focus-visible': {
+        borderColor: theme.colors.border.strong,
+        boxShadow: 'none',
         outline: 'none',
       },
 
