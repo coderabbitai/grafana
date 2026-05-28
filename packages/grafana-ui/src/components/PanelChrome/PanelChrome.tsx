@@ -478,9 +478,12 @@ const getStyles = (isFNPanel?: boolean) => (theme: GrafanaTheme2) => {
       display: 'flex',
       padding: theme.spacing(0, padding),
       minWidth: 0,
+      // FN-dashboard panel titles span the full chrome width so the title
+      // and the right-aligned menu line up edge-to-edge. Titles render in
+      // normal case — the uppercase transform that previously lived here
+      // has been removed.
       ...(isFNPanel && {
         width: '100%',
-        textTransform: 'uppercase',
       }),
       '& > h2': {
         minWidth: 0,
