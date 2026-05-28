@@ -20,6 +20,12 @@ export interface Props extends React.HTMLProps<HTMLUListElement>, Themeable2 {
    * Used for aria-controls
    */
   id: string;
+  /**
+   * Optional search input rendered at the top of the dropdown panel. When
+   * provided the dropdown gets a sticky search header (carrot-ui Filter style)
+   * instead of relying on a sibling input above the panel.
+   */
+  searchInput?: React.ReactNode;
 }
 
 class VariableOptions extends PureComponent<Props> {
@@ -41,11 +47,22 @@ class VariableOptions extends PureComponent<Props> {
 
   render() {
     // Don't want to pass faulty rest props to the div
-    const { multi, values, highlightIndex, selectedValues, onToggle, onToggleAll, theme, ...restProps } = this.props;
+    const {
+      multi,
+      values,
+      highlightIndex,
+      selectedValues,
+      onToggle,
+      onToggleAll,
+      theme,
+      searchInput,
+      ...restProps
+    } = this.props;
     const styles = getStyles(theme);
 
     return (
       <div className={styles.variableValueDropdown}>
+        {searchInput && <div className={styles.searchHeader}>{searchInput}</div>}
         <div className={styles.variableOptionsWrapper}>
           <ul
             className={styles.variableOptionsColumn}
@@ -220,7 +237,8 @@ const getStyles = stylesFactory((theme: GrafanaTheme2) => {
       top: `calc(${theme.spacing(theme.components.height.md)} + ${theme.spacing(0.5)})`,
       maxHeight: '400px',
       minHeight: '150px',
-      minWidth: '150px',
+      width: '240px',
+      maxWidth: '240px',
       overflowY: 'auto',
       overflowX: 'hidden',
       padding: theme.spacing(0.5),
@@ -245,6 +263,15 @@ const getStyles = stylesFactory((theme: GrafanaTheme2) => {
 
     noPaddingBotton: css({
       paddingBottom: 0,
+    }),
+    searchHeader: css({
+      position: 'sticky',
+      top: 0,
+      zIndex: 1,
+      backgroundColor: theme.colors.background.secondary,
+      padding: theme.spacing(0.5, 0.5, 1, 0.5),
+      borderBottom: `1px solid ${theme.colors.border.weak}`,
+      marginBottom: theme.spacing(0.5),
     }),
   };
 });

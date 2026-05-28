@@ -3,7 +3,7 @@ import { PureComponent } from 'react';
 import * as React from 'react';
 
 import { GrafanaTheme2 } from '@grafana/data';
-import { stylesFactory, withTheme2, Themeable2 } from '@grafana/ui';
+import { Icon, stylesFactory, withTheme2, Themeable2 } from '@grafana/ui';
 import { t } from 'app/core/internationalization';
 
 import { NavigationKey } from '../types';
@@ -34,22 +34,24 @@ class UnconnectedVariableInput extends PureComponent<ThemedProps> {
     const styles = getStyles(theme);
 
     return (
-      <input
-        {...restProps}
-        ref={(instance) => {
-          if (instance) {
-            instance.focus();
-            instance.setAttribute('style', `width:${Math.max(instance.width, 150)}px`);
-          }
-        }}
-        id={id}
-        type="text"
-        className={cx('gf-form-input', styles.input)}
-        value={value ?? ''}
-        onChange={this.onChange}
-        onKeyDown={this.onKeyDown}
-        placeholder={t('variable.dropdown.placeholder', 'Enter variable value')}
-      />
+      <div className={styles.wrapper}>
+        <Icon name="search" size="sm" className={styles.lens} aria-hidden />
+        <input
+          {...restProps}
+          ref={(instance) => {
+            if (instance) {
+              instance.focus();
+            }
+          }}
+          id={id}
+          type="text"
+          className={cx('gf-form-input', styles.input)}
+          value={value ?? ''}
+          onChange={this.onChange}
+          onKeyDown={this.onKeyDown}
+          placeholder={restProps.placeholder ?? t('variable.dropdown.placeholder', 'Search only')}
+        />
+      </div>
     );
   }
 }
@@ -61,7 +63,24 @@ const getStyles = stylesFactory((theme: GrafanaTheme2) => {
   const focusBorderColor = theme.colors.border.strong;
 
   return {
+    wrapper: css({
+      position: 'relative',
+      display: 'flex',
+      alignItems: 'center',
+      width: '100%',
+    }),
+    lens: css({
+      position: 'absolute',
+      left: theme.spacing(1),
+      top: '50%',
+      transform: 'translateY(-50%)',
+      color: theme.colors.text.secondary,
+      pointerEvents: 'none',
+      zIndex: 1,
+    }),
     input: css({
+      width: '100%',
+      paddingLeft: `${theme.spacing(4)} !important`,
       '&:focus, &:focus-visible': {
         borderColor: focusBorderColor,
         boxShadow: 'none',
