@@ -48,8 +48,8 @@ jobs:
 
       - name: Push image to dev
         run: |
-          docker tag grafana:latest gcr.io/coderabbit/grafana:latest
-          docker push gcr.io/coderabbit/grafana:latest
+          docker tag grafana:latest gcr.io/coderabbit/grafana-base:latest
+          docker push gcr.io/coderabbit/grafana-base:latest
 
       # - name: Move Docker cache
       #   run: |
