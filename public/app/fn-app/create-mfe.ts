@@ -59,7 +59,7 @@ type DeepPartial<T> = {
 
 class createMfe {
   private static readonly containerSelector = '#grafanaRoot';
-  private static themeStyleRoot: MfeContainer | null = null;
+  private static themeStyleRoot: MfeContainer = document;
   private static logger = FnLoggerService;
 
   mode: FNDashboardProps['mode'];
@@ -103,16 +103,10 @@ class createMfe {
   }
 
   private static setThemeStyleRoot(container: FNDashboardProps['container']) {
-    if (container) {
-      createMfe.themeStyleRoot = container;
-    }
+    createMfe.themeStyleRoot = container || document;
   }
 
   private static getThemeStyleRoot() {
-    if (!createMfe.themeStyleRoot) {
-      throw new Error('[FN Grafana]: Failed to load theme. MFE container does not exist.');
-    }
-
     return createMfe.themeStyleRoot;
   }
 
