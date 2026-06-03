@@ -67,16 +67,22 @@ html {
   height: 100%;
 }
 
-// This is specified in runtime Emotion GlobalStyles but we need them for the Grafana loading styles
-body {
+// This is specified in runtime Emotion GlobalStyles but we need them for the Grafana loading styles.
+// Match the MFE prefixing pattern used by GlobalStyles: keep theme colors scoped
+// to the Grafana MFE root so the embedded theme stylesheet cannot leak into the host app.
+[data-grafana-mf-root] {
   font-family: $font-family-sans-serif;
   line-height: $line-height-base;
   color: $text-color;
   background-color: $body-bg;
+}
+
+#grafanaRoot,
+[data-grafana-mf-root] {
   height: 100%;
+  min-height: 100%;
   width: 100%;
   margin: 0;
-  position: absolute;
 }
 
 //
@@ -218,12 +224,12 @@ textarea {
 // Tables
 //
 
-table {
+[data-grafana-mf-root] table {
   // Reset for nesting within parents with `background-color`.
   background-color: transparent;
 }
 
-caption {
+[data-grafana-mf-root] caption {
   padding-top: $space-inset-squish-md;
   padding-bottom: $space-inset-squish-md;
   color: $text-muted;
@@ -231,7 +237,7 @@ caption {
   caption-side: bottom;
 }
 
-th {
+[data-grafana-mf-root] th {
   // Centered by default, but left-align-ed to match the `td`s below.
   text-align: left;
 }
@@ -253,10 +259,10 @@ button:focus {
   outline: 5px auto -webkit-focus-ring-color;
 }
 
-input,
-button,
-select,
-textarea {
+[data-grafana-mf-root] input,
+[data-grafana-mf-root] button,
+[data-grafana-mf-root] select,
+[data-grafana-mf-root] textarea {
   // Remove all `margin`s so our classes don't have to do it themselves.
   margin: 0;
   // Normalize includes `font: inherit;`, so `font-family`. `font-size`, etc are
