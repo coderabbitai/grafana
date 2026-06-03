@@ -4,6 +4,7 @@ declare let __webpack_public_path__: string;
 window.__grafana_public_path__ =
   __webpack_public_path__.substring(0, __webpack_public_path__.lastIndexOf('build/')) || __webpack_public_path__;
 
+import { cache as emotionCssCache } from '@emotion/css';
 import { isNull, merge, noop, pick } from 'lodash';
 import React, { ComponentType } from 'react';
 import { createRoot } from 'react-dom/client';
@@ -118,6 +119,17 @@ class createMfe {
     return Array.from(styleRoot.querySelectorAll('link'));
   }
 
+  private static moveEmotionStylesToStyleRoot(styleRoot = createMfe.getThemeStyleRoot()) {
+    const styleTarget = createMfe.getThemeLinkTarget(styleRoot);
+
+    emotionCssCache.sheet.container = styleTarget;
+    emotionCssCache.sheet.tags.forEach((tag) => {
+      if (tag.parentNode !== styleTarget) {
+        styleTarget.appendChild(tag);
+      }
+    });
+  }
+
   private static createGrafanaTheme2(mode: FNDashboardProps['mode']) {
     config.theme2 = createTheme({
       colors: {
@@ -226,6 +238,7 @@ class createMfe {
       return new Promise((res, rej) => {
         try {
           createMfe.setThemeStyleRoot(props.container);
+          createMfe.moveEmotionStylesToStyleRoot();
           createMfe.loadFnTheme(props.mode);
           createMfe.Component = Component;
 
@@ -278,6 +291,7 @@ class createMfe {
       }
 
       backendSrv.cancelAllInFlightRequests();
+      createMfe.setThemeStyleRoot(null);
 
       return Promise.resolve(!!container);
     };
@@ -293,7 +307,8 @@ class createMfe {
     }: FNDashboardProps & {
       readonly renderingDashboardUid?: string;
     }) => {
-      createMfe.setThemeStyleRoot(container);
+      createMfe.setThemeStyleRoot(container ?? createMfe.getThemeStyleRoot());
+      createMfe.moveEmotionStylesToStyleRoot();
 
       if (mode && mfeGetStoreState().fnGlobalReducer.mode !== mode) {
         mfeDispatch(updateMfeMode(mode));

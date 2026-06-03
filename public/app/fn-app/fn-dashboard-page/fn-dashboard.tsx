@@ -71,18 +71,20 @@ export const DashboardPortal: FC<FNDashboardComponentProps> = (p) => {
 
       return (
         <RenderPortal ID={props.portalContainerID} key={uid}>
-          <FnAppProvider fnError={p.fnError} store={store}>
-            <div className="page-dashboard">
-              <RenderFNDashboard
-                {...{
-                  ...props,
-                  ...p,
-                  uid,
-                  mode: globalFnProps.mode,
-                }}
-              />
-            </div>
-          </FnAppProvider>
+          {(container) => (
+            <FnAppProvider container={container} fnError={p.fnError} store={store}>
+              <div className="page-dashboard">
+                <RenderFNDashboard
+                  {...{
+                    ...props,
+                    ...p,
+                    uid,
+                    mode: globalFnProps.mode,
+                  }}
+                />
+              </div>
+            </FnAppProvider>
+          )}
         </RenderPortal>
       );
     });
