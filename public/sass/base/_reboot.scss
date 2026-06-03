@@ -75,7 +75,12 @@ html {
   line-height: $line-height-base;
   color: $text-color;
   background-color: $body-bg;
+}
+
+#grafanaRoot,
+[data-grafana-mf-root] {
   height: 100%;
+  min-height: 100%;
   width: 100%;
   margin: 0;
 }
