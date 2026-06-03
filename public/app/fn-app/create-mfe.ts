@@ -4,6 +4,7 @@ declare let __webpack_public_path__: string;
 window.__grafana_public_path__ =
   __webpack_public_path__.substring(0, __webpack_public_path__.lastIndexOf('build/')) || __webpack_public_path__;
 
+import { cache as emotionCssCache } from '@emotion/css';
 import { isNull, merge, noop, pick } from 'lodash';
 import React, { ComponentType } from 'react';
 import { createRoot } from 'react-dom/client';
@@ -28,7 +29,7 @@ import {
   updateMfeMode,
 } from 'app/store/configureMfeStore';
 
-import { FNDashboardProps, FailedToMountGrafanaErrorName } from './types';
+import { FNDashboardProps, FailedToMountGrafanaErrorName, MfeContainer } from './types';
 
 /**
  * NOTE:
@@ -59,6 +60,7 @@ type DeepPartial<T> = {
 
 class createMfe {
   private static readonly containerSelector = '#grafanaRoot';
+  private static themeStyleRoot: MfeContainer = document;
   private static logger = FnLoggerService;
 
   mode: FNDashboardProps['mode'];
@@ -101,6 +103,33 @@ class createMfe {
     return stylesheetLink;
   }
 
+  private static setThemeStyleRoot(container: FNDashboardProps['container']) {
+    createMfe.themeStyleRoot = container || document;
+  }
+
+  private static getThemeStyleRoot() {
+    return createMfe.themeStyleRoot;
+  }
+
+  private static getThemeLinkTarget(styleRoot: MfeContainer) {
+    return styleRoot instanceof Document ? styleRoot.body : styleRoot;
+  }
+
+  private static getThemeLinks(styleRoot: MfeContainer) {
+    return Array.from(styleRoot.querySelectorAll('link'));
+  }
+
+  private static moveEmotionStylesToStyleRoot(styleRoot = createMfe.getThemeStyleRoot()) {
+    const styleTarget = createMfe.getThemeLinkTarget(styleRoot);
+
+    emotionCssCache.sheet.container = styleTarget;
+    emotionCssCache.sheet.tags.forEach((tag) => {
+      if (tag.parentNode !== styleTarget) {
+        styleTarget.appendChild(tag);
+      }
+    });
+  }
+
   private static createGrafanaTheme2(mode: FNDashboardProps['mode']) {
     config.theme2 = createTheme({
       colors: {
@@ -135,8 +164,12 @@ class createMfe {
   }
 
   // NOTE: based on grafana function: 'toggleTheme'
-  private static removeThemeLinks(modeToBeTurnedOff: GrafanaThemeType.Light | GrafanaThemeType.Dark, timeout?: number) {
-    Array.from(document.getElementsByTagName('link')).forEach(createMfe.removeThemeLink(modeToBeTurnedOff, timeout));
+  private static removeThemeLinks(
+    modeToBeTurnedOff: GrafanaThemeType.Light | GrafanaThemeType.Dark,
+    styleRoot: MfeContainer,
+    timeout?: number
+  ) {
+    createMfe.getThemeLinks(styleRoot).forEach(createMfe.removeThemeLink(modeToBeTurnedOff, timeout));
   }
 
   private static removeThemeLink(modeToBeTurnedOff: FNDashboardProps['mode'], timeout?: number) {
@@ -162,7 +195,11 @@ class createMfe {
    * NOTE:
    * If isRuntimeOnly then the stylesheets of the turned off theme are not removed
    */
-  private static loadFnTheme = (mode: FNDashboardProps['mode'] = GrafanaThemeType.Light, isRuntimeOnly = false) => {
+  private static loadFnTheme = (
+    mode: FNDashboardProps['mode'] = GrafanaThemeType.Light,
+    isRuntimeOnly = false,
+    styleRoot?: MfeContainer
+  ) => {
     createMfe.logger.info('Trying to load theme.', { mode });
 
     const grafanaTheme2 = createMfe.createGrafanaTheme2(mode);
@@ -179,11 +216,13 @@ class createMfe {
       return;
     }
 
-    createMfe.removeThemeLinks(createMfe.toggleTheme(mode));
+    const themeStyleRoot = styleRoot ?? createMfe.getThemeStyleRoot();
+
+    createMfe.removeThemeLinks(createMfe.toggleTheme(mode), themeStyleRoot);
 
     const newCssLink = createMfe.styleSheetLink;
     newCssLink.href = config.bootData.themePaths[mode];
-    document.body.appendChild(newCssLink);
+    createMfe.getThemeLinkTarget(themeStyleRoot).appendChild(newCssLink);
 
     createMfe.logger.info('Successfully loaded theme.', { mode });
   };
@@ -198,6 +237,8 @@ class createMfe {
     const lifeCycleFn: FrameworkLifeCycles['mount'] = (props: FNDashboardProps) => {
       return new Promise((res, rej) => {
         try {
+          createMfe.setThemeStyleRoot(props.container);
+          createMfe.moveEmotionStylesToStyleRoot();
           createMfe.loadFnTheme(props.mode);
           createMfe.Component = Component;
 
@@ -250,6 +291,7 @@ class createMfe {
       }
 
       backendSrv.cancelAllInFlightRequests();
+      createMfe.setThemeStyleRoot(null);
 
       return Promise.resolve(!!container);
     };
@@ -260,10 +302,14 @@ class createMfe {
   static updateFnApp() {
     const lifeCycleFn: FrameworkLifeCycles['update'] = ({
       mode,
+      container,
       ...other
     }: FNDashboardProps & {
       readonly renderingDashboardUid?: string;
     }) => {
+      createMfe.setThemeStyleRoot(container ?? createMfe.getThemeStyleRoot());
+      createMfe.moveEmotionStylesToStyleRoot();
+
       if (mode && mfeGetStoreState().fnGlobalReducer.mode !== mode) {
         mfeDispatch(updateMfeMode(mode));
 

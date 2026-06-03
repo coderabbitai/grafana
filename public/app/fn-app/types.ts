@@ -16,11 +16,14 @@ export type GrafanaMicroFrontendActions = {
 export type AnyObject<K extends string | number | symbol = string, V = any> = {
   [key in K]: V;
 };
+
+export type MfeContainer = Document | DocumentFragment | HTMLElement;
+
 export interface FNDashboardProps extends FnState {
   name: string;
   fnError?: ReactNode;
   isLoading: (isLoading: boolean) => void;
   setErrors: (errors?: { [K: number | string]: string }) => void;
-  container?: HTMLElement | null;
+  container?: MfeContainer | null;
   mode: FnGlobalState['mode'];
 }
