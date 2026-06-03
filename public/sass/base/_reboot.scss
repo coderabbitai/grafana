@@ -259,10 +259,10 @@ button:focus {
   outline: 5px auto -webkit-focus-ring-color;
 }
 
-input,
-button,
-select,
-textarea {
+[data-grafana-mf-root] input,
+[data-grafana-mf-root] button,
+[data-grafana-mf-root] select,
+[data-grafana-mf-root] textarea {
   // Remove all `margin`s so our classes don't have to do it themselves.
   margin: 0;
   // Normalize includes `font: inherit;`, so `font-family`. `font-size`, etc are
