@@ -23,7 +23,7 @@ import {
   toDataFrameDTO,
   toUtc,
 } from '@grafana/data';
-import { RefreshEvent } from '@grafana/runtime';
+import { RefreshEvent, ThemeChangedEvent } from '@grafana/runtime';
 import { VizLegendOptions } from '@grafana/schema';
 import {
   ErrorBoundary,
@@ -83,6 +83,15 @@ export interface State {
   context: PanelContext;
   data: PanelData;
   liveTime?: TimeRange;
+  /**
+   * Incremented whenever the active theme changes so that the inner viz
+   * component is remounted with a fresh key. This is needed because some
+   * panel plugins (built-in bar chart, third-party business charts, etc.)
+   * cache theme-derived state in effects whose dependency arrays do not
+   * include the theme, so they otherwise keep stale colors until the next
+   * query/time-range change.
+   */
+  themeRev: number;
 }
 
 export class PanelStateWrapperDisConnected extends PureComponent<Props, State> {
@@ -101,6 +110,7 @@ export class PanelStateWrapperDisConnected extends PureComponent<Props, State> {
     this.state = {
       isFirstLoad: true,
       renderCounter: 0,
+      themeRev: 0,
       context: {
         eventsScope: '__global_',
         eventBus,
@@ -215,6 +225,15 @@ export class PanelStateWrapperDisConnected extends PureComponent<Props, State> {
     // Subscribe to panel events
     this.subs.add(panel.events.subscribe(RefreshEvent, this.onRefresh));
     this.subs.add(panel.events.subscribe(RenderEvent, this.onRender));
+    this.subs.add(
+      appEvents.subscribe(ThemeChangedEvent, () => {
+        // Bumping `themeRev` changes the React key on <PanelComponent /> below,
+        // forcing the viz to unmount + remount so its setup effects run again
+        // with the new theme. This is the only reliable way to refresh plugins
+        // whose internal effects (e.g. echarts.init) don't depend on theme.
+        this.setState((prev) => ({ themeRev: prev.themeRev + 1 }));
+      })
+    );
 
     dashboard.panelInitialized(this.props.panel);
 
@@ -522,10 +541,16 @@ export class PanelStateWrapperDisConnected extends PureComponent<Props, State> {
     // Yes this is called ever render for a function that is triggered on every mouse move
     this.eventFilter.onlyLocal = dashboard.graphTooltip === 0;
 
+    // Remount the inner viz when the theme changes so plugins that cache
+    // theme-derived state in their own effects (bar chart, business charts,
+    // etc.) pick up the new colors immediately.
+    const panelKey = `panel-${panel.id}-theme-${this.state.themeRev}`;
+
     return (
       <>
         <PanelContextProvider value={this.state.context}>
           <PanelComponent
+            key={panelKey}
             id={panel.id}
             data={data}
             title={panel.title}
