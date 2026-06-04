@@ -67,16 +67,13 @@ html {
   height: 100%;
 }
 
-// This is specified in runtime Emotion GlobalStyles but we need them for the Grafana loading styles.
-// Match the MFE prefixing pattern used by GlobalStyles: keep theme colors scoped
-// to the Grafana MFE root so the embedded theme stylesheet cannot leak into the host app.
-[data-grafana-mf-root] {
-  font-family: $font-family-sans-serif;
-  line-height: $line-height-base;
-  color: $text-color;
-  background-color: $body-bg;
-}
-
+// The runtime Emotion GlobalStyles (scoped via `prefix="[data-grafana-mf-root]"`)
+// already applies Grafana's body font/color/background to this root once the app is
+// booted. Re-declaring them here paints the MFE wrapper with Grafana's $body-bg even
+// when the wrapper is embedded inside a host application that supplies its own
+// container background (e.g. CodeRabbit's dashboard), so we intentionally don't set
+// font-family/color/background-color here. The grafana loading screen renders
+// inside the host container and inherits its background, which is what we want.
 #grafanaRoot,
 [data-grafana-mf-root] {
   height: 100%;
@@ -269,8 +266,11 @@ button:focus {
   // properly inherited. However, `line-height` isn't addressed there. Using this
   // ensures we don't need to unnecessarily redeclare the global font stack.
   line-height: inherit;
-  // iOS adds rounded borders by default
-  border-radius: 0;
+  // Note: the historical iOS `border-radius: 0` reset has been intentionally
+  // removed here. When the MFE wrapper is embedded inside a host app, that
+  // reset clobbers the host's own button/input border-radius (e.g. Tailwind
+  // `rounded-*`). Grafana's own form controls set their radii via Emotion, so
+  // dropping the reset has no visible effect on Grafana UI.
 }
 
 textarea {
