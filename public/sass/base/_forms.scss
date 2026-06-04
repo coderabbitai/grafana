@@ -43,30 +43,30 @@
 // Set font for forms
 
 // Set the height of select and file controls to match text inputs
-select,
-input[type='file'] {
+[data-grafana-mf-root] select,
+[data-grafana-mf-root] input[type='file'] {
   height: $input-height; /* In IE7, the height of the select element cannot be changed by height, only font-size */
   line-height: $input-height;
 }
 
 // Make select elements obey height by applying a border
-select {
+[data-grafana-mf-root] select {
   width: 220px; // default input width + 10px of padding that doesn't get applied
   border: 1px solid $input-border-color;
   background-color: $input-bg; // Chrome on Linux and Mobile Safari need background-color
 }
 
 // Make multiple select elements height not fixed
-select[multiple],
-select[size] {
+[data-grafana-mf-root] select[multiple],
+[data-grafana-mf-root] select[size] {
   height: auto;
 }
 
 // Focus for select, file, radio, and checkbox
-select:focus,
-input[type='file']:focus,
-input[type='radio']:focus,
-input[type='checkbox']:focus {
+[data-grafana-mf-root] select:focus,
+[data-grafana-mf-root] input[type='file']:focus,
+[data-grafana-mf-root] input[type='radio']:focus,
+[data-grafana-mf-root] input[type='checkbox']:focus {
   // Default
   outline: thin dotted;
   // WebKit
@@ -75,20 +75,20 @@ input[type='checkbox']:focus {
 }
 
 // not a big fan of number fields
-input[type='number']::-webkit-outer-spin-button,
-input[type='number']::-webkit-inner-spin-button {
+[data-grafana-mf-root] input[type='number']::-webkit-outer-spin-button,
+[data-grafana-mf-root] input[type='number']::-webkit-inner-spin-button {
   -webkit-appearance: none;
   margin: 0;
 }
-input[type='number'] {
+[data-grafana-mf-root] input[type='number'] {
   -moz-appearance: textfield;
 }
 // Placeholder
 // -------------------------
 
 // Placeholder text gets special styles because when browsers invalidate entire lines if it doesn't understand a selector
-input,
-textarea {
+[data-grafana-mf-root] input,
+[data-grafana-mf-root] textarea {
   &::placeholder {
     color: $input-color-placeholder;
   }
@@ -124,26 +124,26 @@ textarea {
 // --------------
 
 // Disabled and read-only inputs
-input[disabled],
-select[disabled],
-textarea[disabled],
-input[readonly],
-select[readonly],
-textarea[readonly] {
+[data-grafana-mf-root] input[disabled],
+[data-grafana-mf-root] select[disabled],
+[data-grafana-mf-root] textarea[disabled],
+[data-grafana-mf-root] input[readonly],
+[data-grafana-mf-root] select[readonly],
+[data-grafana-mf-root] textarea[readonly] {
   cursor: $cursor-disabled;
   background-color: $input-bg-disabled;
 }
 
 // Explicitly reset the colors here
-input[type='radio'][disabled],
-input[type='checkbox'][disabled],
-input[type='radio'][readonly],
-input[type='checkbox'][readonly] {
+[data-grafana-mf-root] input[type='radio'][disabled],
+[data-grafana-mf-root] input[type='checkbox'][disabled],
+[data-grafana-mf-root] input[type='radio'][readonly],
+[data-grafana-mf-root] input[type='checkbox'][readonly] {
   cursor: $cursor-disabled;
   background-color: transparent;
 }
 
-input[type='text'].input-fluid {
+[data-grafana-mf-root] input[type='text'].input-fluid {
   width: 100%;
   box-sizing: border-box;
   padding: 10px;
@@ -152,7 +152,7 @@ input[type='text'].input-fluid {
   height: 100%;
 }
 
-input[type='checkbox'].cr1 {
+[data-grafana-mf-root] input[type='checkbox'].cr1 {
   display: none;
 }
 
@@ -174,7 +174,7 @@ label.cr1 {
   cursor: pointer;
 }
 
-input[type='checkbox'].cr1:checked + label {
+[data-grafana-mf-root] input[type='checkbox'].cr1:checked + label {
   background: url($checkboxImageUrl) 0px -18px no-repeat;
 }
 
@@ -235,16 +235,15 @@ input[type='checkbox'].cr1:checked + label {
   }
 }
 
-input:-webkit-autofill,
-input:-webkit-autofill:hover,
-input:-webkit-autofill:focus,
-input:-webkit-autofill,
-textarea:-webkit-autofill,
-textarea:-webkit-autofill:hover,
-textarea:-webkit-autofill:focus,
-select:-webkit-autofill,
-select:-webkit-autofill:hover,
-select:-webkit-autofill:focus {
+[data-grafana-mf-root] input:-webkit-autofill,
+[data-grafana-mf-root] input:-webkit-autofill:hover,
+[data-grafana-mf-root] input:-webkit-autofill:focus,
+[data-grafana-mf-root] textarea:-webkit-autofill,
+[data-grafana-mf-root] textarea:-webkit-autofill:hover,
+[data-grafana-mf-root] textarea:-webkit-autofill:focus,
+[data-grafana-mf-root] select:-webkit-autofill,
+[data-grafana-mf-root] select:-webkit-autofill:hover,
+[data-grafana-mf-root] select:-webkit-autofill:focus {
   -webkit-box-shadow: 0 0 0px 1000px $input-bg inset !important;
   -webkit-text-fill-color: $input-color !important;
   box-shadow: 0 0 0px 1000px $input-bg inset;
