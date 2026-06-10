@@ -56,6 +56,8 @@ const stateTimelinePanel = async () =>
 const statusHistoryPanel = async () =>
   await import(/* webpackChunkName: "statusHistoryPanel" */ 'app/plugins/panel/status-history/module');
 const tablePanel = async () => await import(/* webpackChunkName: "tablePanel" */ 'app/plugins/panel/table/module');
+const businessTablePanel = async () =>
+  await import(/* webpackChunkName: "businessTablePanel" */ 'app/plugins/panel/volkovlabs-table-panel/module');
 const textPanel = async () => await import(/* webpackChunkName: "textPanel" */ 'app/plugins/panel/text/module');
 const timeseriesPanel = async () =>
   await import(/* webpackChunkName: "timeseriesPanel" */ 'app/plugins/panel/timeseries/module');
@@ -114,6 +116,7 @@ const builtInPlugins: Record<string, System.Module | (() => Promise<System.Modul
   'core:plugin/annolist': annoListPanel,
   'core:plugin/heatmap': heatmapPanel,
   'core:plugin/table': tablePanel,
+  'core:plugin/volkovlabs-table-panel': businessTablePanel,
   'core:plugin/table-old': tableOldPanel,
   'core:plugin/news': newsPanel,
   'core:plugin/live': livePanel,

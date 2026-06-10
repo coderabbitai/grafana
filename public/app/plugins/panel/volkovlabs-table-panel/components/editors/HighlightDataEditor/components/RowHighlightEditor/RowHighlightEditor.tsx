@@ -1,0 +1,172 @@
+import { SelectableValue } from '@grafana/data';
+import { getTemplateSrv } from '@grafana/runtime';
+import { InlineField, InlineFieldRow, InlineSwitch, Select } from '@grafana/ui';
+import React, { useMemo } from 'react';
+
+import { FieldsGroup } from 'app/plugins/panel/volkovlabs-table-panel/components';
+import { ColorEditor } from 'app/plugins/panel/volkovlabs-table-panel/components/editors';
+import { TEST_IDS } from 'app/plugins/panel/volkovlabs-table-panel/constants';
+import { ColumnConfig, EditorProps, RowHighlightConfig, ScrollToRowPosition } from 'app/plugins/panel/volkovlabs-table-panel/types';
+import { getFieldKey } from 'app/plugins/panel/volkovlabs-table-panel/utils';
+
+/**
+ * Properties
+ */
+interface Props extends EditorProps<RowHighlightConfig> {
+  /**
+   * Columns
+   *
+   * @type {ColumnConfig}
+   */
+  columns: ColumnConfig[];
+
+  /**
+   * Delete for current Table is Enable
+   *
+   * @type {boolean}
+   */
+  isDeleteEnable: boolean;
+}
+
+/**
+ * Test Ids
+ */
+export const testIds = TEST_IDS.rowHighlightEditor;
+
+/**
+ * Scroll To Options
+ */
+const scrollToOptions: Array<SelectableValue<ScrollToRowPosition>> = [
+  {
+    label: 'Off',
+    value: ScrollToRowPosition.NONE,
+  },
+  {
+    label: 'Start',
+    value: ScrollToRowPosition.START,
+  },
+  {
+    label: 'Center',
+    value: ScrollToRowPosition.CENTER,
+  },
+  {
+    label: 'End',
+    value: ScrollToRowPosition.END,
+  },
+];
+
+/**
+ * Row Highlight Editor
+ */
+export const RowHighlightEditor: React.FC<Props> = ({ value, onChange, columns, isDeleteEnable }) => {
+  /**
+   * Column Options
+   */
+  const columnOptions = useMemo(() => {
+    return columns.map((column) => ({
+      value: getFieldKey(column.field),
+      label: column.field.name,
+    }));
+  }, [columns]);
+
+  /**
+   * Variable Options
+   */
+  const templateService = getTemplateSrv();
+  const variableOptions = useMemo(() => {
+    return templateService.getVariables().map((variable) => ({
+      value: variable.name,
+      label: variable.label || variable.name,
+    }));
+  }, [templateService]);
+
+  return (
+    <>
+      <FieldsGroup label="State">
+        <InlineFieldRow>
+          <InlineField label="Column">
+            <Select
+              onChange={(event) => {
+                onChange({
+                  ...value,
+                  columnId: event?.value ?? '',
+                });
+              }}
+              value={value.columnId}
+              options={columnOptions}
+              isClearable={true}
+              {...testIds.fieldColumn.apply()}
+            />
+          </InlineField>
+          <InlineField label="Variable">
+            <Select
+              onChange={(event) => {
+                onChange({
+                  ...value,
+                  variable: event?.value ?? '',
+                });
+              }}
+              value={value.variable}
+              options={variableOptions}
+              isClearable={true}
+              {...testIds.fieldVariable.apply()}
+            />
+          </InlineField>
+          <InlineField label="Reset variable on delete" disabled={!isDeleteEnable}>
+            <InlineSwitch
+              disabled={!isDeleteEnable}
+              value={value.resetVariable}
+              onChange={(event) =>
+                onChange({
+                  ...value,
+                  resetVariable: event.currentTarget.checked,
+                })
+              }
+              {...testIds.fieldResetVariable.apply()}
+            />
+          </InlineField>
+        </InlineFieldRow>
+      </FieldsGroup>
+      <FieldsGroup label="Appearance">
+        <InlineField label="Auto scroll to">
+          <Select
+            onChange={(event) => {
+              onChange({
+                ...value,
+                scrollTo: event.value!,
+              });
+            }}
+            value={value.scrollTo}
+            options={scrollToOptions}
+            isClearable={false}
+            {...testIds.fieldScrollTo.apply()}
+          />
+        </InlineField>
+        <InlineField label="Smooth Scroll">
+          <InlineSwitch
+            value={value.smooth}
+            onChange={(event) =>
+              onChange({
+                ...value,
+                smooth: event.currentTarget.checked,
+              })
+            }
+            {...testIds.fieldSmoothScroll.apply()}
+          />
+        </InlineField>
+        <InlineField label="Background">
+          <ColorEditor
+            value={value.backgroundColor}
+            onChange={(color) => {
+              onChange({
+                ...value,
+                backgroundColor: color,
+              });
+            }}
+            {...testIds.fieldBackgroundColor.apply()}
+          />
+        </InlineField>
+      </FieldsGroup>
+    </>
+  );
+};
