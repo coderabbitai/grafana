@@ -11,6 +11,8 @@ export const getStyles = (theme: GrafanaTheme2) => {
     `,
     content: css`
       overflow: auto;
+      display: flex;
+      flex-direction: column;
     `,
     item: css`
       margin-bottom: ${theme.spacing(1)};
@@ -91,6 +93,11 @@ export const getStyles = (theme: GrafanaTheme2) => {
       margin-left: ${theme.spacing(1)};
       vertical-align: middle;
       cursor: pointer;
+    `,
+    panelContent: css`
+      min-height: 100%;
+      display: flex;
+      flex-direction: column;
     `,
     noDataMessage: css`
       width: 100%;

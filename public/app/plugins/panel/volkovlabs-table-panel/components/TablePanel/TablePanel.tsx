@@ -28,8 +28,18 @@ import {
   useTable,
   useUpdateRow,
 } from 'app/plugins/panel/volkovlabs-table-panel/hooks';
-import { ExportFormatType, OpenColumnManagerMode, PanelOptions, TablePreferenceColumn, UserPreferences } from 'app/plugins/panel/volkovlabs-table-panel/types';
-import { checkIfOperationEnabled, getTableWithPreferences, updateUserPreferenceTables } from 'app/plugins/panel/volkovlabs-table-panel/utils';
+import {
+  ExportFormatType,
+  OpenColumnManagerMode,
+  PanelOptions,
+  TablePreferenceColumn,
+  UserPreferences,
+} from 'app/plugins/panel/volkovlabs-table-panel/types';
+import {
+  checkIfOperationEnabled,
+  getTableWithPreferences,
+  updateUserPreferenceTables,
+} from 'app/plugins/panel/volkovlabs-table-panel/utils';
 
 import { Table } from '../Table';
 import { getStyles } from './TablePanel.styles';
@@ -352,7 +362,7 @@ export const TablePanel: React.FC<Props> = ({
    */
   const panelContent = () => {
     return (
-      <>
+      <div className={styles.panelContent}>
         {!!error && (
           <div ref={alertRef} {...TEST_IDS.panel.errorContainer.apply()}>
             <AlertWithDetails
@@ -526,7 +536,7 @@ export const TablePanel: React.FC<Props> = ({
             openColumnManagerMode: options.openColumnManagerMode,
           }}
         />
-      </>
+      </div>
     );
   };
 

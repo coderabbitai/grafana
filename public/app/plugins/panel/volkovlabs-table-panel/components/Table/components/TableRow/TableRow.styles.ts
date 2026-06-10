@@ -42,7 +42,7 @@ export const getStyles = (theme: GrafanaTheme2) => {
       align-items: center;
       box-sizing: border-box;
       white-space: nowrap;
-      padding: ${theme.spacing(1, 1.5)};
+      padding: ${theme.spacing(1, 2)} !important;
       flex: auto;
       overflow: hidden;
       text-overflow: ellipsis;

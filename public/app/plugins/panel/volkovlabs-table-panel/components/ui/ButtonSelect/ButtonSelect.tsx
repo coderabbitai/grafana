@@ -9,7 +9,7 @@ import {
   useInteractions,
 } from '@floating-ui/react';
 import { SelectableValue } from '@grafana/data';
-import { Menu, MenuItem, ToolbarButton, useTheme2 } from '@grafana/ui';
+import { Menu, MenuItem, Portal, ToolbarButton, useTheme2 } from '@grafana/ui';
 import { FocusScope } from '@react-aria/focus';
 import React, { HTMLAttributes, useState } from 'react';
 
@@ -93,36 +93,38 @@ export const ButtonSelect = <T,>(props: Props<T>) => {
         {value?.label || String(value?.value)}
       </ToolbarButton>
       {isOpen && (
-        <div
-          className={styles.menuWrapper}
-          ref={refs.setFloating}
-          {...getFloatingProps()}
-          style={floatingStyles}
-          {...TEST_IDS.buttonSelect.dropdown.apply()}
-        >
-          <FocusScope contain autoFocus restoreFocus>
-            {/*
-              tabIndex=-1 is needed here to support highlighting text within the menu when using FocusScope
-              see https://github.com/adobe/react-spectrum/issues/1604#issuecomment-781574668
-            */}
-            <Menu tabIndex={-1}>
-              {options.map((item) => (
-                <MenuItem
-                  key={`${item.value}`}
-                  label={String(item.value)}
-                  onClick={() => onChangeInternal(item)}
-                  active={item.value === value?.value}
-                  ariaChecked={item.value === value?.value}
-                  ariaLabel={item.ariaLabel || item.label}
-                  disabled={item.isDisabled}
-                  component={item.component}
-                  role="menuitemradio"
-                  {...TEST_IDS.buttonSelect.option.apply(item.value)}
-                />
-              ))}
-            </Menu>
-          </FocusScope>
-        </div>
+        <Portal>
+          <div
+            className={styles.menuWrapper}
+            ref={refs.setFloating}
+            {...getFloatingProps()}
+            style={floatingStyles}
+            {...TEST_IDS.buttonSelect.dropdown.apply()}
+          >
+            <FocusScope contain autoFocus restoreFocus>
+              {/*
+                tabIndex=-1 is needed here to support highlighting text within the menu when using FocusScope
+                see https://github.com/adobe/react-spectrum/issues/1604#issuecomment-781574668
+              */}
+              <Menu tabIndex={-1}>
+                {options.map((item) => (
+                  <MenuItem
+                    key={`${item.value}`}
+                    label={String(item.value)}
+                    onClick={() => onChangeInternal(item)}
+                    active={item.value === value?.value}
+                    ariaChecked={item.value === value?.value}
+                    ariaLabel={item.ariaLabel || item.label}
+                    disabled={item.isDisabled}
+                    component={item.component}
+                    role="menuitemradio"
+                    {...TEST_IDS.buttonSelect.option.apply(item.value)}
+                  />
+                ))}
+              </Menu>
+            </FocusScope>
+          </div>
+        </Portal>
       )}
     </div>
   );

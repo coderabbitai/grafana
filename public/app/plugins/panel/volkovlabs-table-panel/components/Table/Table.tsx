@@ -622,149 +622,151 @@ export const Table = <TData,>({
 
   return (
     <div className={styles.root}>
-      <table
-        className={styles.table}
-        ref={tableRef}
-        style={{
-          width: table.getCenterTotalSize(),
-        }}
-        {...testIds.root.apply()}
-      >
-        {showHeader && (
-          <thead className={styles.header} ref={tableHeaderRef} style={{ top: topOffset }}>
-            {table.getHeaderGroups().map((headerGroup) => (
-              <tr key={headerGroup.id} className={styles.headerRow} {...testIds.headerRow.apply(headerGroup.id)}>
-                {headerGroup.headers.map((header) => {
-                  const bgColor = header.column.columnDef.meta?.config.appearance.header.backgroundColor;
-                  const fontSize =
-                    header.column.columnDef.meta?.config.appearance.header.fontSize || ColumnHeaderFontSize.MD;
-                  return (
+      <div className={styles.tableWrapper}>
+        <table
+          className={styles.table}
+          ref={tableRef}
+          style={{
+            width: table.getCenterTotalSize(),
+          }}
+          {...testIds.root.apply()}
+        >
+          {showHeader && (
+            <thead className={styles.header} ref={tableHeaderRef} style={{ top: topOffset }}>
+              {table.getHeaderGroups().map((headerGroup) => (
+                <tr key={headerGroup.id} className={styles.headerRow} {...testIds.headerRow.apply(headerGroup.id)}>
+                  {headerGroup.headers.map((header) => {
+                    const bgColor = header.column.columnDef.meta?.config.appearance.header.backgroundColor;
+                    const fontSize =
+                      header.column.columnDef.meta?.config.appearance.header.fontSize || ColumnHeaderFontSize.MD;
+                    return (
+                      <th
+                        key={header.id}
+                        className={cx(styles.headerCell, {
+                          [styles.sizeLg]: fontSize === ColumnHeaderFontSize.LG,
+                          [styles.sizeMd]: fontSize === ColumnHeaderFontSize.MD,
+                          [styles.sizeSm]: fontSize === ColumnHeaderFontSize.SM,
+                          [styles.sizeXs]: fontSize === ColumnHeaderFontSize.XS,
+                        })}
+                        style={{
+                          maxWidth: header.column.columnDef.maxSize,
+                          minWidth: header.column.columnDef.minSize,
+                          background: bgColor,
+                          width: header.getSize(),
+                          textAlign: header.column.columnDef.meta?.config.appearance.alignment,
+                          justifyContent: header.column.columnDef.meta?.config.appearance.alignment,
+                          ...getPinnedHeaderColumnStyle(theme, header.column),
+                        }}
+                        {...testIds.headerCell.apply(header.id)}
+                      >
+                        <TableHeaderCell
+                          advancedSettings={advancedSettings}
+                          setDrawerOpen={setDrawerOpen}
+                          header={header}
+                          size={fontSize}
+                          isAddRowEnabled={isAddRowEnabled}
+                          onAddRow={addData.onStart}
+                          updateTablesPreferences={updateTablesPreferences}
+                          userPreferences={userPreferences}
+                          currentTableName={currentTableName}
+                          sorting={sorting}
+                          drawerColumns={drawerColumns}
+                        />
+                      </th>
+                    );
+                  })}
+                </tr>
+              ))}
+            </thead>
+          )}
+          {!!addData.row && (
+            <tbody {...testIds.newRowContainer.apply()}>
+              <TableRow
+                row={addData.row}
+                editingRow={addData.row}
+                onStartEdit={addData.onStart}
+                onCancelEdit={addData.onCancel}
+                onChange={addData.onChange}
+                onSave={addData.onSave}
+                isSaving={addData.isSaving}
+                isNewRow={true}
+                onDelete={deleteData.onStart}
+                isHighlighted={false}
+                panelData={panelData}
+              />
+            </tbody>
+          )}
+          <tbody
+            style={{
+              height: `${rowVirtualizer.getTotalSize()}px`, //tells scrollbar how big the table is
+            }}
+            className={styles.body}
+            {...testIds.body.apply()}
+          >
+            {virtualRows.map((virtualRow, index) => {
+              const row = rows[virtualRow.index];
+              const isHighlighted =
+                rowHighlightConfig?.enabled === true && get(row.original, ROW_HIGHLIGHT_STATE_KEY) === true;
+
+              const stripedRow = stripedRows && index % 2 !== 0;
+
+              return (
+                <TableRow
+                  key={row.id}
+                  row={row}
+                  virtualRow={virtualRow}
+                  rowVirtualizer={rowVirtualizer}
+                  editingRow={editableData.row?.id === row.id ? editableData.row : null}
+                  onStartEdit={editableData.onStartEdit}
+                  onCancelEdit={editableData.onCancelEdit}
+                  onChange={editableData.onChange}
+                  stripedRow={stripedRow}
+                  onSave={editableData.onSave}
+                  isSaving={editableData.isSaving}
+                  isEditRowEnabled={isEditRowEnabled}
+                  isDeleteRowEnabled={isDeleteRowEnabled}
+                  onDelete={deleteData.onStart}
+                  rowHighlightConfig={rowHighlightConfig}
+                  isHighlighted={editableData.row?.id !== row.id && isHighlighted}
+                  highlightRowsOnHover={highlightRowsOnHover}
+                  panelData={panelData}
+                />
+              );
+            })}
+          </tbody>
+          {isFooterVisible && (
+            <tfoot
+              ref={tableFooterRef}
+              className={styles.footer}
+              style={{ maxHeight: rowVirtualizer.getTotalSize(), bottom: bottomOffset }}
+            >
+              {table.getFooterGroups().map((footerGroup) => (
+                <tr key={footerGroup.id} className={styles.footerRow}>
+                  {footerGroup.headers.map((header) => (
                     <th
                       key={header.id}
-                      className={cx(styles.headerCell, {
-                        [styles.sizeLg]: fontSize === ColumnHeaderFontSize.LG,
-                        [styles.sizeMd]: fontSize === ColumnHeaderFontSize.MD,
-                        [styles.sizeSm]: fontSize === ColumnHeaderFontSize.SM,
-                        [styles.sizeXs]: fontSize === ColumnHeaderFontSize.XS,
-                      })}
+                      className={styles.footerCell}
                       style={{
                         maxWidth: header.column.columnDef.maxSize,
                         minWidth: header.column.columnDef.minSize,
-                        background: bgColor,
                         width: header.getSize(),
                         textAlign: header.column.columnDef.meta?.config.appearance.alignment,
                         justifyContent: header.column.columnDef.meta?.config.appearance.alignment,
-                        ...getPinnedHeaderColumnStyle(theme, header.column),
+                        ...getPinnedFooterColumnStyle(theme, header.column),
                       }}
-                      {...testIds.headerCell.apply(header.id)}
+                      {...testIds.footerCell.apply(header.id)}
                     >
-                      <TableHeaderCell
-                        advancedSettings={advancedSettings}
-                        setDrawerOpen={setDrawerOpen}
-                        header={header}
-                        size={fontSize}
-                        isAddRowEnabled={isAddRowEnabled}
-                        onAddRow={addData.onStart}
-                        updateTablesPreferences={updateTablesPreferences}
-                        userPreferences={userPreferences}
-                        currentTableName={currentTableName}
-                        sorting={sorting}
-                        drawerColumns={drawerColumns}
-                      />
+                      {flexRender(header.column.columnDef.footer, header.getContext())}
                     </th>
-                  );
-                })}
-              </tr>
-            ))}
-          </thead>
-        )}
-        {!!addData.row && (
-          <tbody {...testIds.newRowContainer.apply()}>
-            <TableRow
-              row={addData.row}
-              editingRow={addData.row}
-              onStartEdit={addData.onStart}
-              onCancelEdit={addData.onCancel}
-              onChange={addData.onChange}
-              onSave={addData.onSave}
-              isSaving={addData.isSaving}
-              isNewRow={true}
-              onDelete={deleteData.onStart}
-              isHighlighted={false}
-              panelData={panelData}
-            />
-          </tbody>
-        )}
-        <tbody
-          style={{
-            height: `${rowVirtualizer.getTotalSize()}px`, //tells scrollbar how big the table is
-          }}
-          className={styles.body}
-          {...testIds.body.apply()}
-        >
-          {virtualRows.map((virtualRow, index) => {
-            const row = rows[virtualRow.index];
-            const isHighlighted =
-              rowHighlightConfig?.enabled === true && get(row.original, ROW_HIGHLIGHT_STATE_KEY) === true;
-
-            const stripedRow = stripedRows && index % 2 !== 0;
-
-            return (
-              <TableRow
-                key={row.id}
-                row={row}
-                virtualRow={virtualRow}
-                rowVirtualizer={rowVirtualizer}
-                editingRow={editableData.row?.id === row.id ? editableData.row : null}
-                onStartEdit={editableData.onStartEdit}
-                onCancelEdit={editableData.onCancelEdit}
-                onChange={editableData.onChange}
-                stripedRow={stripedRow}
-                onSave={editableData.onSave}
-                isSaving={editableData.isSaving}
-                isEditRowEnabled={isEditRowEnabled}
-                isDeleteRowEnabled={isDeleteRowEnabled}
-                onDelete={deleteData.onStart}
-                rowHighlightConfig={rowHighlightConfig}
-                isHighlighted={editableData.row?.id !== row.id && isHighlighted}
-                highlightRowsOnHover={highlightRowsOnHover}
-                panelData={panelData}
-              />
-            );
-          })}
-        </tbody>
-        {isFooterVisible && (
-          <tfoot
-            ref={tableFooterRef}
-            className={styles.footer}
-            style={{ maxHeight: rowVirtualizer.getTotalSize(), bottom: bottomOffset }}
-          >
-            {table.getFooterGroups().map((footerGroup) => (
-              <tr key={footerGroup.id} className={styles.footerRow}>
-                {footerGroup.headers.map((header) => (
-                  <th
-                    key={header.id}
-                    className={styles.footerCell}
-                    style={{
-                      maxWidth: header.column.columnDef.maxSize,
-                      minWidth: header.column.columnDef.minSize,
-                      width: header.getSize(),
-                      textAlign: header.column.columnDef.meta?.config.appearance.alignment,
-                      justifyContent: header.column.columnDef.meta?.config.appearance.alignment,
-                      ...getPinnedFooterColumnStyle(theme, header.column),
-                    }}
-                    {...testIds.footerCell.apply(header.id)}
-                  >
-                    {flexRender(header.column.columnDef.footer, header.getContext())}
-                  </th>
-                ))}
-              </tr>
-            ))}
-          </tfoot>
-        )}
-      </table>
+                  ))}
+                </tr>
+              ))}
+            </tfoot>
+          )}
+        </table>
+      </div>
       {pagination.isEnabled && (
-        <div className={styles.paginationRow} ref={paginationRef} style={{ width }} {...testIds.pagination.apply()}>
+        <div className={styles.paginationRow} ref={paginationRef} {...testIds.pagination.apply()}>
           <Pagination
             currentPage={pagination.value.pageIndex + 1}
             numberOfPages={

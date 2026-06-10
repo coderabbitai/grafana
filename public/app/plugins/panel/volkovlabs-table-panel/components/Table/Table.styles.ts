@@ -11,11 +11,20 @@ export const getStyles = (theme: GrafanaTheme2) => {
   return {
     root: css`
       position: relative;
+      display: flex;
+      flex-direction: column;
       min-width: 100%;
+      min-height: 100%;
       border: 1px solid ${borderColor};
       border-radius: ${theme.shape.radius.default};
       background: ${theme.colors.background.primary};
       scrollbar-gutter: stable;
+      overflow: hidden;
+    `,
+    tableWrapper: css`
+      min-width: 0;
+      max-width: 100%;
+      overflow-x: auto;
     `,
     table: css`
       display: grid;
@@ -43,7 +52,7 @@ export const getStyles = (theme: GrafanaTheme2) => {
       min-height: 33px;
       align-items: center;
       box-sizing: border-box;
-      padding: ${theme.spacing(1, 1.5)};
+      padding: ${theme.spacing(1, 2)} !important;
       gap: ${theme.spacing(0.5)};
       flex-wrap: nowrap;
       flex: auto;
@@ -58,12 +67,12 @@ export const getStyles = (theme: GrafanaTheme2) => {
     sizeLg: css`
       font-size: ${theme.typography.pxToRem(18)};
       min-height: 33px;
-      padding: ${theme.spacing(1, 1.5)};
+      padding: ${theme.spacing(1, 2)} !important;
     `,
     sizeMd: css`
       font-size: ${theme.typography.pxToRem(14)};
       min-height: 33px;
-      padding: ${theme.spacing(1, 1.5)};
+      padding: ${theme.spacing(1, 2)} !important;
     `,
     sizeSm: css`
       font-size: ${theme.typography.pxToRem(12)};
@@ -98,7 +107,7 @@ export const getStyles = (theme: GrafanaTheme2) => {
       min-height: 37px;
       align-items: center;
       box-sizing: border-box;
-      padding: ${theme.spacing(1, 1.5)};
+      padding: ${theme.spacing(1, 2)} !important;
       gap: ${theme.spacing(0.5)};
       flex-wrap: wrap;
       flex: auto;
@@ -113,13 +122,23 @@ export const getStyles = (theme: GrafanaTheme2) => {
       left: 0;
       display: flex;
       justify-content: flex-end;
+      width: 100%;
+      max-width: 100%;
       padding: ${theme.spacing(0, 1)};
       gap: ${theme.spacing(1)};
       align-items: center;
       border-top: 1px solid ${borderColor};
       min-height: ${theme.spacing(4.75)};
       box-sizing: border-box;
-      overflow: hidden;
+      overflow-x: hidden;
+      overflow-y: hidden;
+      margin-top: auto;
+      border-right: 1px solid ${borderColor};
+      scrollbar-width: none;
+
+      &::-webkit-scrollbar {
+        display: none;
+      }
     `,
     pagination: css`
       float: none;
