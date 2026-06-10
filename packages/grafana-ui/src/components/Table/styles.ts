@@ -7,9 +7,10 @@ export function useTableStyles(theme: GrafanaTheme2, cellHeightOption: TableCell
   const borderColor = theme.colors.border.weak;
   const resizerColor = theme.colors.primary.border;
   const cellPadding = 6;
+  const cellPaddingHorizontal = theme.spacing(1.5);
   const cellHeight = getCellHeight(theme, cellHeightOption, cellPadding);
   const rowHeight = cellHeight + 2;
-  const headerHeight = 28;
+  const headerHeight = 34;
 
   const buildCellContainerStyle = (
     color?: string,
@@ -24,7 +25,7 @@ export function useTableStyles(theme: GrafanaTheme2, cellHeightOption: TableCell
   ) => {
     return css({
       label: overflowOnHover ? 'cellContainerOverflow' : 'cellContainerNoOverflow',
-      padding: `${cellPadding}px`,
+      padding: theme.spacing(1, 1.5),
       width: '100%',
       // Cell height need to account for row border
       height: rowExpanded ? 'auto !important' : `${rowHeight - 1}px`,
@@ -42,7 +43,7 @@ export function useTableStyles(theme: GrafanaTheme2, cellHeightOption: TableCell
         : {}),
 
       alignItems: 'center',
-      borderRight: `1px solid ${borderColor}`,
+      borderRight: 0,
 
       color: rowStyled ? 'inherit' : (color ?? undefined),
       background: rowStyled ? undefined : (background ?? undefined),
@@ -60,7 +61,7 @@ export function useTableStyles(theme: GrafanaTheme2, cellHeightOption: TableCell
         wordBreak: textShouldWrap ? 'break-word' : undefined,
         whiteSpace: textShouldWrap && overflowOnHover ? 'normal' : 'nowrap',
         //boxShadow: overflowOnHover ? `0 0 2px ${theme.colors.primary.main}` : undefined,
-       // background: 'inherit', //: (backgroundHover ?? theme.colors.background.primary),
+        // background: 'inherit', //: (backgroundHover ?? theme.colors.background.primary),
         zIndex: 1,
         '.cellActions': {
           color: '#FFF',
@@ -118,6 +119,10 @@ export function useTableStyles(theme: GrafanaTheme2, cellHeightOption: TableCell
       overflow: 'auto',
       display: 'flex',
       flexDirection: 'column',
+      boxSizing: 'border-box',
+      border: `1px solid ${borderColor}`,
+      borderRadius: theme.shape.radius.default,
+      background: theme.colors.background.primary,
     }),
     thead: css({
       label: 'thead',
@@ -130,6 +135,7 @@ export function useTableStyles(theme: GrafanaTheme2, cellHeightOption: TableCell
       label: 'tfoot',
       height: `${headerHeight}px`,
       borderTop: `1px solid ${borderColor}`,
+      background: theme.colors.background.primary,
       overflowY: 'auto',
       overflowX: 'hidden',
       position: 'relative',
@@ -137,15 +143,18 @@ export function useTableStyles(theme: GrafanaTheme2, cellHeightOption: TableCell
     headerRow: css({
       label: 'row',
       borderBottom: `1px solid ${borderColor}`,
+      background: theme.colors.background.primary,
     }),
     headerCell: css({
       height: '100%',
-      padding: `0 ${cellPadding}px`,
+      padding: `0 ${cellPaddingHorizontal}`,
       overflow: 'hidden',
       whiteSpace: 'nowrap',
       display: 'flex',
       alignItems: 'center',
       fontWeight: theme.typography.fontWeightMedium,
+      color: theme.colors.text.secondary,
+      fontSize: theme.typography.bodySmall.fontSize,
 
       '&:last-child': {
         borderRight: 'none',
@@ -160,13 +169,14 @@ export function useTableStyles(theme: GrafanaTheme2, cellHeightOption: TableCell
       overflow: 'hidden',
       textOverflow: 'ellipsis',
       fontWeight: theme.typography.fontWeightMedium,
+      color: 'inherit',
       display: 'flex',
       alignItems: 'center',
       marginRight: theme.spacing(0.5),
 
       '&:hover': {
-        textDecoration: 'underline',
-        color: theme.colors.text.link,
+        textDecoration: 'none',
+        color: theme.colors.text.primary,
       },
     }),
     cellContainerText: buildCellContainerStyle(undefined, undefined, undefined, true, true),
@@ -193,8 +203,8 @@ export function useTableStyles(theme: GrafanaTheme2, cellHeightOption: TableCell
       fontWeight: theme.typography.fontWeightMedium,
       paddingRight: theme.spacing(1.5),
       '&:hover': {
-        textDecoration: 'underline',
-        color: theme.colors.text.link,
+        textDecoration: 'none',
+        color: theme.colors.text.primary,
       },
     }),
     cellLinkForColoredCell: css({
@@ -220,9 +230,16 @@ export function useTableStyles(theme: GrafanaTheme2, cellHeightOption: TableCell
     paginationWrapper: css({
       display: 'flex',
       height: `${cellHeight}px`,
-      justifyContent: 'center',
+      justifyContent: 'flex-end',
       alignItems: 'center',
+      gap: theme.spacing(1),
       width: '100%',
+      boxSizing: 'border-box',
+      padding: theme.spacing(0, 1),
+      borderTop: `1px solid ${borderColor}`,
+      background: theme.colors.background.primary,
+      flexWrap: 'nowrap',
+      overflow: 'hidden',
       li: {
         marginBottom: 0,
       },
@@ -231,8 +248,10 @@ export function useTableStyles(theme: GrafanaTheme2, cellHeightOption: TableCell
       color: theme.colors.text.secondary,
       fontSize: theme.typography.bodySmall.fontSize,
       display: 'flex',
+      alignItems: 'center',
       justifyContent: 'flex-end',
-      padding: theme.spacing(0, 1, 0, 2),
+      padding: theme.spacing(0, 0.5),
+      whiteSpace: 'nowrap',
     }),
 
     tableContentWrapper: (totalColumnsWidth: number) => {
@@ -241,6 +260,7 @@ export function useTableStyles(theme: GrafanaTheme2, cellHeightOption: TableCell
       return css({
         label: 'tableContentWrapper',
         width,
+        minWidth: '100%',
         display: 'flex',
         flexDirection: 'column',
       });
@@ -248,6 +268,7 @@ export function useTableStyles(theme: GrafanaTheme2, cellHeightOption: TableCell
     row: css({
       label: 'row',
       borderBottom: `1px solid ${borderColor}`,
+      background: theme.colors.background.primary,
 
       '&:hover': {
         backgroundColor: theme.components.table.rowHoverBackground,
@@ -255,6 +276,10 @@ export function useTableStyles(theme: GrafanaTheme2, cellHeightOption: TableCell
 
       '&:last-child': {
         borderBottom: 0,
+      },
+
+      [theme.transitions.handleMotion('no-preference', 'reduce')]: {
+        transition: 'background-color 100ms ease-out',
       },
     }),
     imageCell: css({

@@ -1,5 +1,6 @@
 import { css, cx } from '@emotion/css';
-import { useMemo } from 'react';
+
+import { GrafanaTheme2 } from '@grafana/data';
 
 import { useStyles2 } from '../../themes';
 import { Button } from '../Button';
@@ -19,127 +20,73 @@ export interface Props {
   className?: string;
 }
 
-export const Pagination = ({
-  currentPage,
-  numberOfPages,
-  onNavigate,
-  hideWhenSinglePage,
-  showSmallVersion,
-  className,
-}: Props) => {
+export const Pagination = ({ currentPage, numberOfPages, onNavigate, hideWhenSinglePage, className }: Props) => {
   const styles = useStyles2(getStyles);
-  const pageLengthToCondense = showSmallVersion ? 1 : 8;
-
-  const pageButtons = useMemo(() => {
-    const pages = [...new Array(numberOfPages).keys()];
-
-    const condensePages = numberOfPages > pageLengthToCondense;
-    const getListItem = (page: number, fill?: 'outline' | 'ghost') => (
-      <li key={page} className={styles.item}>
-        <Button size="sm" onClick={() => onNavigate(page)} fill={fill}>
-          {page}
-        </Button>
-      </li>
-    );
-
-    return pages.reduce<JSX.Element[]>((pagesToRender, pageIndex) => {
-      const page = pageIndex + 1;
-      const fill: 'outline' | 'ghost' = page === currentPage ? 'ghost' : 'outline';
-
-      // The indexes at which to start and stop condensing pages
-      const lowerBoundIndex = pageLengthToCondense;
-      const upperBoundIndex = numberOfPages - pageLengthToCondense + 1;
-      // When the indexes overlap one another this number is negative
-      const differenceOfBounds = upperBoundIndex - lowerBoundIndex;
-
-      const isFirstOrLastPage = page === 1 || page === numberOfPages;
-      // This handles when the lowerBoundIndex < currentPage < upperBoundIndex
-      const currentPageIsBetweenBounds =
-        differenceOfBounds > -1 && currentPage >= lowerBoundIndex && currentPage <= upperBoundIndex;
-
-      // Show ellipsis after that many pages
-      const ellipsisOffset = showSmallVersion ? 1 : 3;
-
-      // The offset to show more pages when currentPageIsBetweenBounds
-      const pageOffset = showSmallVersion ? 0 : 2;
-
-      if (condensePages) {
-        if (
-          isFirstOrLastPage ||
-          (currentPage < lowerBoundIndex && page < lowerBoundIndex) ||
-          (differenceOfBounds >= 0 && currentPage > upperBoundIndex && page > upperBoundIndex) ||
-          (differenceOfBounds < 0 && currentPage >= lowerBoundIndex && page > upperBoundIndex) ||
-          (currentPageIsBetweenBounds && page >= currentPage - pageOffset && page <= currentPage + pageOffset)
-        ) {
-          // Renders a button for the page
-          pagesToRender.push(getListItem(page, fill));
-        } else if (
-          (page === lowerBoundIndex && currentPage < lowerBoundIndex) ||
-          (page === upperBoundIndex && currentPage > upperBoundIndex) ||
-          (currentPageIsBetweenBounds &&
-            (page === currentPage - ellipsisOffset || page === currentPage + ellipsisOffset))
-        ) {
-          // Renders and ellipsis to represent condensed pages
-          pagesToRender.push(
-            <li key={page} className={styles.item}>
-              <Icon className={styles.ellipsis} name="ellipsis-v" />
-            </li>
-          );
-        }
-      } else {
-        pagesToRender.push(getListItem(page, fill));
-      }
-      return pagesToRender;
-    }, []);
-  }, [currentPage, numberOfPages, onNavigate, pageLengthToCondense, showSmallVersion, styles.ellipsis, styles.item]);
 
   if (hideWhenSinglePage && numberOfPages <= 1) {
     return null;
   }
 
   return (
-    <div className={cx(styles.container, className)}>
-      <ol>
-        <li className={styles.item}>
-          <Button
-            aria-label={`previous page`}
-            size="sm"
-            onClick={() => onNavigate(currentPage - 1)}
-            disabled={currentPage === 1}
-            fill="outline"
-          >
-            <Icon name="angle-left" />
-          </Button>
-        </li>
-        {pageButtons}
-        <li className={styles.item}>
-          <Button
-            aria-label={`next page`}
-            size="sm"
-            fill="outline"
-            onClick={() => onNavigate(currentPage + 1)}
-            disabled={currentPage === numberOfPages}
-          >
-            <Icon name="angle-right" />
-          </Button>
-        </li>
-      </ol>
-    </div>
+    <nav className={cx(styles.container, className)} aria-label="Pagination">
+      <Button
+        aria-label={`previous page`}
+        size="sm"
+        onClick={() => onNavigate(currentPage - 1)}
+        disabled={currentPage === 1}
+        fill="ghost"
+        className={styles.navButton}
+      >
+        <Icon name="angle-left" />
+      </Button>
+      <span className={styles.pageSummary} aria-live="polite">
+        {currentPage} / {numberOfPages}
+      </span>
+      <Button
+        aria-label={`next page`}
+        size="sm"
+        fill="ghost"
+        onClick={() => onNavigate(currentPage + 1)}
+        disabled={currentPage === numberOfPages}
+        className={styles.navButton}
+      >
+        <Icon name="angle-right" />
+      </Button>
+    </nav>
   );
 };
 
-const getStyles = () => {
+const getStyles = (theme: GrafanaTheme2) => {
   return {
     container: css({
-      float: 'right',
+      display: 'flex',
+      minWidth: 0,
+      alignItems: 'center',
+      gap: theme.spacing(0.5),
     }),
-    item: css({
-      display: 'inline-block',
-      paddingLeft: '10px',
-      marginBottom: '5px',
+    navButton: css({
+      minWidth: theme.spacing(3.5),
+      width: theme.spacing(3.5),
+      height: theme.spacing(3.5),
+      padding: 0,
+      color: theme.colors.text.secondary,
+      borderRadius: theme.shape.radius.default,
+
+      '&:not(:disabled):hover': {
+        color: theme.colors.text.primary,
+        background: theme.colors.action.hover,
+      },
     }),
-    ellipsis: css({
-      transform: 'rotate(90deg)',
+    pageSummary: css({
+      minWidth: theme.spacing(6),
+      padding: theme.spacing(0, 0.75),
+      color: theme.colors.text.secondary,
+      fontSize: theme.typography.bodySmall.fontSize,
+      fontWeight: theme.typography.fontWeightMedium,
+      lineHeight: theme.spacing(3.5),
+      textAlign: 'center',
+      whiteSpace: 'nowrap',
+      fontVariantNumeric: 'tabular-nums',
     }),
   };
 };
