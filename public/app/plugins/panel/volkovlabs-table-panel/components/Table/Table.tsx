@@ -18,7 +18,7 @@ import {
 } from '@tanstack/react-table';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { get } from 'lodash';
-import React, { CSSProperties, RefObject, useCallback, useEffect, useMemo, useState } from 'react';
+import React, { CSSProperties, RefObject, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import { DataFrame, EventBus, GrafanaTheme2, InterpolateFunction } from '@grafana/data';
 import { Button, ConfirmModal, Drawer, Icon, useStyles2, useTheme2 } from '@grafana/ui';
@@ -544,8 +544,13 @@ export const Table = <TData,>({
    * Row Virtualizer
    * Options description - https://tanstack.com/virtual/v3/docs/api/virtualizer
    */
+  const tableWrapperRef = useRef<HTMLDivElement>(null);
+
   const rowVirtualizer = useVirtualizer({
-    getScrollElement: useCallback(() => scrollableContainerRef.current, [scrollableContainerRef]),
+    getScrollElement: useCallback(
+      () => tableWrapperRef.current ?? scrollableContainerRef.current,
+      [scrollableContainerRef]
+    ),
     count: rows.length,
     getItemKey: useCallback((index: number) => rows[index].id, [rows]),
     estimateSize: useCallback(() => 37, []),
@@ -569,6 +574,24 @@ export const Table = <TData,>({
 
     return Math.max(1, pageCount);
   }, [pagination.isManual, pagination.total, pagination.value.pageSize, table]);
+
+  /**
+   * Clamp the current page index so the label and navigation buttons never go past the last page
+   * when the page count shrinks (for example, after increasing the page size).
+   */
+  const clampedPageIndex = Math.max(0, Math.min(pagination.value.pageIndex, numberOfPages - 1));
+
+  /**
+   * Keep pagination state in sync when the clamped index drifts from the raw page index.
+   */
+  useEffect(() => {
+    if (pagination.value.pageIndex !== clampedPageIndex) {
+      pagination.onChange({
+        ...pagination.value,
+        pageIndex: clampedPageIndex,
+      });
+    }
+  }, [clampedPageIndex, pagination]);
 
   /**
    * Is Footer Visible
@@ -640,7 +663,7 @@ export const Table = <TData,>({
 
   return (
     <div className={styles.root}>
-      <div className={styles.tableWrapper}>
+      <div ref={tableWrapperRef} className={styles.tableWrapper}>
         <table
           className={styles.table}
           ref={tableRef}
@@ -812,11 +835,11 @@ export const Table = <TData,>({
                 type="button"
                 aria-label="Previous page"
                 className={styles.paginationButton}
-                disabled={pagination.value.pageIndex === 0}
+                disabled={clampedPageIndex === 0}
                 onClick={() => {
                   pagination.onChange({
                     ...pagination.value,
-                    pageIndex: Math.max(0, pagination.value.pageIndex - 1),
+                    pageIndex: Math.max(0, clampedPageIndex - 1),
                   });
                 }}
                 {...testIds.fieldPageNumber.apply()}
@@ -824,17 +847,17 @@ export const Table = <TData,>({
                 <Icon name="angle-left" size="md" />
               </button>
               <span className={styles.paginationPageLabel}>
-                {pagination.value.pageIndex + 1} / {numberOfPages}
+                {clampedPageIndex + 1} / {numberOfPages}
               </span>
               <button
                 type="button"
                 aria-label="Next page"
                 className={styles.paginationButton}
-                disabled={pagination.value.pageIndex >= numberOfPages - 1}
+                disabled={clampedPageIndex >= numberOfPages - 1}
                 onClick={() => {
                   pagination.onChange({
                     ...pagination.value,
-                    pageIndex: Math.min(numberOfPages - 1, pagination.value.pageIndex + 1),
+                    pageIndex: Math.min(numberOfPages - 1, clampedPageIndex + 1),
                   });
                 }}
               >
