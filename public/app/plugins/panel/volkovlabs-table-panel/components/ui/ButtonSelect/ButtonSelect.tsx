@@ -8,11 +8,11 @@ import {
   useFloating,
   useInteractions,
 } from '@floating-ui/react';
-import { SelectableValue } from '@grafana/data';
-import { Menu, MenuItem, Portal, ToolbarButton, useTheme2 } from '@grafana/ui';
 import { FocusScope } from '@react-aria/focus';
 import React, { HTMLAttributes, useState } from 'react';
 
+import { IconName, SelectableValue } from '@grafana/data';
+import { Icon, Menu, MenuItem, Portal, ToolbarButton, useTheme2 } from '@grafana/ui';
 import { TEST_IDS } from 'app/plugins/panel/volkovlabs-table-panel/constants';
 
 import { getStyles } from './ButtonSelect.styles';
@@ -35,6 +35,7 @@ interface Props<T> extends HTMLAttributes<HTMLButtonElement> {
   narrow?: boolean;
   variant?: ToolbarButtonVariant;
   tooltip?: string;
+  valueIcon?: IconName;
 }
 
 export const ButtonSelect = <T,>(props: Props<T>) => {
@@ -44,7 +45,7 @@ export const ButtonSelect = <T,>(props: Props<T>) => {
   const theme = useTheme2();
   const styles = getStyles(theme);
 
-  const { className, options, value, onChange, narrow, variant, ...restProps } = props;
+  const { className, options, value, onChange, narrow, variant, valueIcon, ...restProps } = props;
   const [isOpen, setIsOpen] = useState(false);
 
   /**
@@ -83,14 +84,16 @@ export const ButtonSelect = <T,>(props: Props<T>) => {
     <div className={styles.wrapper} {...TEST_IDS.buttonSelect.root.apply()}>
       <ToolbarButton
         className={className}
-        isOpen={isOpen}
+        isOpen={valueIcon ? undefined : isOpen}
         narrow={narrow}
         variant={variant}
         ref={refs.setReference}
         {...getReferenceProps()}
+        aria-expanded={isOpen}
         {...restProps}
       >
         {value?.label || String(value?.value)}
+        {valueIcon && <Icon name={valueIcon} size="sm" className={styles.valueIcon} />}
       </ToolbarButton>
       {isOpen && (
         <Portal>

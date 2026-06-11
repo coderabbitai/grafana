@@ -50,11 +50,7 @@ export const getStyles = (theme: GrafanaTheme2) => {
       background-color: inherit;
       color: inherit;
     `,
-    cellEditable: css`
-      &:hover {
-        box-shadow: ${theme.colors.primary.border} 0 0 2px;
-      }
-    `,
+    cellEditable: css``,
     cellExpandable: css`
       cursor: pointer;
       border-right: none !important;

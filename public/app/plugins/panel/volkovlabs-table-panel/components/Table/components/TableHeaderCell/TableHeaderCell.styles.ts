@@ -1,4 +1,5 @@
 import { css } from '@emotion/css';
+
 import { GrafanaTheme2 } from '@grafana/data';
 
 /**
@@ -6,6 +7,13 @@ import { GrafanaTheme2 } from '@grafana/data';
  */
 export const getStyles = (theme: GrafanaTheme2) => {
   return {
+    label: css`
+      display: inline-flex;
+      align-items: center;
+      gap: ${theme.spacing(0.5)};
+      min-width: max-content;
+      white-space: nowrap;
+    `,
     labelSortable: css`
       cursor: pointer;
       &:hover {
@@ -15,6 +23,7 @@ export const getStyles = (theme: GrafanaTheme2) => {
     actionHeader: css`
       margin: ${theme.spacing(0)};
       margin-left: ${theme.spacing(1)};
+      white-space: nowrap;
     `,
     actions: css`
       display: flex;
