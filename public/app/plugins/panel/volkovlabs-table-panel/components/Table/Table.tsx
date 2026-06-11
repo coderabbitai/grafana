@@ -21,7 +21,7 @@ import { get } from 'lodash';
 import React, { CSSProperties, RefObject, useCallback, useEffect, useMemo, useState } from 'react';
 
 import { DataFrame, EventBus, GrafanaTheme2, InterpolateFunction } from '@grafana/data';
-import { Button, ConfirmModal, Drawer, Pagination, useStyles2, useTheme2 } from '@grafana/ui';
+import { Button, ConfirmModal, Drawer, Icon, useStyles2, useTheme2 } from '@grafana/ui';
 import { ButtonSelect } from 'app/plugins/panel/volkovlabs-table-panel/components';
 import {
   PAGE_SIZE_OPTIONS,
@@ -554,6 +554,17 @@ export const Table = <TData,>({
   const virtualRows = rowVirtualizer.getVirtualItems();
 
   /**
+   * Pagination pages
+   */
+  const numberOfPages = useMemo(() => {
+    const pageCount = pagination.isManual
+      ? Math.ceil(pagination.total / pagination.value.pageSize)
+      : table.getPageCount();
+
+    return Math.max(1, pageCount);
+  }, [pagination.isManual, pagination.total, pagination.value.pageSize, table]);
+
+  /**
    * Is Footer Visible
    */
   const isFooterVisible = useMemo(() => {
@@ -767,34 +778,64 @@ export const Table = <TData,>({
         </table>
       </div>
       {pagination.isEnabled && (
-        <div className={styles.paginationRow} ref={paginationRef} {...testIds.pagination.apply()}>
-          <Pagination
-            currentPage={pagination.value.pageIndex + 1}
-            numberOfPages={
-              pagination.isManual ? Math.ceil(pagination.total / pagination.value.pageSize) : table.getPageCount()
-            }
-            onNavigate={(pageNumber) => {
-              pagination.onChange({
-                ...pagination.value,
-                pageIndex: pageNumber - 1,
-              });
-            }}
-            className={styles.pagination}
-            showSmallVersion={width <= 200}
-            {...testIds.fieldPageNumber.apply()}
-          />
-          <ButtonSelect
-            options={PAGE_SIZE_OPTIONS}
-            value={{ value: pagination.value.pageSize }}
-            onChange={(event) => {
-              pagination.onChange({
-                pageIndex: 0,
-                pageSize: event.value!,
-              });
-            }}
-            {...testIds.fieldPageSize.apply()}
-          />
-        </div>
+        <nav
+          className={styles.paginationRow}
+          ref={paginationRef}
+          aria-label="Pagination"
+          {...testIds.pagination.apply()}
+        >
+          <div className={styles.paginationControl}>
+            <div className={styles.paginationPageSizeSection}>
+              <ButtonSelect
+                className={styles.paginationPageSize}
+                options={PAGE_SIZE_OPTIONS}
+                value={{ value: pagination.value.pageSize }}
+                onChange={(event) => {
+                  pagination.onChange({
+                    pageIndex: 0,
+                    pageSize: event.value!,
+                  });
+                }}
+                {...testIds.fieldPageSize.apply()}
+              />
+            </div>
+            <div className={styles.paginationDivider} />
+            <div className={styles.paginationNavigation}>
+              <button
+                type="button"
+                aria-label="Previous page"
+                className={styles.paginationButton}
+                disabled={pagination.value.pageIndex === 0}
+                onClick={() => {
+                  pagination.onChange({
+                    ...pagination.value,
+                    pageIndex: Math.max(0, pagination.value.pageIndex - 1),
+                  });
+                }}
+                {...testIds.fieldPageNumber.apply()}
+              >
+                <Icon name="angle-left" size="md" />
+              </button>
+              <span className={styles.paginationPageLabel}>
+                {pagination.value.pageIndex + 1} / {numberOfPages}
+              </span>
+              <button
+                type="button"
+                aria-label="Next page"
+                className={styles.paginationButton}
+                disabled={pagination.value.pageIndex >= numberOfPages - 1}
+                onClick={() => {
+                  pagination.onChange({
+                    ...pagination.value,
+                    pageIndex: Math.min(numberOfPages - 1, pagination.value.pageIndex + 1),
+                  });
+                }}
+              >
+                <Icon name="angle-right" size="md" />
+              </button>
+            </div>
+          </div>
+        </nav>
       )}
       {!!deleteData.row && (
         <ConfirmModal

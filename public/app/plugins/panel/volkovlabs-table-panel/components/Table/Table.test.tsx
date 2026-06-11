@@ -1,15 +1,25 @@
-import { createTheme, EventBusSrv } from '@grafana/data';
 import { createRow, Table as TableInstance } from '@tanstack/react-table';
 import { act, fireEvent, render, screen, within } from '@testing-library/react';
 import { getJestSelectors } from '@volkovlabs/jest-selectors';
 import React, { useRef } from 'react';
 
+import { createTheme, EventBusSrv } from '@grafana/data';
 import { ACTIONS_COLUMN_ID, ROW_HIGHLIGHT_STATE_KEY } from 'app/plugins/panel/volkovlabs-table-panel/constants';
-import { ColumnEditorType, ColumnPinDirection, Pagination, ScrollToRowPosition } from 'app/plugins/panel/volkovlabs-table-panel/types';
-import { createColumnAccessorFn, createColumnConfig, createColumnMeta, createRowHighlightConfig } from 'app/plugins/panel/volkovlabs-table-panel/utils';
+import {
+  ColumnEditorType,
+  ColumnPinDirection,
+  Pagination,
+  ScrollToRowPosition,
+} from 'app/plugins/panel/volkovlabs-table-panel/types';
+import {
+  createColumnAccessorFn,
+  createColumnConfig,
+  createColumnMeta,
+  createRowHighlightConfig,
+} from 'app/plugins/panel/volkovlabs-table-panel/utils';
 
-import { useAddData } from './hooks';
 import { Table, testIds } from './Table';
+import { useAddData } from './hooks';
 
 type Props = React.ComponentProps<typeof Table>;
 
@@ -486,13 +496,12 @@ describe('Table', () => {
 
     await act(async () => render(getComponent({ pagination })));
 
-    expect(selectors.fieldPageNumber()).toBeInTheDocument();
-    expect(selectors.fieldPageNumber()).toHaveValue('1');
+    expect(screen.getByText('1 / 10')).toBeInTheDocument();
 
-    fireEvent.change(selectors.fieldPageNumber(), { target: { value: '3' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Next page' }));
 
     expect(onChange).toHaveBeenCalledWith({
-      pageIndex: 2,
+      pageIndex: 1,
       pageSize: 10,
     });
   });

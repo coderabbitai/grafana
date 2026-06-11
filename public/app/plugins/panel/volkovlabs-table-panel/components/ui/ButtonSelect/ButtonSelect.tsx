@@ -8,11 +8,11 @@ import {
   useFloating,
   useInteractions,
 } from '@floating-ui/react';
-import { SelectableValue } from '@grafana/data';
-import { Menu, MenuItem, Portal, ToolbarButton, useTheme2 } from '@grafana/ui';
 import { FocusScope } from '@react-aria/focus';
 import React, { HTMLAttributes, useState } from 'react';
 
+import { SelectableValue } from '@grafana/data';
+import { Icon, Menu, MenuItem, Portal, ToolbarButton, useTheme2 } from '@grafana/ui';
 import { TEST_IDS } from 'app/plugins/panel/volkovlabs-table-panel/constants';
 
 import { getStyles } from './ButtonSelect.styles';
@@ -91,6 +91,7 @@ export const ButtonSelect = <T,>(props: Props<T>) => {
         {...restProps}
       >
         {value?.label || String(value?.value)}
+        <Icon name="arrows-v" size="sm" className={styles.valueIcon} />
       </ToolbarButton>
       {isOpen && (
         <Portal>
