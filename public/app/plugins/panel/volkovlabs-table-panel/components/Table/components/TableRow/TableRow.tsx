@@ -5,7 +5,11 @@ import { Cell, CellContext, Column, Row } from '@tanstack/react-table';
 import { VirtualItem, Virtualizer } from '@tanstack/react-virtual';
 import React, { CSSProperties } from 'react';
 
-import { ACTIONS_COLUMN_ID, AGGREGATION_TYPES_WITH_DISPLAY_PROCESSOR, TEST_IDS } from 'app/plugins/panel/volkovlabs-table-panel/constants';
+import {
+  ACTIONS_COLUMN_ID,
+  AGGREGATION_TYPES_WITH_DISPLAY_PROCESSOR,
+  TEST_IDS,
+} from 'app/plugins/panel/volkovlabs-table-panel/constants';
 import { CellType, ColumnAlignment, RowHighlightConfig } from 'app/plugins/panel/volkovlabs-table-panel/types';
 
 import { TableCell, TableEditableCell } from './components';

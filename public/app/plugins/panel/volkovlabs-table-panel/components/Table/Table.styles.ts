@@ -17,7 +17,6 @@ export const getStyles = (theme: GrafanaTheme2) => {
       display: flex;
       flex-direction: column;
       min-width: 100%;
-      min-height: 100%;
       border: 1px solid ${borderColor};
       border-radius: ${theme.shape.radius.default};
       background: ${theme.colors.background.primary};
@@ -59,8 +58,7 @@ export const getStyles = (theme: GrafanaTheme2) => {
       gap: ${theme.spacing(0.5)};
       flex-wrap: nowrap;
       flex: auto;
-      overflow: hidden;
-      text-overflow: ellipsis;
+      overflow: visible;
       white-space: nowrap;
       color: ${theme.colors.text.secondary};
       font-size: ${theme.typography.bodySmall.fontSize};
@@ -134,7 +132,6 @@ export const getStyles = (theme: GrafanaTheme2) => {
       box-sizing: border-box;
       overflow-x: hidden;
       overflow-y: hidden;
-      margin-top: auto;
       border-right: 1px solid ${borderColor};
       scrollbar-width: none;
 

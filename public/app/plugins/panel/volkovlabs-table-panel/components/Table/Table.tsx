@@ -535,6 +535,12 @@ export const Table = <TData,>({
   const { rows } = table.getRowModel();
 
   /**
+   * Render all rows when the loaded page contains fewer rows than the selected page size.
+   * Otherwise the virtualizer can leave a visible spacer inside the fixed-height tbody.
+   */
+  const shouldRenderAllRows = pagination.isEnabled && rows.length < pagination.value.pageSize;
+
+  /**
    * Row Virtualizer
    * Options description - https://tanstack.com/virtual/v3/docs/api/virtualizer
    */
@@ -544,7 +550,7 @@ export const Table = <TData,>({
     getItemKey: useCallback((index: number) => rows[index].id, [rows]),
     estimateSize: useCallback(() => 37, []),
     measureElement: useCallback((el: HTMLElement | HTMLTableRowElement) => el.offsetHeight, []),
-    overscan: 10,
+    overscan: shouldRenderAllRows ? rows.length : 10,
     scrollPaddingEnd: scrollPaddingEnd,
   });
 
@@ -790,6 +796,7 @@ export const Table = <TData,>({
                 className={styles.paginationPageSize}
                 options={PAGE_SIZE_OPTIONS}
                 value={{ value: pagination.value.pageSize }}
+                valueIcon="arrows-v"
                 onChange={(event) => {
                   pagination.onChange({
                     pageIndex: 0,

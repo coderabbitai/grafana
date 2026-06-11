@@ -13,7 +13,11 @@ import {
   TablePreferenceColumn,
   UserPreferences,
 } from 'app/plugins/panel/volkovlabs-table-panel/types';
-import { prepareColumnConfigsForPreferences, prepareColumnsWithFilters, prepareColumnsWithSorting } from 'app/plugins/panel/volkovlabs-table-panel/utils';
+import {
+  prepareColumnConfigsForPreferences,
+  prepareColumnsWithFilters,
+  prepareColumnsWithSorting,
+} from 'app/plugins/panel/volkovlabs-table-panel/utils';
 
 import { getStyles } from './TableHeaderCell.styles';
 import { TableHeaderCellFilter } from './TableHeaderCellFilter';
@@ -290,7 +294,7 @@ export const TableHeaderCell = <TData,>({
             updateTablesPreferences(currentTableName, transformedColumns);
           }
         }}
-        className={cx({
+        className={cx(styles.label, {
           [styles.labelSortable]: header.column.getCanSort(),
         })}
         style={{

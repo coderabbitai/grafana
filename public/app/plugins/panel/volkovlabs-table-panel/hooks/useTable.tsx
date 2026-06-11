@@ -42,6 +42,15 @@ import { useNestedObjects } from './useNestedObjects';
 import { useRuntimeVariables } from './useRuntimeVariables';
 
 /**
+ * Estimate a minimum column width that can display the full header without clipping.
+ */
+const getHeaderMinWidth = (header: string, fontSize: ColumnHeaderFontSize): number => {
+  const characterWidth = fontSize === ColumnHeaderFontSize.LG ? 10 : fontSize === ColumnHeaderFontSize.XS ? 6 : 8;
+
+  return Math.ceil(header.length * characterWidth + 64);
+};
+
+/**
  * Use Table
  */
 export const useTable = ({
@@ -396,17 +405,22 @@ export const useTable = ({
         }
       }
 
+      const header = replaceVariables(column.config.label) || column.field.config?.displayName || column.field.name;
+      const headerMinWidth = getHeaderMinWidth(
+        header,
+        column.config.appearance.header.fontSize ?? ColumnHeaderFontSize.MD
+      );
       const sizeParams: Partial<Pick<ColumnDef<unknown>, 'size' | 'minSize' | 'maxSize'>> = {};
 
       /**
        * Set column size
        */
       if (column.config.appearance.width.auto) {
-        sizeParams.minSize = column.config.appearance.width.min;
-        sizeParams.maxSize = column.config.appearance.width.max;
+        sizeParams.minSize = Math.max(column.config.appearance.width.min, headerMinWidth);
+        sizeParams.maxSize = Math.max(column.config.appearance.width.max, headerMinWidth);
       } else {
-        sizeParams.size = column.config.appearance.width.value;
-        sizeParams.maxSize = column.config.appearance.width.value;
+        sizeParams.size = Math.max(column.config.appearance.width.value, headerMinWidth);
+        sizeParams.maxSize = Math.max(column.config.appearance.width.value, headerMinWidth);
       }
 
       const isEditAllowed = checkIfOperationEnabled(column.config.edit, {
@@ -427,8 +441,6 @@ export const useTable = ({
         column.config.type === CellType.NESTED_OBJECTS
           ? objects.find((object) => object.id === column.config.objectId)
           : undefined;
-
-      const header = replaceVariables(column.config.label) || column.field.config?.displayName || column.field.name;
 
       /**
        * Check for columns with grouping enabled that are last and may not have sub rows
@@ -508,6 +520,15 @@ export const useTable = ({
       }
 
       const header = actionsColumnConfig?.label ? replaceVariables(actionsColumnConfig?.label) : '';
+      const headerMinWidth = getHeaderMinWidth(header, actionsColumnConfig?.fontSize ?? ColumnHeaderFontSize.LG);
+
+      if (actionsColumnConfig?.width.auto) {
+        actionColumnSize.minSize = Math.max(actionColumnSize.minSize ?? 0, headerMinWidth);
+        actionColumnSize.maxSize = Math.max(actionColumnSize.maxSize ?? 0, headerMinWidth);
+      } else {
+        actionColumnSize.size = Math.max(actionColumnSize.size ?? 0, headerMinWidth);
+        actionColumnSize.maxSize = Math.max(actionColumnSize.maxSize ?? 0, headerMinWidth);
+      }
 
       const currentMeta = {
         config: {
