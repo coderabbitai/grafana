@@ -17,6 +17,9 @@ export const getStyles = (theme: GrafanaTheme2) => {
       display: flex;
       flex-direction: column;
       min-width: 100%;
+      width: 100%;
+      height: 100%;
+      min-height: 0;
       border: 1px solid ${borderColor};
       border-radius: ${theme.shape.radius.default};
       background: ${theme.colors.background.primary};
@@ -24,9 +27,11 @@ export const getStyles = (theme: GrafanaTheme2) => {
       overflow: hidden;
     `,
     tableWrapper: css`
+      flex: 0 1 auto;
       min-width: 0;
+      min-height: 0;
       max-width: 100%;
-      overflow-x: auto;
+      overflow: auto;
     `,
     table: css`
       display: grid;

@@ -18,7 +18,7 @@ import {
 } from '@tanstack/react-table';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { get } from 'lodash';
-import React, { CSSProperties, RefObject, useCallback, useEffect, useMemo, useState } from 'react';
+import React, { CSSProperties, RefObject, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import { DataFrame, EventBus, GrafanaTheme2, InterpolateFunction } from '@grafana/data';
 import { Button, ConfirmModal, Drawer, Icon, useStyles2, useTheme2 } from '@grafana/ui';
@@ -535,22 +535,21 @@ export const Table = <TData,>({
   const { rows } = table.getRowModel();
 
   /**
-   * Render all rows when the loaded page contains fewer rows than the selected page size.
-   * Otherwise the virtualizer can leave a visible spacer inside the fixed-height tbody.
-   */
-  const shouldRenderAllRows = pagination.isEnabled && rows.length < pagination.value.pageSize;
-
-  /**
    * Row Virtualizer
    * Options description - https://tanstack.com/virtual/v3/docs/api/virtualizer
    */
+  const tableWrapperRef = useRef<HTMLDivElement>(null);
+
   const rowVirtualizer = useVirtualizer({
-    getScrollElement: useCallback(() => scrollableContainerRef.current, [scrollableContainerRef]),
+    getScrollElement: useCallback(
+      () => tableWrapperRef.current ?? scrollableContainerRef.current,
+      [scrollableContainerRef]
+    ),
     count: rows.length,
     getItemKey: useCallback((index: number) => rows[index].id, [rows]),
     estimateSize: useCallback(() => 37, []),
     measureElement: useCallback((el: HTMLElement | HTMLTableRowElement) => el.offsetHeight, []),
-    overscan: shouldRenderAllRows ? rows.length : 10,
+    overscan: 10,
     scrollPaddingEnd: scrollPaddingEnd,
   });
 
@@ -640,7 +639,7 @@ export const Table = <TData,>({
 
   return (
     <div className={styles.root}>
-      <div className={styles.tableWrapper}>
+      <div ref={tableWrapperRef} className={styles.tableWrapper}>
         <table
           className={styles.table}
           ref={tableRef}
