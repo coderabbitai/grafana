@@ -570,6 +570,24 @@ export const Table = <TData,>({
   }, [pagination.isManual, pagination.total, pagination.value.pageSize, table]);
 
   /**
+   * Clamp the current page index so the label and navigation buttons never go past the last page
+   * when the page count shrinks (for example, after increasing the page size).
+   */
+  const clampedPageIndex = Math.max(0, Math.min(pagination.value.pageIndex, numberOfPages - 1));
+
+  /**
+   * Keep pagination state in sync when the clamped index drifts from the raw page index.
+   */
+  useEffect(() => {
+    if (pagination.value.pageIndex !== clampedPageIndex) {
+      pagination.onChange({
+        ...pagination.value,
+        pageIndex: clampedPageIndex,
+      });
+    }
+  }, [clampedPageIndex, pagination]);
+
+  /**
    * Is Footer Visible
    */
   const isFooterVisible = useMemo(() => {
@@ -811,11 +829,11 @@ export const Table = <TData,>({
                 type="button"
                 aria-label="Previous page"
                 className={styles.paginationButton}
-                disabled={pagination.value.pageIndex === 0}
+                disabled={clampedPageIndex === 0}
                 onClick={() => {
                   pagination.onChange({
                     ...pagination.value,
-                    pageIndex: Math.max(0, pagination.value.pageIndex - 1),
+                    pageIndex: Math.max(0, clampedPageIndex - 1),
                   });
                 }}
                 {...testIds.fieldPageNumber.apply()}
@@ -823,17 +841,17 @@ export const Table = <TData,>({
                 <Icon name="angle-left" size="md" />
               </button>
               <span className={styles.paginationPageLabel}>
-                {pagination.value.pageIndex + 1} / {numberOfPages}
+                {clampedPageIndex + 1} / {numberOfPages}
               </span>
               <button
                 type="button"
                 aria-label="Next page"
                 className={styles.paginationButton}
-                disabled={pagination.value.pageIndex >= numberOfPages - 1}
+                disabled={clampedPageIndex >= numberOfPages - 1}
                 onClick={() => {
                   pagination.onChange({
                     ...pagination.value,
-                    pageIndex: Math.min(numberOfPages - 1, pagination.value.pageIndex + 1),
+                    pageIndex: Math.min(numberOfPages - 1, clampedPageIndex + 1),
                   });
                 }}
               >
