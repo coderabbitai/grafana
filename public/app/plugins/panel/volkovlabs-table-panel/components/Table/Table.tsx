@@ -515,6 +515,7 @@ export const Table = <TData,>({
     getPaginationRowModel: getPaginationRowModel(),
     onPaginationChange: pagination.onChange,
     manualPagination: pagination.isManual,
+    pageCount: pagination.isManual ? Math.max(1, Math.ceil(pagination.total / pagination.value.pageSize)) : undefined,
 
     /**
      * Debug
