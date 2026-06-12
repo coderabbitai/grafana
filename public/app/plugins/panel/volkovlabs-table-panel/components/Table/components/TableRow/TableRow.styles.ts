@@ -1,4 +1,5 @@
 import { css } from '@emotion/css';
+
 import { GrafanaTheme2 } from '@grafana/data';
 
 /**
@@ -43,7 +44,7 @@ export const getStyles = (theme: GrafanaTheme2) => {
       box-sizing: border-box;
       white-space: nowrap;
       padding: ${theme.spacing(1, 2)} !important;
-      flex: auto;
+      flex: 1 0 auto;
       overflow: hidden;
       text-overflow: ellipsis;
       z-index: 0;

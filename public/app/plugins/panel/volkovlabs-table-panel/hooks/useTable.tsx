@@ -414,10 +414,24 @@ export const useTable = ({
 
       /**
        * Set column size
+       *
+       * `width.min` and `width.max` are optional and may be undefined. Passing `undefined`
+       * to `Math.max` produces `NaN`, which would propagate through TanStack's `getSize()`
+       * and leave the cell without an inline width, allowing rows to size themselves to
+       * content and pushing columns out of alignment. Default the bound to `headerMinWidth`
+       * (and the fixed-size case to the configured value) before clamping.
        */
       if (column.config.appearance.width.auto) {
-        sizeParams.minSize = Math.max(column.config.appearance.width.min, headerMinWidth);
-        sizeParams.maxSize = Math.max(column.config.appearance.width.max, headerMinWidth);
+        sizeParams.minSize = Math.max(column.config.appearance.width.min ?? headerMinWidth, headerMinWidth);
+        if (column.config.appearance.width.max !== undefined) {
+          /**
+           * Clamp `maxSize` to at least `minSize` so a misconfigured range
+           * (e.g. width.min > width.max) cannot produce maxSize < minSize,
+           * which would let TanStack's `getSize()` collapse the column below
+           * the header floor.
+           */
+          sizeParams.maxSize = Math.max(column.config.appearance.width.max, headerMinWidth, sizeParams.minSize);
+        }
       } else {
         sizeParams.size = Math.max(column.config.appearance.width.value, headerMinWidth);
         sizeParams.maxSize = Math.max(column.config.appearance.width.value, headerMinWidth);
