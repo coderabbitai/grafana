@@ -424,7 +424,13 @@ export const useTable = ({
       if (column.config.appearance.width.auto) {
         sizeParams.minSize = Math.max(column.config.appearance.width.min ?? headerMinWidth, headerMinWidth);
         if (column.config.appearance.width.max !== undefined) {
-          sizeParams.maxSize = Math.max(column.config.appearance.width.max, headerMinWidth);
+          /**
+           * Clamp `maxSize` to at least `minSize` so a misconfigured range
+           * (e.g. width.min > width.max) cannot produce maxSize < minSize,
+           * which would let TanStack's `getSize()` collapse the column below
+           * the header floor.
+           */
+          sizeParams.maxSize = Math.max(column.config.appearance.width.max, headerMinWidth, sizeParams.minSize);
         }
       } else {
         sizeParams.size = Math.max(column.config.appearance.width.value, headerMinWidth);
