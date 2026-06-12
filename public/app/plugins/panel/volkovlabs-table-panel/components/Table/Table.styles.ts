@@ -62,7 +62,7 @@ export const getStyles = (theme: GrafanaTheme2) => {
       padding: ${theme.spacing(1, 2)} !important;
       gap: ${theme.spacing(0.5)};
       flex-wrap: nowrap;
-      flex: auto;
+      flex: 1 0 auto;
       overflow: visible;
       white-space: nowrap;
       color: ${theme.colors.text.secondary};
@@ -116,7 +116,7 @@ export const getStyles = (theme: GrafanaTheme2) => {
       padding: ${theme.spacing(1, 2)} !important;
       gap: ${theme.spacing(0.5)};
       flex-wrap: wrap;
-      flex: auto;
+      flex: 1 0 auto;
       color: ${theme.colors.text.secondary};
       background: ${theme.colors.background.primary};
     `,
