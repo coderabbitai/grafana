@@ -188,11 +188,36 @@ class DataSourceWithBackend<
       return of({ data: [] });
     }
 
-    const body = {
+    let body: Record<string, unknown> = {
       queries,
       from: range?.from.valueOf().toString(),
       to: range?.to.valueOf().toString(),
     };
+
+    // When Grafana is running as a CodeRabbit microfrontend (FNDashboard), the
+    // raw query (e.g. SQL) must not be sent from the browser. The backend will
+    // resolve the query using the dashboard UID + panel id and apply any
+    // active variables / ad-hoc filters server-side instead.
+    if (typeof window !== 'undefined' && window.__FNDashboard__ === true) {
+      const variables = request.scopedVars
+        ? Object.keys(request.scopedVars).reduce<Record<string, unknown>>((acc, key) => {
+            const v = request.scopedVars[key];
+            if (v && typeof v === 'object' && 'value' in v) {
+              acc[key] = v.value;
+            }
+            return acc;
+          }, {})
+        : {};
+
+      body = {
+        dashboardUID: request.dashboardUID,
+        panelId: request.panelId,
+        variables,
+        filters: request.filters ?? [],
+        from: range?.from.valueOf().toString(),
+        to: range?.to.valueOf().toString(),
+      };
+    }
 
     if (config.featureToggles.queryOverLive) {
       return getGrafanaLiveSrv().getQueryData({

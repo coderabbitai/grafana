@@ -40,6 +40,13 @@ const reducers: SliceCaseReducers<MfeGlobalState> = {
     setGrafanaStore(state, uid);
     const fnState = state.dashboards[uid];
     state.FNDashboard = true;
+    // Expose the FNDashboard flag on `window` so that non-React code in
+    // `packages/grafana-runtime` (e.g. DataSourceWithBackend) can detect when
+    // Grafana is running as a CodeRabbit microfrontend without importing the
+    // app store (which would create a circular dependency).
+    if (typeof window !== 'undefined') {
+      window.__FNDashboard__ = true;
+    }
 
     if (!fnState) {
       state.dashboards = {

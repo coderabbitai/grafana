@@ -498,6 +498,57 @@ describe('DataSourceWithBackend', () => {
     });
   });
 
+  describe('FNDashboard (microfrontend) body rewriting', () => {
+    afterEach(() => {
+      delete (window as { __FNDashboard__?: boolean }).__FNDashboard__;
+    });
+
+    test('does not change the body when FNDashboard flag is not set', () => {
+      const { mock, ds } = createMockDatasource();
+      ds.query({
+        maxDataPoints: 10,
+        intervalMs: 5000,
+        targets: [{ refId: 'A' }],
+        dashboardUID: 'dashA',
+        panelId: 123,
+        range: getDefaultTimeRange(),
+      } as DataQueryRequest);
+
+      const body = mock.calls[0][0].data;
+      expect(body).toHaveProperty('queries');
+      expect(body).not.toHaveProperty('dashboardUID');
+    });
+
+    test('rewrites the body to omit raw queries when FNDashboard flag is set', () => {
+      window.__FNDashboard__ = true;
+      const { mock, ds } = createMockDatasource();
+      ds.query({
+        maxDataPoints: 10,
+        intervalMs: 5000,
+        targets: [{ refId: 'A' }],
+        dashboardUID: 'dashA',
+        panelId: 123,
+        scopedVars: {
+          host: { text: 'web-1', value: 'web-1' },
+          env: { text: 'prod', value: 'prod' },
+        },
+        filters: [{ key: 'team', operator: '=', value: 'sre' }],
+        range: getDefaultTimeRange(),
+      } as unknown as DataQueryRequest);
+
+      const body = mock.calls[0][0].data;
+      expect(body).not.toHaveProperty('queries');
+      expect(body).toEqual({
+        dashboardUID: 'dashA',
+        panelId: 123,
+        variables: { host: 'web-1', env: 'prod' },
+        filters: [{ key: 'team', operator: '=', value: 'sre' }],
+        from: '1697133600000',
+        to: '1697155200000',
+      });
+    });
+  });
+
   describe('public dashboard scope', () => {
     test("check public dashboard handler is not executed when it's not public dashboard scope", () => {
       const { ds } = createMockDatasource();
