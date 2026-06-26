@@ -617,6 +617,29 @@ describe('DataSourceWithBackend', () => {
       delete (window as { __FNDashboardRenderingUID__?: string }).__FNDashboardRenderingUID__;
       mockTemplateVariables.length = 0;
     });
+
+    test('panel queries with redacted rawSql still emit a panel body (not variableQueries)', () => {
+      // Regression: after the backend mask redacts every panel target's
+      // rawSql to '[REDACTED]', `DataSourceWithBackend` previously routed
+      // those panel queries through the variable-query branch (because they
+      // had a redacted target). The proxy then looked refId=`A` up in the
+      // templating list, failed, and 400ed every panel. Discriminate on
+      // `panelId` instead.
+      window.__FNDashboard__ = true;
+      const { mock, ds } = createMockDatasource();
+      ds.query({
+        maxDataPoints: 10,
+        intervalMs: 5000,
+        targets: [{ refId: 'A', rawSql: '[REDACTED]' }],
+        dashboardUID: 'dashA',
+        panelId: 123,
+        range: getDefaultTimeRange(),
+      } as unknown as DataQueryRequest);
+
+      const body = mock.calls[0][0].data;
+      expect(body).toHaveProperty('panelId', 123);
+      expect(body).not.toHaveProperty('variableQueries');
+    });
   });
 
   describe('public dashboard scope', () => {

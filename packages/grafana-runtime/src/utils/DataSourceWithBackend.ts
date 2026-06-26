@@ -232,22 +232,21 @@ class DataSourceWithBackend<
         }
       }
 
-      // 3. Templating-variable queries (the dropdown population queries
-      //    fired by Grafana's variable runner) reach this branch without a
-      //    `dashboardUID` / `panelId`, and after our backend mask their
-      //    `rawSql` is the `[REDACTED]` placeholder — the proxy would reject
-      //    them. We detect this case by either a redacted target OR the
-      //    absence of a panelId combined with the presence of a refId that
-      //    matches a known templating variable name on the dashboard. The
-      //    dashboard UID is mirrored on `window` by the MFE store reducer
-      //    because `request.dashboardUID` is unset for variable queries.
-      const hasRedactedTarget = queries.some((q) => {
-        const raw = (q as unknown as { rawSql?: unknown }).rawSql;
-        return typeof raw === 'string' && raw === '[REDACTED]';
-      });
-      const dashboardUID = request.dashboardUID ?? window.__FNDashboardRenderingUID__;
+      // 3. Discriminate between *panel* queries (which always carry a
+      //    numeric `panelId` on the request — Grafana's `PanelQueryRunner`
+      //    sets it) and *templating-variable* queries (which Grafana's
+      //    `VariableQueryRunner` dispatches without a panelId). After our
+      //    backend mask, *both* shapes arrive with `rawSql === '[REDACTED]'`,
+      //    so the presence of a redacted target is NOT a reliable signal —
+      //    we must key off `panelId` instead, otherwise panel queries get
+      //    misrouted into the variable resolver (which looks up the target's
+      //    refId — `A` for panels — in the templating list, fails to find
+      //    it, and 400s).
+      const dashboardUID =
+        request.dashboardUID ?? window.__FNDashboardRenderingUID__;
+      const isVariableQuery = typeof request.panelId !== 'number';
 
-      if (hasRedactedTarget && dashboardUID) {
+      if (isVariableQuery && dashboardUID) {
         // Variable-query FN body: forward each target's refId as the variable
         // name. The proxy looks the SQL up in the shipped dashboard JSON,
         // interpolates variables, expands macros, and forwards the resolved
