@@ -26,11 +26,11 @@ import {
   getBackendSrv,
   getDataSourceSrv,
   getGrafanaLiveSrv,
-  getTemplateSrv,
   StreamingFrameAction,
   StreamingFrameOptions,
 } from '../services';
 
+import { buildCrFnContext, hasRedactedRawSql, isFnDashboardWindow } from './fnDashboardBody';
 import { publicDashboardQueryHandler } from './publicDashboardQueryHandler';
 import { BackendDataSourceResponse, toDataQueryResponse } from './queryResponse';
 
@@ -195,50 +195,20 @@ class DataSourceWithBackend<
       to: range?.to.valueOf().toString(),
     };
 
-    // When Grafana is running as the CodeRabbit microfrontend (FNDashboard),
-    // the backend has masked every panel/templating-variable `rawSql` to a
-    // structural key (`[CR_REDACTED:p:<panelId>:<refId>]` /
-    // `[CR_REDACTED:v:<variableName>]`). Grafana's frontend forwards the
-    // masked SQL to /api/ds/query verbatim; the proxy decodes the key and
-    // looks up the original SQL server-side.
-    //
-    // For that resolution to apply variables / filters correctly the proxy
-    // needs the values selected in the UI — they live on `TemplateSrv` and
-    // in `request.scopedVars`, neither of which appear in the legacy body.
-    // Attach them as a sidecar `crFnContext` field on the body; the upstream
-    // Grafana datasource ignores unknown body fields, and the proxy uses it
-    // when it sees a redacted query.
-    if (typeof window !== 'undefined' && window.__FNDashboard__ === true) {
-      const variables: Record<string, unknown> = {};
-      try {
-        const templateSrv = getTemplateSrv();
-        if (templateSrv) {
-          for (const v of templateSrv.getVariables()) {
-            const value = (v as { current?: { value?: unknown } }).current?.value;
-            if (value !== undefined) {
-              variables[v.name] = value;
-            }
-          }
-        }
-      } catch {
-        // TemplateSrv may not be initialised in tests / non-dashboard contexts.
-      }
-      if (request.scopedVars) {
-        for (const key of Object.keys(request.scopedVars)) {
-          const v = request.scopedVars[key];
-          if (v && typeof v === 'object' && 'value' in v) {
-            variables[key] = v.value;
-          }
-        }
-      }
+    // When the body carries a CodeRabbit redaction key OR the MFE store flag
+    // is set, attach the `crFnContext` sidecar that the proxy needs to
+    // resolve the redacted SQL. We accept both signals because variable
+    // queries dispatched at dashboard-init time fire *before* the MFE store
+    // mirror is set on `window.__FNDashboard__`.
+    const targetRawSqls = queries.map(q => (q as unknown as { rawSql?: unknown }).rawSql as string | undefined);
+    if (isFnDashboardWindow() || hasRedactedRawSql(targetRawSqls)) {
       body = {
         ...body,
-        crFnContext: {
-          variables,
-          filters: request.filters ?? [],
-          dashboardUID:
-            request.dashboardUID ?? window.__FNDashboardRenderingUID__,
-        },
+        crFnContext: buildCrFnContext({
+          scopedVars: request.scopedVars,
+          filters: request.filters,
+          dashboardUIDFromRequest: request.dashboardUID,
+        }),
       };
     }
 

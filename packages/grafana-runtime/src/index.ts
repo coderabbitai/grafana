@@ -20,6 +20,12 @@ export {
   isExpressionReference,
 } from './utils/DataSourceWithBackend';
 export {
+  buildCrFnContext,
+  hasRedactedRawSql,
+  isFnDashboardWindow,
+  type CrFnContext,
+} from './utils/fnDashboardBody';
+export {
   toDataQueryResponse,
   frameToMetricFindValue,
   type BackendDataSourceResponse,

@@ -22,8 +22,11 @@ import {
   BackendDataSourceResponse,
   DataSourceWithBackend,
   FetchResponse,
+  buildCrFnContext,
   getBackendSrv,
   getTemplateSrv,
+  hasRedactedRawSql,
+  isFnDashboardWindow,
   toDataQueryResponse,
   TemplateSrv,
   reportInteraction,
@@ -231,17 +234,27 @@ export abstract class SqlDatasource extends DataSourceWithBackend<SQLQuery, SQLO
     const refId = request.refId || 'meta';
     const queries: DataQuery[] = [{ ...request, datasource: request.datasource || this.getRef(), refId }];
 
+    // Variable queries (and other metricFindQuery callers) bypass
+    // `DataSourceWithBackend.query`, so we must attach the CodeRabbit MFE
+    // `crFnContext` sidecar here too. The proxy needs it whenever a query's
+    // rawSql is a redaction key (e.g. `[CR_REDACTED:v:org_name]`).
+    const rawSqls = queries.map(q => (q as unknown as { rawSql?: unknown }).rawSql as string | undefined);
+    const data: Record<string, unknown> = {
+      from: range.from.valueOf().toString(),
+      to: range.to.valueOf().toString(),
+      queries,
+    };
+    if (isFnDashboardWindow() || hasRedactedRawSql(rawSqls)) {
+      data.crFnContext = buildCrFnContext({});
+    }
+
     return lastValueFrom(
       getBackendSrv()
         .fetch<BackendDataSourceResponse>({
           url: '/api/ds/query',
           method: 'POST',
           headers: this.getRequestHeaders(),
-          data: {
-            from: range.from.valueOf().toString(),
-            to: range.to.valueOf().toString(),
-            queries,
-          },
+          data,
           requestId: refId,
         })
         .pipe(

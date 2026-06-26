@@ -583,6 +583,35 @@ describe('DataSourceWithBackend', () => {
       expect(body.crFnContext.dashboardUID).toBe('dashB');
       expect(body.crFnContext.variables).toEqual({ org_id: 'org-uuid' });
     });
+
+    test('falls back to dashboard UID parsed from location.pathname', () => {
+      // Regression: in the Qiankun-sandboxed MFE, the
+      // `__FNDashboardRenderingUID__` window mirror may not be set yet when
+      // VariableQueryRunner fires its initial dropdown-population queries,
+      // and request.dashboardUID is also unset for those queries. The proxy
+      // then can't resolve the redacted SQL. Pull the UID out of the URL
+      // (which is always `/dashboard/<uid>` or `/d/<uid>/<slug>`) as a
+      // last-resort fallback.
+      window.__FNDashboard__ = true;
+      const originalPath = window.location.pathname;
+      const setPath = (p: string) =>
+        window.history.replaceState({}, '', p + window.location.search);
+      setPath('/dashboard/summary');
+      try {
+        const { mock, ds } = createMockDatasource();
+        ds.query({
+          maxDataPoints: 10,
+          intervalMs: 5000,
+          targets: [{ refId: 'A', rawSql: '[CR_REDACTED:v:org_name]' }],
+          range: getDefaultTimeRange(),
+        } as unknown as DataQueryRequest);
+
+        const body = mock.calls[0][0].data;
+        expect(body.crFnContext.dashboardUID).toBe('summary');
+      } finally {
+        setPath(originalPath);
+      }
+    });
   });
 
   describe('public dashboard scope', () => {
