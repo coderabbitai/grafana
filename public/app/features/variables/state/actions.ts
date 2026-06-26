@@ -645,7 +645,7 @@ export const variableUpdated = (
 
     // When Grafana is running as the CodeRabbit microfrontend the backend
     // masks every panel's rawSql to a structural key like
-    // `[CR_REDACTED:p:<panelId>:<refId>]`. The dependency graph in
+    // `[MFE_REDACTED:p:<panelId>:<refId>]`. The dependency graph in
     // `getPanelVars` keys off `${var}` references inside each panel's JSON
     // and so sees zero affected panels for any variable change, breaking
     // the dashboard refresh. Fall back to `refreshAll: true` in this mode

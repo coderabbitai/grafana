@@ -22,7 +22,7 @@ import {
   BackendDataSourceResponse,
   DataSourceWithBackend,
   FetchResponse,
-  buildCrFnContext,
+  buildMfeContext,
   getBackendSrv,
   getTemplateSrv,
   hasRedactedRawSql,
@@ -239,9 +239,9 @@ export abstract class SqlDatasource extends DataSourceWithBackend<SQLQuery, SQLO
     const queries: DataQuery[] = [{ ...request, datasource: request.datasource || this.getRef(), refId }];
 
     // Variable queries (and other metricFindQuery callers) bypass
-    // `DataSourceWithBackend.query`, so we must attach the CodeRabbit MFE
-    // `crFnContext` sidecar here too. The proxy needs it whenever a query's
-    // rawSql is a redaction key (e.g. `[CR_REDACTED:v:org_name]`). Forward
+    // `DataSourceWithBackend.query`, so we must attach the MFE
+    // `mfeContext` sidecar here too. The proxy needs it whenever a query's
+    // rawSql is a redaction key (e.g. `[MFE_REDACTED:v:org_name]`). Forward
     // the caller's scopedVars (which `metricFindQuery` populates with
     // `options.scopedVars` + `__searchFilter`) so the proxy can interpolate
     // them when it expands the redacted SQL.
@@ -252,7 +252,7 @@ export abstract class SqlDatasource extends DataSourceWithBackend<SQLQuery, SQLO
       queries,
     };
     if (isFnDashboardWindow() || hasRedactedRawSql(rawSqls)) {
-      data.crFnContext = buildCrFnContext({ scopedVars });
+      data.mfeContext = buildMfeContext({ scopedVars });
     }
 
     return lastValueFrom(

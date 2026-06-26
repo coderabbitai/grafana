@@ -9,17 +9,17 @@ import (
 	"github.com/grafana/grafana/pkg/components/simplejson"
 )
 
-// crMFEEnvVar is the environment variable that, when truthy, indicates that
+// mfeEnvVar is the environment variable that, when truthy, indicates that
 // Grafana is running as the CodeRabbit microfrontend (FNDashboard). When this
 // flag is on, dashboard JSON responses must not expose raw datasource queries
 // (e.g. SQL) to the browser — the backend resolves them at query time instead.
-const crMFEEnvVar = "GF_CR_MFE"
+const mfeEnvVar = "GF_MFE"
 
-// crMaskedQueryFields lists the JSON keys that carry raw, datasource-specific
+// mfeMaskedQueryFields lists the JSON keys that carry raw, datasource-specific
 // query text on a panel target. We mask these explicitly (rather than
 // whitelisting metadata) so that unknown datasources keep their structure and
 // the frontend can still render the panel layout.
-var crMaskedQueryFields = []string{
+var mfeMaskedQueryFields = []string{
 	"rawSql",    // postgres, mysql, mssql
 	"expr",      // prometheus, loki
 	"query",     // elasticsearch, influxdb, cloudwatch, generic
@@ -30,7 +30,7 @@ var crMaskedQueryFields = []string{
 
 // Redacted value prefix and tag format. The frontend forwards the masked
 // rawSql verbatim to `/api/ds/query`; the CodeRabbit proxy recognises the
-// `[CR_REDACTED:...]` shape, decodes the key, looks the original SQL up in
+// `[MFE_REDACTED:...]` shape, decodes the key, looks the original SQL up in
 // its own indexed dashboard JSON copy, substitutes variables + macros and
 // forwards a resolved query upstream. The structure carries everything
 // needed for the lookup so we don't have to introduce an alternate body
@@ -38,8 +38,8 @@ var crMaskedQueryFields = []string{
 //
 // Encoding (URL-safe — colons are the only delimiter):
 //
-//	panel target:        [CR_REDACTED:p:<panelId>:<refId>]
-//	templating variable: [CR_REDACTED:v:<variableName>]
+//	panel target:        [MFE_REDACTED:p:<panelId>:<refId>]
+//	templating variable: [MFE_REDACTED:v:<variableName>]
 //
 // `<refId>` and `<variableName>` are pulled directly from the dashboard JSON.
 // They are URL-query-encoded (`net/url.QueryEscape`) before concatenation so
@@ -47,23 +47,23 @@ var crMaskedQueryFields = []string{
 // unambiguously recovered by the proxy. The proxy decodes each segment via
 // the inverse `decodeURIComponent`.
 const (
-	crMaskPrefix = "[CR_REDACTED:"
-	crMaskSuffix = "]"
+	mfeMaskPrefix = "[MFE_REDACTED:"
+	mfeMaskSuffix = "]"
 )
 
 func panelMaskValue(panelID int64, refID string) string {
-	return crMaskPrefix + "p:" + strconv.FormatInt(panelID, 10) + ":" + url.QueryEscape(refID) + crMaskSuffix
+	return mfeMaskPrefix + "p:" + strconv.FormatInt(panelID, 10) + ":" + url.QueryEscape(refID) + mfeMaskSuffix
 }
 
 func variableMaskValue(name string) string {
-	return crMaskPrefix + "v:" + url.QueryEscape(name) + crMaskSuffix
+	return mfeMaskPrefix + "v:" + url.QueryEscape(name) + mfeMaskSuffix
 }
 
 // isCodeRabbitMFE reports whether the Grafana process is configured as the
 // CodeRabbit microfrontend. The env var is considered enabled when set to any
 // of the common truthy strings ("1", "true", "yes", case-insensitive).
 func isCodeRabbitMFE() bool {
-	v, ok := os.LookupEnv(crMFEEnvVar)
+	v, ok := os.LookupEnv(mfeEnvVar)
 	if !ok {
 		return false
 	}
@@ -78,8 +78,8 @@ func isCodeRabbitMFE() bool {
 // query strings on every panel target (including targets on panels nested
 // inside row panels) AND on every templating variable of type `query`
 // (where the SQL lives in `query` / `definition` on the variable itself).
-// Each redacted value carries a structural key (`[CR_REDACTED:p:<panelId>:<refId>]`
-// / `[CR_REDACTED:v:<varName>]`) that the CodeRabbit proxy uses to look the
+// Each redacted value carries a structural key (`[MFE_REDACTED:p:<panelId>:<refId>]`
+// / `[MFE_REDACTED:v:<varName>]`) that the CodeRabbit proxy uses to look the
 // original SQL up server-side. The dashboard structure, panel/variable
 // metadata and target metadata (refId, datasource ref, hide flag, current
 // selection, options, ...) are left untouched so the frontend can still
@@ -176,7 +176,7 @@ func maskTemplatingList(list *simplejson.Json) {
 // given JSON object with the supplied mask string. Non-string values are
 // left untouched (e.g. influxdb's `rawQuery` boolean toggle).
 func maskRawQueryFields(obj *simplejson.Json, mask string) {
-	for _, field := range crMaskedQueryFields {
+	for _, field := range mfeMaskedQueryFields {
 		if cur, ok := obj.CheckGet(field); ok {
 			if _, err := cur.String(); err == nil {
 				obj.Set(field, mask)

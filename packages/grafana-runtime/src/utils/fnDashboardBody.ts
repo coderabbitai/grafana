@@ -3,10 +3,10 @@ import { AdHocVariableFilter, ScopedVars } from '@grafana/data';
 import { getTemplateSrv } from '../services';
 
 /**
- * Build the `crFnContext` sidecar that the CodeRabbit proxy uses to resolve
+ * Build the `mfeContext` sidecar that the CodeRabbit proxy uses to resolve
  * a redacted `/api/ds/query` body — i.e. one whose `rawSql` values are
- * `[CR_REDACTED:p:<panelId>:<refId>]` (panel target) or
- * `[CR_REDACTED:v:<variableName>]` (templating-variable query).
+ * `[MFE_REDACTED:p:<panelId>:<refId>]` (panel target) or
+ * `[MFE_REDACTED:v:<variableName>]` (templating-variable query).
  *
  * The proxy decodes each key, looks the original SQL up in its shipped
  * dashboard JSON, then interpolates the dashboard-level templating
@@ -24,17 +24,17 @@ import { getTemplateSrv } from '../services';
  *      inside Qiankun's `about:blank` sandbox iframe (whose own
  *      `location.pathname` is `"blank"`).
  */
-export interface CrFnContext {
+export interface MfeContext {
   variables: Record<string, unknown>;
   filters: AdHocVariableFilter[];
   dashboardUID?: string;
 }
 
-export function buildCrFnContext(opts: {
+export function buildMfeContext(opts: {
   scopedVars?: ScopedVars;
   filters?: AdHocVariableFilter[];
   dashboardUIDFromRequest?: string;
-}): CrFnContext {
+}): MfeContext {
   const variables: Record<string, unknown> = {};
 
   // 1. Dashboard-level template variables (org_id, repo_name, ...) live on
@@ -98,18 +98,18 @@ function resolveDashboardUID(fromRequest?: string): string | undefined {
 
 /**
  * Returns true if any of the supplied raw query texts is a CodeRabbit
- * redaction key (`[CR_REDACTED:...]`). Used to gate the attachment of the
- * `crFnContext` sidecar on bodies that the CR proxy will need to resolve.
+ * redaction key (`[MFE_REDACTED:...]`). Used to gate the attachment of the
+ * `mfeContext` sidecar on bodies that the MFE proxy will need to resolve.
  */
 export function hasRedactedRawSql(rawSqls: Array<string | undefined>): boolean {
-  return rawSqls.some(s => typeof s === 'string' && s.startsWith('[CR_REDACTED:'));
+  return rawSqls.some(s => typeof s === 'string' && s.startsWith('[MFE_REDACTED:'));
 }
 
 /**
  * True when the current window is the CodeRabbit microfrontend. The MFE
  * store mirrors this onto `window.__FNDashboard__` at dispatch time.
  * Initial templating-variable queries can fire *before* that mirror is
- * set, so callers that want to attach a `crFnContext` to any body that
+ * set, so callers that want to attach a `mfeContext` to any body that
  * already carries a redacted SQL should additionally check
  * {@link hasRedactedRawSql} on the request's targets.
  */

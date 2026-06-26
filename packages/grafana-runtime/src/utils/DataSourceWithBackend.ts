@@ -30,7 +30,7 @@ import {
   StreamingFrameOptions,
 } from '../services';
 
-import { buildCrFnContext, hasRedactedRawSql, isFnDashboardWindow } from './fnDashboardBody';
+import { buildMfeContext, hasRedactedRawSql, isFnDashboardWindow } from './fnDashboardBody';
 import { publicDashboardQueryHandler } from './publicDashboardQueryHandler';
 import { BackendDataSourceResponse, toDataQueryResponse } from './queryResponse';
 
@@ -196,7 +196,7 @@ class DataSourceWithBackend<
     };
 
     // When the body carries a CodeRabbit redaction key OR the MFE store flag
-    // is set, attach the `crFnContext` sidecar that the proxy needs to
+    // is set, attach the `mfeContext` sidecar that the proxy needs to
     // resolve the redacted SQL. We accept both signals because variable
     // queries dispatched at dashboard-init time fire *before* the MFE store
     // mirror is set on `window.__FNDashboard__`.
@@ -204,7 +204,7 @@ class DataSourceWithBackend<
     if (isFnDashboardWindow() || hasRedactedRawSql(targetRawSqls)) {
       body = {
         ...body,
-        crFnContext: buildCrFnContext({
+        mfeContext: buildMfeContext({
           scopedVars: request.scopedVars,
           filters: request.filters,
           dashboardUIDFromRequest: request.dashboardUID,

@@ -20,10 +20,10 @@ export {
   isExpressionReference,
 } from './utils/DataSourceWithBackend';
 export {
-  buildCrFnContext,
+  buildMfeContext,
   hasRedactedRawSql,
   isFnDashboardWindow,
-  type CrFnContext,
+  type MfeContext,
 } from './utils/fnDashboardBody';
 export {
   toDataQueryResponse,

@@ -524,10 +524,10 @@ describe('DataSourceWithBackend', () => {
 
       const body = mock.calls[0][0].data;
       expect(body).toHaveProperty('queries');
-      expect(body).not.toHaveProperty('crFnContext');
+      expect(body).not.toHaveProperty('mfeContext');
     });
 
-    test('attaches crFnContext to the body when FNDashboard flag is set', () => {
+    test('attaches mfeContext to the body when FNDashboard flag is set', () => {
       window.__FNDashboard__ = true;
       mockTemplateVariables.push(
         { name: 'org_id', current: { value: 'org-uuid' } },
@@ -538,7 +538,7 @@ describe('DataSourceWithBackend', () => {
       ds.query({
         maxDataPoints: 10,
         intervalMs: 5000,
-        targets: [{ refId: 'A', rawSql: '[CR_REDACTED:p:123:A]' }],
+        targets: [{ refId: 'A', rawSql: '[MFE_REDACTED:p:123:A]' }],
         dashboardUID: 'dashA',
         panelId: 123,
         scopedVars: {
@@ -552,8 +552,8 @@ describe('DataSourceWithBackend', () => {
       // Body retains the legacy { queries, from, to } shape so unknown
       // upstream code paths (including non-FN proxies) keep working.
       expect(body).toHaveProperty('queries');
-      expect(body).toHaveProperty('crFnContext');
-      expect(body.crFnContext).toEqual({
+      expect(body).toHaveProperty('mfeContext');
+      expect(body.mfeContext).toEqual({
         variables: {
           org_id: 'org-uuid',
           repo_name: ['a', 'b'],
@@ -575,13 +575,13 @@ describe('DataSourceWithBackend', () => {
         intervalMs: 5000,
         // No dashboardUID / panelId — this is how Grafana's variable runner
         // dispatches templating-variable queries.
-        targets: [{ refId: 'A', rawSql: '[CR_REDACTED:v:org_name]' }],
+        targets: [{ refId: 'A', rawSql: '[MFE_REDACTED:v:org_name]' }],
         range: getDefaultTimeRange(),
       } as unknown as DataQueryRequest);
 
       const body = mock.calls[0][0].data;
-      expect(body.crFnContext.dashboardUID).toBe('dashB');
-      expect(body.crFnContext.variables).toEqual({ org_id: 'org-uuid' });
+      expect(body.mfeContext.dashboardUID).toBe('dashB');
+      expect(body.mfeContext.variables).toEqual({ org_id: 'org-uuid' });
     });
 
     test('falls back to dashboard UID parsed from location.pathname', () => {
@@ -602,12 +602,12 @@ describe('DataSourceWithBackend', () => {
         ds.query({
           maxDataPoints: 10,
           intervalMs: 5000,
-          targets: [{ refId: 'A', rawSql: '[CR_REDACTED:v:org_name]' }],
+          targets: [{ refId: 'A', rawSql: '[MFE_REDACTED:v:org_name]' }],
           range: getDefaultTimeRange(),
         } as unknown as DataQueryRequest);
 
         const body = mock.calls[0][0].data;
-        expect(body.crFnContext.dashboardUID).toBe('summary');
+        expect(body.mfeContext.dashboardUID).toBe('summary');
       } finally {
         setPath(originalPath);
       }
