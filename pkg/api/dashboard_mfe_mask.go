@@ -6,6 +6,8 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/grafana/grafana-plugin-sdk-go/backend"
+
 	"github.com/grafana/grafana/pkg/components/simplejson"
 )
 
@@ -191,6 +193,41 @@ func maskRawQueryFields(obj *simplejson.Json, mask string) {
 			if _, err := cur.String(); err == nil {
 				obj.Set(field, mask)
 			}
+		}
+	}
+}
+
+// maskExecutedQueriesForMFE blanks every `frame.Meta.ExecutedQueryString`
+// in a /api/ds/query response. The datasource backend stamps this field
+// with the SQL / PromQL / KQL / ... it actually ran (with all variables
+// and macros resolved), which is exactly what we masked out of the
+// dashboard JSON on the way out — surfacing it on the response would
+// defeat the masking. The Query Inspector consumes this field via
+// `frame.meta.executedQueryString`; blanking the string causes it to
+// hide the per-frame "Executed query" panel (see
+// public/app/features/inspector/QueryInspector.tsx).
+//
+// Notes:
+//   - We do NOT drop the frame, refId, or response shape; only the
+//     executed-query text is removed, so panels still render.
+//   - Per-frame error messages, stats, notices and Custom datasource
+//     metadata are left intact. Datasources that copy the executed
+//     query into their own Custom payload (e.g. cloudwatch / influxdb)
+//     are not currently masked here; if that becomes a leak, extend
+//     this helper rather than introducing a parallel masker.
+func maskExecutedQueriesForMFE(resp *backend.QueryDataResponse) {
+	if resp == nil {
+		return
+	}
+	for _, r := range resp.Responses {
+		for i := range r.Frames {
+			if r.Frames[i] == nil || r.Frames[i].Meta == nil {
+				continue
+			}
+			// Frames is a []*data.Frame slice so mutations through the
+			// pointer are visible to the caller without re-assigning the
+			// backend.DataResponse value back into resp.Responses.
+			r.Frames[i].Meta.ExecutedQueryString = ""
 		}
 	}
 }

@@ -8,10 +8,13 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"os"
 	"strings"
 	"testing"
 
 	"github.com/grafana/grafana-plugin-sdk-go/backend"
+	"github.com/grafana/grafana-plugin-sdk-go/data"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	"github.com/grafana/grafana/pkg/apimachinery/errutil"
@@ -359,4 +362,86 @@ func (f *fakePluginBackend) QueryData(ctx context.Context, req *backend.QueryDat
 
 func (f *fakePluginBackend) IsDecommissioned() bool {
 	return false
+}
+
+// TestAPIEndpoint_Metrics_QueryMetricsV2_MFEMasksExecutedQuery exercises the
+// /api/ds/query handler end-to-end with a fake plugin that stamps the
+// executed query string onto the response frame. When GF_MFE is set, the
+// handler must blank `frame.meta.executedQueryString` so the Query Inspector
+// (which reads exactly this field) cannot surface the resolved SQL/expr text
+// to the browser. When GF_MFE is unset, the field must pass through
+// untouched so non-MFE Grafana deployments are unaffected.
+func TestAPIEndpoint_Metrics_QueryMetricsV2_MFEMasksExecutedQuery(t *testing.T) {
+	const executedQuery = "SELECT id FROM tenants WHERE org_id = 'abc'"
+
+	setupServer := func(t *testing.T) *webtest.Server {
+		cfg := setting.NewCfg()
+		qds := query.ProvideService(
+			cfg,
+			nil,
+			nil,
+			&fakePluginRequestValidator{},
+			&fakePluginClient{
+				QueryDataHandlerFunc: func(ctx context.Context, req *backend.QueryDataRequest) (*backend.QueryDataResponse, error) {
+					frame := &data.Frame{
+						Name:  "series",
+						RefID: "A",
+						Fields: []*data.Field{
+							data.NewField("v", nil, []float64{1, 2, 3}),
+						},
+						Meta: &data.FrameMeta{ExecutedQueryString: executedQuery},
+					}
+					return &backend.QueryDataResponse{
+						Responses: backend.Responses{
+							"A": backend.DataResponse{Frames: data.Frames{frame}},
+						},
+					}, nil
+				},
+			},
+			plugincontext.ProvideService(cfg, localcache.ProvideService(), &pluginstore.FakePluginStore{
+				PluginList: []pluginstore.Plugin{
+					{JSONData: plugins.JSONData{ID: "grafana"}},
+				},
+			}, &fakeDatasources.FakeCacheService{}, &fakeDatasources.FakeDataSourceService{},
+				pluginSettings.ProvideService(dbtest.NewFakeDB(), secretstest.NewFakeSecretsService()),
+				pluginconfig.NewFakePluginRequestConfigProvider()),
+		)
+		return SetupAPITestServer(t, func(hs *HTTPServer) {
+			hs.queryDataService = qds
+			hs.QuotaService = quotatest.New(false, nil)
+		})
+	}
+
+	doRequest := func(t *testing.T, srv *webtest.Server) []byte {
+		req := srv.NewPostRequest("/api/ds/query", strings.NewReader(reqValid))
+		webtest.RequestWithSignedInUser(req, &user.SignedInUser{
+			UserID: 1, OrgID: 1,
+			Permissions: map[int64]map[string][]string{1: {datasources.ActionQuery: []string{datasources.ScopeAll}}},
+		})
+		resp, err := srv.SendJSON(req)
+		require.NoError(t, err)
+		defer func() { require.NoError(t, resp.Body.Close()) }()
+		require.Equal(t, http.StatusOK, resp.StatusCode)
+		body, err := io.ReadAll(resp.Body)
+		require.NoError(t, err)
+		return body
+	}
+
+	t.Run("GF_MFE=1 blanks executedQueryString on every frame", func(t *testing.T) {
+		t.Setenv(mfeEnvVar, "1")
+		srv := setupServer(t)
+		body := doRequest(t, srv)
+
+		assert.NotContains(t, string(body), executedQuery, "executed query must not appear in response body")
+		assert.NotContains(t, string(body), "executedQueryString", "field should be omitted (omitempty) when blanked")
+	})
+
+	t.Run("without GF_MFE the executedQueryString passes through unchanged", func(t *testing.T) {
+		require.NoError(t, os.Unsetenv(mfeEnvVar))
+		srv := setupServer(t)
+		body := doRequest(t, srv)
+
+		assert.Contains(t, string(body), executedQuery, "non-MFE responses must include executed query")
+		assert.Contains(t, string(body), "executedQueryString")
+	})
 }

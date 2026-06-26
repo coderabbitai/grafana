@@ -5,6 +5,8 @@ import (
 	"os"
 	"testing"
 
+	"github.com/grafana/grafana-plugin-sdk-go/backend"
+	"github.com/grafana/grafana-plugin-sdk-go/data"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -295,4 +297,106 @@ func TestPanelAndVariableMaskValueRoundTripsSpaces(t *testing.T) {
 	variable := variableMaskValue(varName)
 	assert.Equal(t, "[MFE_REDACTED:v:org%20name]", variable)
 	assert.NotContains(t, variable, "+", "spaces must be %20-encoded, not `+`")
+}
+
+func TestMaskExecutedQueriesForMFE(t *testing.T) {
+	t.Run("blanks ExecutedQueryString on every frame across every refId", func(t *testing.T) {
+		resp := &backend.QueryDataResponse{
+			Responses: backend.Responses{
+				"A": backend.DataResponse{
+					Frames: data.Frames{
+						&data.Frame{Meta: &data.FrameMeta{ExecutedQueryString: "SELECT 1 FROM tenants WHERE org_id = 'abc'"}},
+						&data.Frame{Meta: &data.FrameMeta{ExecutedQueryString: "SELECT 2"}},
+					},
+				},
+				"B": backend.DataResponse{
+					Frames: data.Frames{
+						&data.Frame{Meta: &data.FrameMeta{ExecutedQueryString: "Expr: up{org=\"abc\"}"}},
+					},
+				},
+			},
+		}
+
+		maskExecutedQueriesForMFE(resp)
+
+		for refID, r := range resp.Responses {
+			for i, frame := range r.Frames {
+				require.NotNil(t, frame.Meta, "refId=%s frame=%d meta should still exist", refID, i)
+				assert.Empty(t, frame.Meta.ExecutedQueryString, "refId=%s frame=%d", refID, i)
+			}
+		}
+	})
+
+	t.Run("preserves frame data, meta-other-fields, errors and stats", func(t *testing.T) {
+		custom := map[string]string{"shard": "1"}
+		resp := &backend.QueryDataResponse{
+			Responses: backend.Responses{
+				"A": backend.DataResponse{
+					Frames: data.Frames{
+						&data.Frame{
+							Name:   "series",
+							RefID:  "A",
+							Fields: []*data.Field{data.NewField("v", nil, []float64{1, 2, 3})},
+							Meta: &data.FrameMeta{
+								ExecutedQueryString: "SELECT secret FROM t",
+								Custom:              custom,
+								Stats:               []data.QueryStat{{FieldConfig: data.FieldConfig{DisplayName: "rows"}, Value: 3}},
+								Notices:             []data.Notice{{Text: "ok"}},
+							},
+						},
+					},
+					Status: backend.StatusOK,
+				},
+			},
+		}
+
+		maskExecutedQueriesForMFE(resp)
+
+		frame := resp.Responses["A"].Frames[0]
+		assert.Empty(t, frame.Meta.ExecutedQueryString)
+		assert.Equal(t, custom, frame.Meta.Custom, "Custom datasource metadata must survive")
+		assert.Len(t, frame.Meta.Stats, 1, "Stats must survive")
+		assert.Len(t, frame.Meta.Notices, 1, "Notices must survive")
+		assert.Equal(t, "series", frame.Name)
+		assert.Equal(t, "A", frame.RefID)
+		require.Len(t, frame.Fields, 1)
+		assert.Equal(t, 3, frame.Fields[0].Len())
+	})
+
+	t.Run("nil response is a no-op", func(t *testing.T) {
+		assert.NotPanics(t, func() { maskExecutedQueriesForMFE(nil) })
+	})
+
+	t.Run("frames with nil Meta are skipped without panicking", func(t *testing.T) {
+		resp := &backend.QueryDataResponse{
+			Responses: backend.Responses{
+				"A": backend.DataResponse{
+					Frames: data.Frames{
+						&data.Frame{}, // no Meta
+						&data.Frame{Meta: &data.FrameMeta{ExecutedQueryString: "x"}},
+					},
+				},
+			},
+		}
+
+		assert.NotPanics(t, func() { maskExecutedQueriesForMFE(resp) })
+		assert.Nil(t, resp.Responses["A"].Frames[0].Meta)
+		assert.Empty(t, resp.Responses["A"].Frames[1].Meta.ExecutedQueryString)
+	})
+
+	t.Run("nil frame entries are skipped without panicking", func(t *testing.T) {
+		resp := &backend.QueryDataResponse{
+			Responses: backend.Responses{
+				"A": backend.DataResponse{
+					Frames: data.Frames{
+						nil,
+						&data.Frame{Meta: &data.FrameMeta{ExecutedQueryString: "x"}},
+					},
+				},
+			},
+		}
+
+		assert.NotPanics(t, func() { maskExecutedQueriesForMFE(resp) })
+		assert.Empty(t, resp.Responses["A"].Frames[1].Meta.ExecutedQueryString)
+	})
 }
