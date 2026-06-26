@@ -643,8 +643,18 @@ export const variableUpdated = (
     const panels = state.dashboard?.getModel()?.panels ?? [];
     const panelVars = getPanelVars(panels);
 
+    // When Grafana is running as the CodeRabbit microfrontend the backend
+    // masks every panel's rawSql to a structural key like
+    // `[CR_REDACTED:p:<panelId>:<refId>]`. The dependency graph in
+    // `getPanelVars` keys off `${var}` references inside each panel's JSON
+    // and so sees zero affected panels for any variable change, breaking
+    // the dashboard refresh. Fall back to `refreshAll: true` in this mode
+    // so every panel re-renders on every variable change — same treatment
+    // as ad-hoc variables.
+    const isFnDashboard =
+      typeof window !== 'undefined' && (window as any).__FNDashboard__ === true;
     const event: VariablesChangedEvent =
-      variableInState.type === 'adhoc'
+      variableInState.type === 'adhoc' || isFnDashboard
         ? { refreshAll: true, panelIds: [] } // for adhoc variables we don't know which panels that will be impacted
         : {
             refreshAll: false,
