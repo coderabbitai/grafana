@@ -128,6 +128,77 @@ func TestMaskDashboardQueriesForMFE(t *testing.T) {
 		assert.Equal(t, "empty", data.Get("title").MustString())
 	})
 
+	t.Run("masks templating variable queries (string form)", func(t *testing.T) {
+		raw := []byte(`{
+			"panels": [],
+			"templating": {
+				"list": [
+					{
+						"name": "org_name",
+						"type": "query",
+						"query": "SELECT name FROM orgs WHERE id = $id",
+						"definition": "SELECT name FROM orgs WHERE id = $id",
+						"current": {"text": "All", "value": "$__all"},
+						"options": [{"text": "All", "value": "$__all"}]
+					},
+					{
+						"name": "self_hosted_id",
+						"type": "custom",
+						"query": "",
+						"current": {"text": "All", "value": "$__all"}
+					}
+				]
+			}
+		}`)
+		data, err := simplejson.NewJson(raw)
+		require.NoError(t, err)
+
+		maskDashboardQueriesForMFE(data)
+
+		vars := data.Get("templating").Get("list")
+		orgName := vars.GetIndex(0)
+		assert.Equal(t, "[REDACTED]", orgName.Get("query").MustString())
+		assert.Equal(t, "[REDACTED]", orgName.Get("definition").MustString())
+		// Variable metadata (name, current selection, options) must be preserved
+		// so the frontend variable picker can still render.
+		assert.Equal(t, "org_name", orgName.Get("name").MustString())
+		assert.Equal(t, "All", orgName.Get("current").Get("text").MustString())
+		// `custom`-type vars carry an empty `query` (not real SQL); masking it
+		// with the placeholder is acceptable because the picker keys off
+		// `options` / `current`, not `query`. But ensure the empty string isn't
+		// overwritten with REDACTED — there is no SQL to hide.
+		selfHosted := vars.GetIndex(1)
+		assert.Equal(t, "", selfHosted.Get("query").MustString())
+	})
+
+	t.Run("masks templating variable queries (object form)", func(t *testing.T) {
+		raw := []byte(`{
+			"templating": {
+				"list": [
+					{
+						"name": "repo_name",
+						"type": "query",
+						"query": {
+							"refId": "repo_name",
+							"rawSql": "SELECT repository_name FROM repositories WHERE org_id = $org_id"
+						},
+						"definition": "SELECT repository_name FROM repositories WHERE org_id = $org_id"
+					}
+				]
+			}
+		}`)
+		data, err := simplejson.NewJson(raw)
+		require.NoError(t, err)
+
+		maskDashboardQueriesForMFE(data)
+
+		v := data.Get("templating").Get("list").GetIndex(0)
+		assert.Equal(t, "[REDACTED]", v.Get("definition").MustString())
+		assert.Equal(t, "[REDACTED]", v.Get("query").Get("rawSql").MustString())
+		// refId is metadata — keep it.
+		assert.Equal(t, "repo_name", v.Get("query").Get("refId").MustString())
+	})
+
 	t.Run("nil dashboard is a no-op", func(t *testing.T) {
 		assert.NotPanics(t, func() { maskDashboardQueriesForMFE(nil) })
 	})

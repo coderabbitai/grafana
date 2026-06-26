@@ -47,18 +47,24 @@ func isCodeRabbitMFE() bool {
 
 // maskDashboardQueriesForMFE walks the dashboard JSON and redacts any raw
 // query strings on every panel target (including targets on panels nested
-// inside row panels). The dashboard structure, panel metadata and target
-// metadata (refId, datasource ref, hide flag, ...) are left untouched so the
-// frontend can still render the layout.
+// inside row panels) AND on every templating variable of type `query`
+// (where the SQL lives in `query` / `definition` on the variable itself).
+// The dashboard structure, panel/variable metadata and target metadata
+// (refId, datasource ref, hide flag, current selection, options, ...) are
+// left untouched so the frontend can still render the layout and the
+// variable picker.
 func maskDashboardQueriesForMFE(data *simplejson.Json) {
 	if data == nil {
 		return
 	}
-	panels, ok := data.CheckGet("panels")
-	if !ok {
-		return
+	if panels, ok := data.CheckGet("panels"); ok {
+		maskPanelArray(panels)
 	}
-	maskPanelArray(panels)
+	if templating, ok := data.CheckGet("templating"); ok {
+		if list, ok := templating.CheckGet("list"); ok {
+			maskTemplatingList(list)
+		}
+	}
 }
 
 func maskPanelArray(panels *simplejson.Json) {
@@ -79,14 +85,64 @@ func maskPanelTargets(panel *simplejson.Json) {
 		return
 	}
 	for i := range targets.MustArray() {
-		target := targets.GetIndex(i)
-		for _, field := range crMaskedQueryFields {
-			if cur, ok := target.CheckGet(field); ok {
-				// Only mask string-valued fields. Booleans like influxdb's
-				// `rawQuery` (a UI toggle) must keep their type.
-				if _, err := cur.String(); err == nil {
-					target.Set(field, crMaskedValue)
+		maskRawQueryFields(targets.GetIndex(i))
+	}
+}
+
+// maskTemplatingList walks the dashboard's templating variable list and
+// redacts the SQL on every `query`-type variable. The Grafana JSON stores
+// the SQL in two places:
+//
+//	- `definition`: always a plain string snapshot used by the variable picker.
+//	- `query`: either a plain string (legacy / our shipped dashboards) OR an
+//	  object of the same shape as a panel target (`rawSql`, `expr`, ...).
+//
+// We mask both forms so the redaction is robust to future dashboards saved
+// from a newer Grafana UI that prefers the object form.
+func maskTemplatingList(list *simplejson.Json) {
+	for i := range list.MustArray() {
+		var_ := list.GetIndex(i)
+
+		// Only `query`-type variables carry real SQL. `custom`, `textbox`,
+		// `interval` and `datasource` variables either have no `query` field
+		// or carry a comma-separated literal list / placeholder string — none
+		// of which constitute datasource-backed query text we need to hide.
+		varType, _ := var_.Get("type").String()
+		if varType != "query" {
+			continue
+		}
+
+		// `definition` is always a string snapshot of the SQL.
+		if def, ok := var_.CheckGet("definition"); ok {
+			if s, err := def.String(); err == nil && s != "" {
+				var_.Set("definition", crMaskedValue)
+			}
+		}
+
+		// `query` is either a string (mask it directly) or an object that
+		// follows the same shape as a panel target (mask its rawSql / expr /
+		// ... fields). Empty strings are left alone so the shape stays
+		// recognisably "no query" rather than "redacted query".
+		if q, ok := var_.CheckGet("query"); ok {
+			if s, err := q.String(); err == nil {
+				if s != "" {
+					var_.Set("query", crMaskedValue)
 				}
+			} else if _, err := q.Map(); err == nil {
+				maskRawQueryFields(q)
+			}
+		}
+	}
+}
+
+// maskRawQueryFields replaces every string-valued raw-query field on the
+// given JSON object with the mask placeholder. Non-string values are left
+// untouched (e.g. influxdb's `rawQuery` boolean toggle).
+func maskRawQueryFields(obj *simplejson.Json) {
+	for _, field := range crMaskedQueryFields {
+		if cur, ok := obj.CheckGet(field); ok {
+			if _, err := cur.String(); err == nil {
+				obj.Set(field, crMaskedValue)
 			}
 		}
 	}
