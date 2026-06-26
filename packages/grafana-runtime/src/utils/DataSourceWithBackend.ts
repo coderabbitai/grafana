@@ -195,22 +195,25 @@ class DataSourceWithBackend<
       to: range?.to.valueOf().toString(),
     };
 
-    // When Grafana is running as a CodeRabbit microfrontend (FNDashboard), the
-    // raw query (e.g. SQL) must not be sent from the browser. The backend will
-    // resolve the query using the dashboard UID + panel id and apply any
-    // active variables / ad-hoc filters server-side instead.
+    // When Grafana is running as the CodeRabbit microfrontend (FNDashboard),
+    // the backend has masked every panel/templating-variable `rawSql` to a
+    // structural key (`[CR_REDACTED:p:<panelId>:<refId>]` /
+    // `[CR_REDACTED:v:<variableName>]`). Grafana's frontend forwards the
+    // masked SQL to /api/ds/query verbatim; the proxy decodes the key and
+    // looks up the original SQL server-side.
+    //
+    // For that resolution to apply variables / filters correctly the proxy
+    // needs the values selected in the UI — they live on `TemplateSrv` and
+    // in `request.scopedVars`, neither of which appear in the legacy body.
+    // Attach them as a sidecar `crFnContext` field on the body; the upstream
+    // Grafana datasource ignores unknown body fields, and the proxy uses it
+    // when it sees a redacted query.
     if (typeof window !== 'undefined' && window.__FNDashboard__ === true) {
-      // 1. Dashboard-level template variables (org_id, repo_name, ...). These
-      //    live on the TemplateSrv, *not* in request.scopedVars (which only
-      //    carries panel-local vars like __interval / repeat). Without them
-      //    the proxy substitutes `\$org_id` with the dashboard's `allValue`
-      //    (often `''`), and every panel returns zero rows.
       const variables: Record<string, unknown> = {};
       try {
         const templateSrv = getTemplateSrv();
         if (templateSrv) {
           for (const v of templateSrv.getVariables()) {
-            // Variable models carry the current selection under `current.value`.
             const value = (v as { current?: { value?: unknown } }).current?.value;
             if (value !== undefined) {
               variables[v.name] = value;
@@ -218,11 +221,8 @@ class DataSourceWithBackend<
           }
         }
       } catch {
-        // ignore — TemplateSrv may not be initialised in tests / non-dashboard contexts
+        // TemplateSrv may not be initialised in tests / non-dashboard contexts.
       }
-
-      // 2. Panel-scoped vars (e.g. __interval / __interval_ms / repeat vars)
-      //    override dashboard-level vars for this specific request.
       if (request.scopedVars) {
         for (const key of Object.keys(request.scopedVars)) {
           const v = request.scopedVars[key];
@@ -231,46 +231,15 @@ class DataSourceWithBackend<
           }
         }
       }
-
-      // 3. Discriminate between *panel* queries (which always carry a
-      //    numeric `panelId` on the request — Grafana's `PanelQueryRunner`
-      //    sets it) and *templating-variable* queries (which Grafana's
-      //    `VariableQueryRunner` dispatches without a panelId). After our
-      //    backend mask, *both* shapes arrive with `rawSql === '[REDACTED]'`,
-      //    so the presence of a redacted target is NOT a reliable signal —
-      //    we must key off `panelId` instead, otherwise panel queries get
-      //    misrouted into the variable resolver (which looks up the target's
-      //    refId — `A` for panels — in the templating list, fails to find
-      //    it, and 400s).
-      const dashboardUID =
-        request.dashboardUID ?? window.__FNDashboardRenderingUID__;
-      const isVariableQuery = typeof request.panelId !== 'number';
-
-      if (isVariableQuery && dashboardUID) {
-        // Variable-query FN body: forward each target's refId as the variable
-        // name. The proxy looks the SQL up in the shipped dashboard JSON,
-        // interpolates variables, expands macros, and forwards the resolved
-        // queries[] to upstream Grafana.
-        body = {
-          dashboardUID,
-          variableQueries: queries.map((q) => ({
-            refId: (q as { refId?: string }).refId ?? 'A',
-          })),
+      body = {
+        ...body,
+        crFnContext: {
           variables,
           filters: request.filters ?? [],
-          from: range?.from.valueOf().toString(),
-          to: range?.to.valueOf().toString(),
-        };
-      } else {
-        body = {
-          dashboardUID,
-          panelId: request.panelId,
-          variables,
-          filters: request.filters ?? [],
-          from: range?.from.valueOf().toString(),
-          to: range?.to.valueOf().toString(),
-        };
-      }
+          dashboardUID:
+            request.dashboardUID ?? window.__FNDashboardRenderingUID__,
+        },
+      };
     }
 
     if (config.featureToggles.queryOverLive) {

@@ -506,6 +506,9 @@ describe('DataSourceWithBackend', () => {
   describe('FNDashboard (microfrontend) body rewriting', () => {
     afterEach(() => {
       delete (window as { __FNDashboard__?: boolean }).__FNDashboard__;
+      delete (window as { __FNDashboardRenderingUID__?: string })
+        .__FNDashboardRenderingUID__;
+      mockTemplateVariables.length = 0;
     });
 
     test('does not change the body when FNDashboard flag is not set', () => {
@@ -521,41 +524,11 @@ describe('DataSourceWithBackend', () => {
 
       const body = mock.calls[0][0].data;
       expect(body).toHaveProperty('queries');
-      expect(body).not.toHaveProperty('dashboardUID');
+      expect(body).not.toHaveProperty('crFnContext');
     });
 
-    test('rewrites the body to omit raw queries when FNDashboard flag is set', () => {
+    test('attaches crFnContext to the body when FNDashboard flag is set', () => {
       window.__FNDashboard__ = true;
-      const { mock, ds } = createMockDatasource();
-      ds.query({
-        maxDataPoints: 10,
-        intervalMs: 5000,
-        targets: [{ refId: 'A' }],
-        dashboardUID: 'dashA',
-        panelId: 123,
-        scopedVars: {
-          host: { text: 'web-1', value: 'web-1' },
-          env: { text: 'prod', value: 'prod' },
-        },
-        filters: [{ key: 'team', operator: '=', value: 'sre' }],
-        range: getDefaultTimeRange(),
-      } as unknown as DataQueryRequest);
-
-      const body = mock.calls[0][0].data;
-      expect(body).not.toHaveProperty('queries');
-      expect(body).toEqual({
-        dashboardUID: 'dashA',
-        panelId: 123,
-        variables: { host: 'web-1', env: 'prod' },
-        filters: [{ key: 'team', operator: '=', value: 'sre' }],
-        from: '1697133600000',
-        to: '1697155200000',
-      });
-    });
-
-    test('merges dashboard-level template variables into the FN body', () => {
-      window.__FNDashboard__ = true;
-      mockTemplateVariables.length = 0;
       mockTemplateVariables.push(
         { name: 'org_id', current: { value: 'org-uuid' } },
         { name: 'repo_name', current: { value: ['a', 'b'] } },
@@ -565,80 +538,50 @@ describe('DataSourceWithBackend', () => {
       ds.query({
         maxDataPoints: 10,
         intervalMs: 5000,
-        targets: [{ refId: 'A' }],
+        targets: [{ refId: 'A', rawSql: '[CR_REDACTED:p:123:A]' }],
         dashboardUID: 'dashA',
         panelId: 123,
         scopedVars: {
           __interval: { text: '1m', value: '1m' },
-          // Panel-scoped vars must win over dashboard-level vars of the same name.
-          org_id: { text: 'panel-override', value: 'panel-override' },
         },
+        filters: [{ key: 'team', operator: '=', value: 'sre' }],
         range: getDefaultTimeRange(),
       } as unknown as DataQueryRequest);
 
       const body = mock.calls[0][0].data;
-      expect(body.variables).toEqual({
-        org_id: 'panel-override',
-        repo_name: ['a', 'b'],
-        __interval: '1m',
+      // Body retains the legacy { queries, from, to } shape so unknown
+      // upstream code paths (including non-FN proxies) keep working.
+      expect(body).toHaveProperty('queries');
+      expect(body).toHaveProperty('crFnContext');
+      expect(body.crFnContext).toEqual({
+        variables: {
+          org_id: 'org-uuid',
+          repo_name: ['a', 'b'],
+          __interval: '1m',
+        },
+        filters: [{ key: 'team', operator: '=', value: 'sre' }],
+        dashboardUID: 'dashA',
       });
-
-      mockTemplateVariables.length = 0;
     });
 
-    test('emits a variableQueries body when rawSql is [REDACTED] and panelId is missing', () => {
+    test('falls back to window.__FNDashboardRenderingUID__ when request.dashboardUID is missing', () => {
       window.__FNDashboard__ = true;
       window.__FNDashboardRenderingUID__ = 'dashB';
-      mockTemplateVariables.length = 0;
       mockTemplateVariables.push({ name: 'org_id', current: { value: 'org-uuid' } });
 
       const { mock, ds } = createMockDatasource();
       ds.query({
         maxDataPoints: 10,
         intervalMs: 5000,
-        // Note: no dashboardUID / panelId — this is how Grafana's variable
-        // runner dispatches templating-variable queries.
-        targets: [{ refId: 'org_name', rawSql: '[REDACTED]' }],
+        // No dashboardUID / panelId — this is how Grafana's variable runner
+        // dispatches templating-variable queries.
+        targets: [{ refId: 'A', rawSql: '[CR_REDACTED:v:org_name]' }],
         range: getDefaultTimeRange(),
       } as unknown as DataQueryRequest);
 
       const body = mock.calls[0][0].data;
-      expect(body).not.toHaveProperty('queries');
-      expect(body).not.toHaveProperty('panelId');
-      expect(body).toEqual({
-        dashboardUID: 'dashB',
-        variableQueries: [{ refId: 'org_name' }],
-        variables: { org_id: 'org-uuid' },
-        filters: [],
-        from: '1697133600000',
-        to: '1697155200000',
-      });
-
-      delete (window as { __FNDashboardRenderingUID__?: string }).__FNDashboardRenderingUID__;
-      mockTemplateVariables.length = 0;
-    });
-
-    test('panel queries with redacted rawSql still emit a panel body (not variableQueries)', () => {
-      // Regression: after the backend mask redacts every panel target's
-      // rawSql to '[REDACTED]', `DataSourceWithBackend` previously routed
-      // those panel queries through the variable-query branch (because they
-      // had a redacted target). The proxy then looked refId=`A` up in the
-      // templating list, failed, and 400ed every panel. Discriminate on
-      // `panelId` instead.
-      window.__FNDashboard__ = true;
-      const { mock, ds } = createMockDatasource();
-      ds.query({
-        maxDataPoints: 10,
-        intervalMs: 5000,
-        targets: [{ refId: 'A', rawSql: '[REDACTED]' }],
-        dashboardUID: 'dashA',
-        panelId: 123,
-        range: getDefaultTimeRange(),
-      } as unknown as DataQueryRequest);
-
-      const body = mock.calls[0][0].data;
-      expect(body).toHaveProperty('panelId', 123);
-      expect(body).not.toHaveProperty('variableQueries');
+      expect(body.crFnContext.dashboardUID).toBe('dashB');
+      expect(body.crFnContext.variables).toEqual({ org_id: 'org-uuid' });
     });
   });
 

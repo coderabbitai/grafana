@@ -65,11 +65,11 @@ func TestMaskDashboardQueriesForMFE(t *testing.T) {
 		maskDashboardQueriesForMFE(data)
 
 		targets := data.Get("panels").GetIndex(0).Get("targets")
-		assert.Equal(t, "[REDACTED]", targets.GetIndex(0).Get("rawSql").MustString())
+		assert.Equal(t, "[CR_REDACTED:p:1:A]", targets.GetIndex(0).Get("rawSql").MustString())
 		assert.Equal(t, "A", targets.GetIndex(0).Get("refId").MustString())
 		assert.Equal(t, "time_series", targets.GetIndex(0).Get("format").MustString())
-		assert.Equal(t, "[REDACTED]", targets.GetIndex(1).Get("expr").MustString())
-		assert.Equal(t, "[REDACTED]", targets.GetIndex(2).Get("query").MustString())
+		assert.Equal(t, "[CR_REDACTED:p:1:B]", targets.GetIndex(1).Get("expr").MustString())
+		assert.Equal(t, "[CR_REDACTED:p:1:C]", targets.GetIndex(2).Get("query").MustString())
 	})
 
 	t.Run("recurses into row panels", func(t *testing.T) {
@@ -90,7 +90,7 @@ func TestMaskDashboardQueriesForMFE(t *testing.T) {
 		maskDashboardQueriesForMFE(data)
 
 		nested := data.Get("panels").GetIndex(0).Get("panels").GetIndex(0)
-		assert.Equal(t, "[REDACTED]", nested.Get("targets").GetIndex(0).Get("rawSql").MustString())
+		assert.Equal(t, "[CR_REDACTED:p:2:A]", nested.Get("targets").GetIndex(0).Get("rawSql").MustString())
 	})
 
 	t.Run("leaves non-string fields untouched", func(t *testing.T) {
@@ -117,7 +117,7 @@ func TestMaskDashboardQueriesForMFE(t *testing.T) {
 		assert.NoError(t, err)
 		assert.True(t, raw_q)
 		// string `query` is masked
-		assert.Equal(t, "[REDACTED]", target.Get("query").MustString())
+		assert.Equal(t, "[CR_REDACTED:p:1:A]", target.Get("query").MustString())
 	})
 
 	t.Run("no-op when there are no panels", func(t *testing.T) {
@@ -157,8 +157,8 @@ func TestMaskDashboardQueriesForMFE(t *testing.T) {
 
 		vars := data.Get("templating").Get("list")
 		orgName := vars.GetIndex(0)
-		assert.Equal(t, "[REDACTED]", orgName.Get("query").MustString())
-		assert.Equal(t, "[REDACTED]", orgName.Get("definition").MustString())
+		assert.Equal(t, "[CR_REDACTED:v:org_name]", orgName.Get("query").MustString())
+		assert.Equal(t, "[CR_REDACTED:v:org_name]", orgName.Get("definition").MustString())
 		// Variable metadata (name, current selection, options) must be preserved
 		// so the frontend variable picker can still render.
 		assert.Equal(t, "org_name", orgName.Get("name").MustString())
@@ -193,8 +193,8 @@ func TestMaskDashboardQueriesForMFE(t *testing.T) {
 		maskDashboardQueriesForMFE(data)
 
 		v := data.Get("templating").Get("list").GetIndex(0)
-		assert.Equal(t, "[REDACTED]", v.Get("definition").MustString())
-		assert.Equal(t, "[REDACTED]", v.Get("query").Get("rawSql").MustString())
+		assert.Equal(t, "[CR_REDACTED:v:repo_name]", v.Get("definition").MustString())
+		assert.Equal(t, "[CR_REDACTED:v:repo_name]", v.Get("query").Get("rawSql").MustString())
 		// refId is metadata — keep it.
 		assert.Equal(t, "repo_name", v.Get("query").Get("refId").MustString())
 	})
