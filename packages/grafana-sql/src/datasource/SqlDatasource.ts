@@ -22,8 +22,11 @@ import {
   BackendDataSourceResponse,
   DataSourceWithBackend,
   FetchResponse,
+  buildMfeContext,
   getBackendSrv,
   getTemplateSrv,
+  hasRedactedQueryField,
+  isFnDashboardWindow,
   toDataQueryResponse,
   TemplateSrv,
   reportInteraction,
@@ -212,7 +215,7 @@ export abstract class SqlDatasource extends DataSourceWithBackend<SQLQuery, SQLO
     // is fixed.
     let response;
     try {
-      response = await this.runMetaQuery(interpolatedQuery, range);
+      response = await this.runMetaQuery(interpolatedQuery, range, scopedVars);
     } catch (error) {
       console.error(error);
       throw new Error('error when executing the sql query');
@@ -227,9 +230,26 @@ export abstract class SqlDatasource extends DataSourceWithBackend<SQLQuery, SQLO
     return new DataFrameView<T>(frame);
   }
 
-  private runMetaQuery(request: Partial<SQLQuery>, range: TimeRange): Promise<DataFrame> {
+  private runMetaQuery(request: Partial<SQLQuery>, range: TimeRange, scopedVars?: ScopedVars): Promise<DataFrame> {
     const refId = request.refId || 'meta';
     const queries: DataQuery[] = [{ ...request, datasource: request.datasource || this.getRef(), refId }];
+
+    // Variable queries (and other metricFindQuery callers) bypass
+    // `DataSourceWithBackend.query`, so we must attach the MFE
+    // `mfeContext` sidecar here too. The proxy needs it whenever a query
+    // carries a redaction marker on any masked query field (e.g.
+    // `[MFE_REDACTED:v:org_name]` on rawSql). Forward the caller's
+    // scopedVars (which `metricFindQuery` populates with
+    // `options.scopedVars` + `__searchFilter`) so the proxy can interpolate
+    // them when it expands the redacted query.
+    const data: Record<string, unknown> = {
+      from: range.from.valueOf().toString(),
+      to: range.to.valueOf().toString(),
+      queries,
+    };
+    if (isFnDashboardWindow() || hasRedactedQueryField(queries)) {
+      data.mfeContext = buildMfeContext({ scopedVars });
+    }
 
     return lastValueFrom(
       getBackendSrv()
@@ -237,11 +257,7 @@ export abstract class SqlDatasource extends DataSourceWithBackend<SQLQuery, SQLO
           url: '/api/ds/query',
           method: 'POST',
           headers: this.getRequestHeaders(),
-          data: {
-            from: range.from.valueOf().toString(),
-            to: range.to.valueOf().toString(),
-            queries,
-          },
+          data,
           requestId: refId,
         })
         .pipe(

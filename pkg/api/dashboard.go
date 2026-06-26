@@ -220,6 +220,13 @@ func (hs *HTTPServer) GetDashboard(c *contextmodel.ReqContext) response.Response
 	// make sure db version is in sync with json model version
 	dash.Data.Set("version", dash.Version)
 
+	// When Grafana is embedded as the CodeRabbit microfrontend, redact raw
+	// datasource queries (SQL, PromQL, ...) from the dashboard JSON so that
+	// they are never exposed to the browser.
+	if isCodeRabbitMFE() {
+		maskDashboardQueriesForMFE(dash.Data)
+	}
+
 	dto := dtos.DashboardFullWithMeta{
 		Dashboard: dash.Data,
 		Meta:      meta,

@@ -40,6 +40,13 @@ const reducers: SliceCaseReducers<MfeGlobalState> = {
     setGrafanaStore(state, uid);
     const fnState = state.dashboards[uid];
     state.FNDashboard = true;
+    // Expose the FNDashboard flag on `window` so that non-React code in
+    // `packages/grafana-runtime` (e.g. DataSourceWithBackend) can detect when
+    // Grafana is running as a CodeRabbit microfrontend without importing the
+    // app store (which would create a circular dependency).
+    if (typeof window !== 'undefined') {
+      window.__FNDashboard__ = true;
+    }
 
     if (!fnState) {
       state.dashboards = {
@@ -77,6 +84,13 @@ const reducers: SliceCaseReducers<MfeGlobalState> = {
     });
 
     state.renderingDashboardUID = action.payload;
+    // Mirror onto window so non-React code in `packages/grafana-runtime`
+    // (e.g. DataSourceWithBackend) can read the current dashboard UID when
+    // attaching it to FN-shaped /api/ds/query bodies for templating-variable
+    // queries (which Grafana dispatches without `request.dashboardUID`).
+    if (typeof window !== 'undefined') {
+      window.__FNDashboardRenderingUID__ = action.payload || undefined;
+    }
   },
 
   updateMfeMode: (state, action: PayloadAction<GrafanaThemeType.Light | GrafanaThemeType.Dark>) => {

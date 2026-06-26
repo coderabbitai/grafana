@@ -30,6 +30,7 @@ import {
   StreamingFrameOptions,
 } from '../services';
 
+import { buildMfeContext, hasRedactedQueryField, isFnDashboardWindow } from './fnDashboardBody';
 import { publicDashboardQueryHandler } from './publicDashboardQueryHandler';
 import { BackendDataSourceResponse, toDataQueryResponse } from './queryResponse';
 
@@ -188,11 +189,28 @@ class DataSourceWithBackend<
       return of({ data: [] });
     }
 
-    const body = {
+    let body: Record<string, unknown> = {
       queries,
       from: range?.from.valueOf().toString(),
       to: range?.to.valueOf().toString(),
     };
+
+    // When the body carries a CodeRabbit redaction marker on any masked
+    // query field (rawSql / expr / query / rawQuery / queryText / target)
+    // OR the MFE store flag is set, attach the `mfeContext` sidecar that
+    // the proxy needs to resolve the redacted query. We accept both signals
+    // because variable queries dispatched at dashboard-init time fire
+    // *before* the MFE store mirror is set on `window.__FNDashboard__`.
+    if (isFnDashboardWindow() || hasRedactedQueryField(queries)) {
+      body = {
+        ...body,
+        mfeContext: buildMfeContext({
+          scopedVars: request.scopedVars,
+          filters: request.filters,
+          dashboardUIDFromRequest: request.dashboardUID,
+        }),
+      };
+    }
 
     if (config.featureToggles.queryOverLive) {
       return getGrafanaLiveSrv().getQueryData({

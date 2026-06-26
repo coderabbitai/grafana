@@ -1,0 +1,143 @@
+import { AdHocVariableFilter, ScopedVars } from '@grafana/data';
+
+import { getTemplateSrv } from '../services';
+
+/**
+ * Build the `mfeContext` sidecar that the CodeRabbit proxy uses to resolve
+ * a redacted `/api/ds/query` body — i.e. one whose `rawSql` values are
+ * `[MFE_REDACTED:p:<panelId>:<refId>]` (panel target) or
+ * `[MFE_REDACTED:v:<variableName>]` (templating-variable query).
+ *
+ * The proxy decodes each key, looks the original SQL up in its shipped
+ * dashboard JSON, then interpolates the dashboard-level templating
+ * variables and any panel-scoped overrides we forward here. Grafana's
+ * upstream datasource ignores unknown body fields, so the same body can be
+ * forwarded verbatim after resolution.
+ *
+ * `dashboardUID` is read from (in order):
+ *
+ *   1. `dashboardUIDFromRequest` if the caller supplies it (panel queries
+ *      have it on `DataQueryRequest.dashboardUID`).
+ *   2. The MFE store mirror `window.__FNDashboardRenderingUID__`.
+ *   3. The URL pathname (`/dashboard/<uid>` or `/d/<uid>/<slug>`),
+ *      walking up to `window.parent` / `window.top` when the MFE runs
+ *      inside Qiankun's `about:blank` sandbox iframe (whose own
+ *      `location.pathname` is `"blank"`).
+ */
+export interface MfeContext {
+  variables: Record<string, unknown>;
+  filters: AdHocVariableFilter[];
+  dashboardUID?: string;
+}
+
+export function buildMfeContext(opts: {
+  scopedVars?: ScopedVars;
+  filters?: AdHocVariableFilter[];
+  dashboardUIDFromRequest?: string;
+}): MfeContext {
+  const variables: Record<string, unknown> = {};
+
+  // 1. Dashboard-level template variables (org_id, repo_name, ...) live on
+  //    TemplateSrv, *not* in scopedVars (which only carries panel-local vars
+  //    like `__interval` / repeat).
+  try {
+    const templateSrv = getTemplateSrv();
+    if (templateSrv) {
+      for (const v of templateSrv.getVariables()) {
+        const value = (v as { current?: { value?: unknown } }).current?.value;
+        if (value !== undefined) {
+          variables[v.name] = value;
+        }
+      }
+    }
+  } catch {
+    // TemplateSrv may not be initialised in tests / non-dashboard contexts.
+  }
+
+  // 2. Panel-scoped vars override dashboard-level vars of the same name.
+  if (opts.scopedVars) {
+    for (const key of Object.keys(opts.scopedVars)) {
+      const v = opts.scopedVars[key];
+      if (v && typeof v === 'object' && 'value' in v) {
+        variables[key] = (v as { value: unknown }).value;
+      }
+    }
+  }
+
+  return {
+    variables,
+    filters: opts.filters ?? [],
+    dashboardUID: resolveDashboardUID(opts.dashboardUIDFromRequest),
+  };
+}
+
+function resolveDashboardUID(fromRequest?: string): string | undefined {
+  if (fromRequest) return fromRequest;
+  if (typeof window === 'undefined') return undefined;
+  const fromWindow = window.__FNDashboardRenderingUID__;
+  if (fromWindow) return fromWindow;
+
+  const re = /^\/(?:dashboard|d)\/([^/?#]+)/;
+  const candidates: string[] = [window.location.pathname];
+  try {
+    if (window.parent && window.parent !== window) {
+      candidates.push(window.parent.location.pathname);
+    }
+    if (window.top && window.top !== window) {
+      candidates.push(window.top.location.pathname);
+    }
+  } catch {
+    // cross-origin parent — ignore
+  }
+  for (const c of candidates) {
+    const m = re.exec(c);
+    if (m && m[1]) return m[1];
+  }
+  return undefined;
+}
+
+/**
+ * Fields the backend redacts when running as the CodeRabbit MFE
+ * (see `pkg/api/dashboard_mfe_mask.go::mfeMaskedQueryFields`). Any one of
+ * these on a query target may carry the `[MFE_REDACTED:...]` marker that
+ * the MFE proxy needs to resolve, so they must all be inspected here.
+ */
+const MFE_REDACTED_QUERY_FIELDS = [
+  'rawSql', // postgres, mysql, mssql
+  'expr', // prometheus, loki
+  'query', // elasticsearch, influxdb, cloudwatch, generic
+  'rawQuery', // azure monitor, influxdb (string-valued only)
+  'queryText', // bigquery, snowflake, athena
+  'target', // graphite
+] as const;
+
+const MFE_REDACTION_PREFIX = '[MFE_REDACTED:';
+
+/**
+ * Returns true if any of the supplied queries carries a CodeRabbit redaction
+ * marker (`[MFE_REDACTED:...]`) on any of the datasource-specific query-text
+ * fields the backend masks. Used to gate the attachment of the `mfeContext`
+ * sidecar on bodies that the MFE proxy will need to resolve — including
+ * non-SQL datasources whose raw text lives on `expr`, `query`, etc.
+ */
+export function hasRedactedQueryField(queries: ReadonlyArray<unknown>): boolean {
+  return queries.some((q) => {
+    if (typeof q !== 'object' || q === null) return false;
+    return MFE_REDACTED_QUERY_FIELDS.some((field) => {
+      const value = Reflect.get(q, field);
+      return typeof value === 'string' && value.startsWith(MFE_REDACTION_PREFIX);
+    });
+  });
+}
+
+/**
+ * True when the current window is the CodeRabbit microfrontend. The MFE
+ * store mirrors this onto `window.__FNDashboard__` at dispatch time.
+ * Initial templating-variable queries can fire *before* that mirror is
+ * set, so callers that want to attach a `mfeContext` to any body that
+ * already carries a redacted query field should additionally check
+ * {@link hasRedactedQueryField} on the request's targets.
+ */
+export function isFnDashboardWindow(): boolean {
+  return typeof window !== 'undefined' && window.__FNDashboard__ === true;
+}
