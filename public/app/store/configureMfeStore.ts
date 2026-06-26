@@ -84,6 +84,13 @@ const reducers: SliceCaseReducers<MfeGlobalState> = {
     });
 
     state.renderingDashboardUID = action.payload;
+    // Mirror onto window so non-React code in `packages/grafana-runtime`
+    // (e.g. DataSourceWithBackend) can read the current dashboard UID when
+    // attaching it to FN-shaped /api/ds/query bodies for templating-variable
+    // queries (which Grafana dispatches without `request.dashboardUID`).
+    if (typeof window !== 'undefined') {
+      window.__FNDashboardRenderingUID__ = action.payload || undefined;
+    }
   },
 
   updateMfeMode: (state, action: PayloadAction<GrafanaThemeType.Light | GrafanaThemeType.Dark>) => {

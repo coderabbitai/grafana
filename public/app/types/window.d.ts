@@ -14,6 +14,14 @@ export declare global {
      * raw SQL/queries are not exposed from the frontend.
      */
     __FNDashboard__?: boolean;
+    /**
+     * The UID of the dashboard currently being rendered as the CodeRabbit
+     * microfrontend. Mirrored from the MFE store so that non-React code in
+     * `packages/grafana-runtime` can attach it to FN-shaped `/api/ds/query`
+     * bodies (panel queries already carry `request.dashboardUID`, but
+     * templating-variable queries are dispatched without it).
+     */
+    __FNDashboardRenderingUID__?: string;
     System: typeof System;
   }
 

@@ -585,6 +585,38 @@ describe('DataSourceWithBackend', () => {
 
       mockTemplateVariables.length = 0;
     });
+
+    test('emits a variableQueries body when rawSql is [REDACTED] and panelId is missing', () => {
+      window.__FNDashboard__ = true;
+      window.__FNDashboardRenderingUID__ = 'dashB';
+      mockTemplateVariables.length = 0;
+      mockTemplateVariables.push({ name: 'org_id', current: { value: 'org-uuid' } });
+
+      const { mock, ds } = createMockDatasource();
+      ds.query({
+        maxDataPoints: 10,
+        intervalMs: 5000,
+        // Note: no dashboardUID / panelId — this is how Grafana's variable
+        // runner dispatches templating-variable queries.
+        targets: [{ refId: 'org_name', rawSql: '[REDACTED]' }],
+        range: getDefaultTimeRange(),
+      } as unknown as DataQueryRequest);
+
+      const body = mock.calls[0][0].data;
+      expect(body).not.toHaveProperty('queries');
+      expect(body).not.toHaveProperty('panelId');
+      expect(body).toEqual({
+        dashboardUID: 'dashB',
+        variableQueries: [{ refId: 'org_name' }],
+        variables: { org_id: 'org-uuid' },
+        filters: [],
+        from: '1697133600000',
+        to: '1697155200000',
+      });
+
+      delete (window as { __FNDashboardRenderingUID__?: string }).__FNDashboardRenderingUID__;
+      mockTemplateVariables.length = 0;
+    });
   });
 
   describe('public dashboard scope', () => {

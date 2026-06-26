@@ -232,14 +232,46 @@ class DataSourceWithBackend<
         }
       }
 
-      body = {
-        dashboardUID: request.dashboardUID,
-        panelId: request.panelId,
-        variables,
-        filters: request.filters ?? [],
-        from: range?.from.valueOf().toString(),
-        to: range?.to.valueOf().toString(),
-      };
+      // 3. Templating-variable queries (the dropdown population queries
+      //    fired by Grafana's variable runner) reach this branch without a
+      //    `dashboardUID` / `panelId`, and after our backend mask their
+      //    `rawSql` is the `[REDACTED]` placeholder — the proxy would reject
+      //    them. We detect this case by either a redacted target OR the
+      //    absence of a panelId combined with the presence of a refId that
+      //    matches a known templating variable name on the dashboard. The
+      //    dashboard UID is mirrored on `window` by the MFE store reducer
+      //    because `request.dashboardUID` is unset for variable queries.
+      const hasRedactedTarget = queries.some((q) => {
+        const raw = (q as unknown as { rawSql?: unknown }).rawSql;
+        return typeof raw === 'string' && raw === '[REDACTED]';
+      });
+      const dashboardUID = request.dashboardUID ?? window.__FNDashboardRenderingUID__;
+
+      if (hasRedactedTarget && dashboardUID) {
+        // Variable-query FN body: forward each target's refId as the variable
+        // name. The proxy looks the SQL up in the shipped dashboard JSON,
+        // interpolates variables, expands macros, and forwards the resolved
+        // queries[] to upstream Grafana.
+        body = {
+          dashboardUID,
+          variableQueries: queries.map((q) => ({
+            refId: (q as { refId?: string }).refId ?? 'A',
+          })),
+          variables,
+          filters: request.filters ?? [],
+          from: range?.from.valueOf().toString(),
+          to: range?.to.valueOf().toString(),
+        };
+      } else {
+        body = {
+          dashboardUID,
+          panelId: request.panelId,
+          variables,
+          filters: request.filters ?? [],
+          from: range?.from.valueOf().toString(),
+          to: range?.to.valueOf().toString(),
+        };
+      }
     }
 
     if (config.featureToggles.queryOverLive) {
