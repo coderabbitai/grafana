@@ -41,22 +41,32 @@ var mfeMaskedQueryFields = []string{
 //	panel target:        [MFE_REDACTED:p:<panelId>:<refId>]
 //	templating variable: [MFE_REDACTED:v:<variableName>]
 //
-// `<refId>` and `<variableName>` are pulled directly from the dashboard JSON.
-// They are URL-query-encoded (`net/url.QueryEscape`) before concatenation so
-// that names containing the structural delimiters `:` or `]` can still be
-// unambiguously recovered by the proxy. The proxy decodes each segment via
-// the inverse `decodeURIComponent`.
+// `<refId>` and `<variableName>` are pulled directly from the dashboard JSON
+// and percent-encoded before concatenation so that names containing the
+// structural delimiters `:` or `]` (or any non-ASCII / reserved characters)
+// can still be unambiguously recovered by the proxy. The proxy decodes each
+// segment via the inverse `decodeURIComponent`, which treats `+` as a literal
+// `+` rather than a space — so we cannot use `net/url.QueryEscape` directly
+// (it encodes spaces as `+`). `mfeEncodeMaskSegment` produces `%20`-style
+// encoding compatible with `decodeURIComponent`.
 const (
 	mfeMaskPrefix = "[MFE_REDACTED:"
 	mfeMaskSuffix = "]"
 )
 
+// mfeEncodeMaskSegment percent-encodes a refID / variable name for embedding
+// in a redaction marker. The output is compatible with the proxy's
+// `decodeURIComponent` decoder: spaces become `%20`, not `+`.
+func mfeEncodeMaskSegment(s string) string {
+	return strings.ReplaceAll(url.QueryEscape(s), "+", "%20")
+}
+
 func panelMaskValue(panelID int64, refID string) string {
-	return mfeMaskPrefix + "p:" + strconv.FormatInt(panelID, 10) + ":" + url.QueryEscape(refID) + mfeMaskSuffix
+	return mfeMaskPrefix + "p:" + strconv.FormatInt(panelID, 10) + ":" + mfeEncodeMaskSegment(refID) + mfeMaskSuffix
 }
 
 func variableMaskValue(name string) string {
-	return mfeMaskPrefix + "v:" + url.QueryEscape(name) + mfeMaskSuffix
+	return mfeMaskPrefix + "v:" + mfeEncodeMaskSegment(name) + mfeMaskSuffix
 }
 
 // isCodeRabbitMFE reports whether the Grafana process is configured as the
@@ -128,9 +138,9 @@ func maskPanelTargets(panel *simplejson.Json) {
 // redacts the SQL on every `query`-type variable. The Grafana JSON stores
 // the SQL in two places:
 //
-//	- `definition`: always a plain string snapshot used by the variable picker.
-//	- `query`: either a plain string (legacy / our shipped dashboards) OR an
-//	  object of the same shape as a panel target (`rawSql`, `expr`, ...).
+//   - `definition`: always a plain string snapshot used by the variable picker.
+//   - `query`: either a plain string (legacy / our shipped dashboards) OR an
+//     object of the same shape as a panel target (`rawSql`, `expr`, ...).
 //
 // We mask both forms so the redaction is robust to future dashboards saved
 // from a newer Grafana UI that prefers the object form.

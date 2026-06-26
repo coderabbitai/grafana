@@ -25,7 +25,7 @@ import {
   buildMfeContext,
   getBackendSrv,
   getTemplateSrv,
-  hasRedactedRawSql,
+  hasRedactedQueryField,
   isFnDashboardWindow,
   toDataQueryResponse,
   TemplateSrv,
@@ -230,28 +230,24 @@ export abstract class SqlDatasource extends DataSourceWithBackend<SQLQuery, SQLO
     return new DataFrameView<T>(frame);
   }
 
-  private runMetaQuery(
-    request: Partial<SQLQuery>,
-    range: TimeRange,
-    scopedVars?: ScopedVars
-  ): Promise<DataFrame> {
+  private runMetaQuery(request: Partial<SQLQuery>, range: TimeRange, scopedVars?: ScopedVars): Promise<DataFrame> {
     const refId = request.refId || 'meta';
     const queries: DataQuery[] = [{ ...request, datasource: request.datasource || this.getRef(), refId }];
 
     // Variable queries (and other metricFindQuery callers) bypass
     // `DataSourceWithBackend.query`, so we must attach the MFE
-    // `mfeContext` sidecar here too. The proxy needs it whenever a query's
-    // rawSql is a redaction key (e.g. `[MFE_REDACTED:v:org_name]`). Forward
-    // the caller's scopedVars (which `metricFindQuery` populates with
+    // `mfeContext` sidecar here too. The proxy needs it whenever a query
+    // carries a redaction marker on any masked query field (e.g.
+    // `[MFE_REDACTED:v:org_name]` on rawSql). Forward the caller's
+    // scopedVars (which `metricFindQuery` populates with
     // `options.scopedVars` + `__searchFilter`) so the proxy can interpolate
-    // them when it expands the redacted SQL.
-    const rawSqls = queries.map(q => (q as unknown as { rawSql?: unknown }).rawSql as string | undefined);
+    // them when it expands the redacted query.
     const data: Record<string, unknown> = {
       from: range.from.valueOf().toString(),
       to: range.to.valueOf().toString(),
       queries,
     };
-    if (isFnDashboardWindow() || hasRedactedRawSql(rawSqls)) {
+    if (isFnDashboardWindow() || hasRedactedQueryField(queries)) {
       data.mfeContext = buildMfeContext({ scopedVars });
     }
 

@@ -21,7 +21,7 @@ export {
 } from './utils/DataSourceWithBackend';
 export {
   buildMfeContext,
-  hasRedactedRawSql,
+  hasRedactedQueryField,
   isFnDashboardWindow,
   type MfeContext,
 } from './utils/fnDashboardBody';

@@ -1,6 +1,7 @@
 package api
 
 import (
+	"net/url"
 	"os"
 	"testing"
 
@@ -250,4 +251,48 @@ func TestMaskDashboardQueriesForMFE(t *testing.T) {
 		assert.Equal(t, "[MFE_REDACTED:v:weird%3Aname%5Dthing]", v.Get("query").MustString())
 		assert.Equal(t, "[MFE_REDACTED:v:weird%3Aname%5Dthing]", v.Get("definition").MustString())
 	})
+}
+
+// TestMfeEncodeMaskSegment ensures that mask segments are encoded with
+// %20-style escapes (not the form-encoded `+` produced by url.QueryEscape).
+// The proxy decodes each segment with `decodeURIComponent`, which preserves
+// `+` literally — so emitting `+` for space here would break the round-trip
+// for refIDs / variable names containing spaces.
+func TestMfeEncodeMaskSegment(t *testing.T) {
+	cases := map[string]string{
+		"":             "",
+		"A":            "A",
+		"foo bar":      "foo%20bar",
+		"hello world!": "hello%20world%21",
+		"a+b":          "a%2Bb",
+		"a:b]c":        "a%3Ab%5Dc",
+	}
+	for in, want := range cases {
+		t.Run(in, func(t *testing.T) {
+			assert.Equal(t, want, mfeEncodeMaskSegment(in))
+			// Round-trip via the same decoder the proxy uses
+			// (Go's url.QueryUnescape is `%`-aware and treats `+` as space —
+			// equivalent enough for this property when no literal `+` remains).
+			decoded, err := url.QueryUnescape(mfeEncodeMaskSegment(in))
+			require.NoError(t, err)
+			assert.Equal(t, in, decoded)
+		})
+	}
+}
+
+// TestPanelAndVariableMaskValueRoundTripsSpaces verifies that refIDs and
+// variable names containing spaces survive the marker round-trip end-to-end:
+// the produced marker must decode (per decodeURIComponent semantics, which
+// only handles `%xx`) back to the original name.
+func TestPanelAndVariableMaskValueRoundTripsSpaces(t *testing.T) {
+	refID := "foo bar"
+	varName := "org name"
+
+	panel := panelMaskValue(42, refID)
+	assert.Equal(t, "[MFE_REDACTED:p:42:foo%20bar]", panel)
+	assert.NotContains(t, panel, "+", "spaces must be %20-encoded, not `+`")
+
+	variable := variableMaskValue(varName)
+	assert.Equal(t, "[MFE_REDACTED:v:org%20name]", variable)
+	assert.NotContains(t, variable, "+", "spaces must be %20-encoded, not `+`")
 }

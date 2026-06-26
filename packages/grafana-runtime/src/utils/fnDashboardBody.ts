@@ -97,12 +97,37 @@ function resolveDashboardUID(fromRequest?: string): string | undefined {
 }
 
 /**
- * Returns true if any of the supplied raw query texts is a CodeRabbit
- * redaction key (`[MFE_REDACTED:...]`). Used to gate the attachment of the
- * `mfeContext` sidecar on bodies that the MFE proxy will need to resolve.
+ * Fields the backend redacts when running as the CodeRabbit MFE
+ * (see `pkg/api/dashboard_mfe_mask.go::mfeMaskedQueryFields`). Any one of
+ * these on a query target may carry the `[MFE_REDACTED:...]` marker that
+ * the MFE proxy needs to resolve, so they must all be inspected here.
  */
-export function hasRedactedRawSql(rawSqls: Array<string | undefined>): boolean {
-  return rawSqls.some(s => typeof s === 'string' && s.startsWith('[MFE_REDACTED:'));
+const MFE_REDACTED_QUERY_FIELDS = [
+  'rawSql', // postgres, mysql, mssql
+  'expr', // prometheus, loki
+  'query', // elasticsearch, influxdb, cloudwatch, generic
+  'rawQuery', // azure monitor, influxdb (string-valued only)
+  'queryText', // bigquery, snowflake, athena
+  'target', // graphite
+] as const;
+
+const MFE_REDACTION_PREFIX = '[MFE_REDACTED:';
+
+/**
+ * Returns true if any of the supplied queries carries a CodeRabbit redaction
+ * marker (`[MFE_REDACTED:...]`) on any of the datasource-specific query-text
+ * fields the backend masks. Used to gate the attachment of the `mfeContext`
+ * sidecar on bodies that the MFE proxy will need to resolve — including
+ * non-SQL datasources whose raw text lives on `expr`, `query`, etc.
+ */
+export function hasRedactedQueryField(queries: ReadonlyArray<unknown>): boolean {
+  return queries.some((q) => {
+    if (typeof q !== 'object' || q === null) return false;
+    return MFE_REDACTED_QUERY_FIELDS.some((field) => {
+      const value = Reflect.get(q, field);
+      return typeof value === 'string' && value.startsWith(MFE_REDACTION_PREFIX);
+    });
+  });
 }
 
 /**
@@ -110,8 +135,8 @@ export function hasRedactedRawSql(rawSqls: Array<string | undefined>): boolean {
  * store mirrors this onto `window.__FNDashboard__` at dispatch time.
  * Initial templating-variable queries can fire *before* that mirror is
  * set, so callers that want to attach a `mfeContext` to any body that
- * already carries a redacted SQL should additionally check
- * {@link hasRedactedRawSql} on the request's targets.
+ * already carries a redacted query field should additionally check
+ * {@link hasRedactedQueryField} on the request's targets.
  */
 export function isFnDashboardWindow(): boolean {
   return typeof window !== 'undefined' && window.__FNDashboard__ === true;
