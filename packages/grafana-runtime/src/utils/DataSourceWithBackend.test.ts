@@ -47,6 +47,8 @@ const backendSrv = {
   },
 } as unknown as BackendSrv;
 
+const mockTemplateVariables: Array<{ name: string; current: { value: unknown } }> = [];
+
 jest.mock('../services', () => ({
   ...jest.requireActual('../services'),
   getBackendSrv: () => backendSrv,
@@ -58,6 +60,9 @@ jest.mock('../services', () => ({
       }),
     };
   },
+  getTemplateSrv: () => ({
+    getVariables: () => mockTemplateVariables,
+  }),
 }));
 jest.mock('./publicDashboardQueryHandler');
 
@@ -546,6 +551,39 @@ describe('DataSourceWithBackend', () => {
         from: '1697133600000',
         to: '1697155200000',
       });
+    });
+
+    test('merges dashboard-level template variables into the FN body', () => {
+      window.__FNDashboard__ = true;
+      mockTemplateVariables.length = 0;
+      mockTemplateVariables.push(
+        { name: 'org_id', current: { value: 'org-uuid' } },
+        { name: 'repo_name', current: { value: ['a', 'b'] } },
+      );
+
+      const { mock, ds } = createMockDatasource();
+      ds.query({
+        maxDataPoints: 10,
+        intervalMs: 5000,
+        targets: [{ refId: 'A' }],
+        dashboardUID: 'dashA',
+        panelId: 123,
+        scopedVars: {
+          __interval: { text: '1m', value: '1m' },
+          // Panel-scoped vars must win over dashboard-level vars of the same name.
+          org_id: { text: 'panel-override', value: 'panel-override' },
+        },
+        range: getDefaultTimeRange(),
+      } as unknown as DataQueryRequest);
+
+      const body = mock.calls[0][0].data;
+      expect(body.variables).toEqual({
+        org_id: 'panel-override',
+        repo_name: ['a', 'b'],
+        __interval: '1m',
+      });
+
+      mockTemplateVariables.length = 0;
     });
   });
 

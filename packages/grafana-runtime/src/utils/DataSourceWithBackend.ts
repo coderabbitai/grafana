@@ -26,6 +26,7 @@ import {
   getBackendSrv,
   getDataSourceSrv,
   getGrafanaLiveSrv,
+  getTemplateSrv,
   StreamingFrameAction,
   StreamingFrameOptions,
 } from '../services';
@@ -199,15 +200,37 @@ class DataSourceWithBackend<
     // resolve the query using the dashboard UID + panel id and apply any
     // active variables / ad-hoc filters server-side instead.
     if (typeof window !== 'undefined' && window.__FNDashboard__ === true) {
-      const variables = request.scopedVars
-        ? Object.keys(request.scopedVars).reduce<Record<string, unknown>>((acc, key) => {
-            const v = request.scopedVars[key];
-            if (v && typeof v === 'object' && 'value' in v) {
-              acc[key] = v.value;
+      // 1. Dashboard-level template variables (org_id, repo_name, ...). These
+      //    live on the TemplateSrv, *not* in request.scopedVars (which only
+      //    carries panel-local vars like __interval / repeat). Without them
+      //    the proxy substitutes `\$org_id` with the dashboard's `allValue`
+      //    (often `''`), and every panel returns zero rows.
+      const variables: Record<string, unknown> = {};
+      try {
+        const templateSrv = getTemplateSrv();
+        if (templateSrv) {
+          for (const v of templateSrv.getVariables()) {
+            // Variable models carry the current selection under `current.value`.
+            const value = (v as { current?: { value?: unknown } }).current?.value;
+            if (value !== undefined) {
+              variables[v.name] = value;
             }
-            return acc;
-          }, {})
-        : {};
+          }
+        }
+      } catch {
+        // ignore — TemplateSrv may not be initialised in tests / non-dashboard contexts
+      }
+
+      // 2. Panel-scoped vars (e.g. __interval / __interval_ms / repeat vars)
+      //    override dashboard-level vars for this specific request.
+      if (request.scopedVars) {
+        for (const key of Object.keys(request.scopedVars)) {
+          const v = request.scopedVars[key];
+          if (v && typeof v === 'object' && 'value' in v) {
+            variables[key] = v.value;
+          }
+        }
+      }
 
       body = {
         dashboardUID: request.dashboardUID,
