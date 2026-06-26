@@ -1,6 +1,7 @@
 package api
 
 import (
+	"os"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -35,12 +36,20 @@ func TestIsCodeRabbitMFE(t *testing.T) {
 	}
 
 	t.Run("unset", func(t *testing.T) {
-		// t.Setenv only restores; we want to test the missing-key path explicitly.
-		// The "" case above already sets it to empty (still present), so verify
-		// the LookupEnv-not-ok path by relying on the default test environment
-		// where the var is not set.
-		// (No-op sanity assertion — the value above covers the truthy parsing.)
-		assert.False(t, isCodeRabbitMFE() && false)
+		// Exercise the LookupEnv-not-ok path explicitly: clear the env var,
+		// remember whether the test environment had it set, and restore that
+		// state via t.Cleanup so we don't leak the change to other subtests.
+		old, existed := os.LookupEnv(crMFEEnvVar)
+		require.NoError(t, os.Unsetenv(crMFEEnvVar))
+		t.Cleanup(func() {
+			if existed {
+				require.NoError(t, os.Setenv(crMFEEnvVar, old))
+			} else {
+				require.NoError(t, os.Unsetenv(crMFEEnvVar))
+			}
+		})
+
+		assert.False(t, isCodeRabbitMFE())
 	})
 }
 
@@ -201,5 +210,44 @@ func TestMaskDashboardQueriesForMFE(t *testing.T) {
 
 	t.Run("nil dashboard is a no-op", func(t *testing.T) {
 		assert.NotPanics(t, func() { maskDashboardQueriesForMFE(nil) })
+	})
+
+	t.Run("URL-encodes delimiter characters in refId and variable name", func(t *testing.T) {
+		// Refs / variable names CAN technically include `:` or `]` — those are
+		// our structural delimiters, so the mask helpers must URL-escape them
+		// before concatenation. Otherwise the proxy parser can no longer
+		// unambiguously recover the original key.
+		raw := []byte(`{
+			"panels": [
+				{
+					"id": 7,
+					"type": "stat",
+					"targets": [
+						{"refId": "A:B]C", "rawSql": "SELECT 1"}
+					]
+				}
+			],
+			"templating": {
+				"list": [
+					{
+						"name": "weird:name]thing",
+						"type": "query",
+						"query": "SELECT 1",
+						"definition": "SELECT 1"
+					}
+				]
+			}
+		}`)
+		data, err := simplejson.NewJson(raw)
+		require.NoError(t, err)
+
+		maskDashboardQueriesForMFE(data)
+
+		panelMask := data.Get("panels").GetIndex(0).Get("targets").GetIndex(0).Get("rawSql").MustString()
+		assert.Equal(t, "[CR_REDACTED:p:7:A%3AB%5DC]", panelMask)
+
+		v := data.Get("templating").Get("list").GetIndex(0)
+		assert.Equal(t, "[CR_REDACTED:v:weird%3Aname%5Dthing]", v.Get("query").MustString())
+		assert.Equal(t, "[CR_REDACTED:v:weird%3Aname%5Dthing]", v.Get("definition").MustString())
 	})
 }

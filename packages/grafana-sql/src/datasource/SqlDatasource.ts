@@ -215,7 +215,7 @@ export abstract class SqlDatasource extends DataSourceWithBackend<SQLQuery, SQLO
     // is fixed.
     let response;
     try {
-      response = await this.runMetaQuery(interpolatedQuery, range);
+      response = await this.runMetaQuery(interpolatedQuery, range, scopedVars);
     } catch (error) {
       console.error(error);
       throw new Error('error when executing the sql query');
@@ -230,14 +230,21 @@ export abstract class SqlDatasource extends DataSourceWithBackend<SQLQuery, SQLO
     return new DataFrameView<T>(frame);
   }
 
-  private runMetaQuery(request: Partial<SQLQuery>, range: TimeRange): Promise<DataFrame> {
+  private runMetaQuery(
+    request: Partial<SQLQuery>,
+    range: TimeRange,
+    scopedVars?: ScopedVars
+  ): Promise<DataFrame> {
     const refId = request.refId || 'meta';
     const queries: DataQuery[] = [{ ...request, datasource: request.datasource || this.getRef(), refId }];
 
     // Variable queries (and other metricFindQuery callers) bypass
     // `DataSourceWithBackend.query`, so we must attach the CodeRabbit MFE
     // `crFnContext` sidecar here too. The proxy needs it whenever a query's
-    // rawSql is a redaction key (e.g. `[CR_REDACTED:v:org_name]`).
+    // rawSql is a redaction key (e.g. `[CR_REDACTED:v:org_name]`). Forward
+    // the caller's scopedVars (which `metricFindQuery` populates with
+    // `options.scopedVars` + `__searchFilter`) so the proxy can interpolate
+    // them when it expands the redacted SQL.
     const rawSqls = queries.map(q => (q as unknown as { rawSql?: unknown }).rawSql as string | undefined);
     const data: Record<string, unknown> = {
       from: range.from.valueOf().toString(),
@@ -245,7 +252,7 @@ export abstract class SqlDatasource extends DataSourceWithBackend<SQLQuery, SQLO
       queries,
     };
     if (isFnDashboardWindow() || hasRedactedRawSql(rawSqls)) {
-      data.crFnContext = buildCrFnContext({});
+      data.crFnContext = buildCrFnContext({ scopedVars });
     }
 
     return lastValueFrom(

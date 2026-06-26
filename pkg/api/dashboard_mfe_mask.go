@@ -1,6 +1,7 @@
 package api
 
 import (
+	"net/url"
 	"os"
 	"strconv"
 	"strings"
@@ -40,22 +41,22 @@ var crMaskedQueryFields = []string{
 //	panel target:        [CR_REDACTED:p:<panelId>:<refId>]
 //	templating variable: [CR_REDACTED:v:<variableName>]
 //
-// `<refId>` and `<variableName>` are pulled directly from the dashboard
-// JSON. Their character set in shipped dashboards is `[A-Za-z0-9_-]`; if a
-// new dashboard ever uses a colon or `]` in a name we will need to URL-
-// escape it here — for now the simple form keeps the wire shape readable
-// and the proxy parser trivially correct.
+// `<refId>` and `<variableName>` are pulled directly from the dashboard JSON.
+// They are URL-query-encoded (`net/url.QueryEscape`) before concatenation so
+// that names containing the structural delimiters `:` or `]` can still be
+// unambiguously recovered by the proxy. The proxy decodes each segment via
+// the inverse `decodeURIComponent`.
 const (
 	crMaskPrefix = "[CR_REDACTED:"
 	crMaskSuffix = "]"
 )
 
 func panelMaskValue(panelID int64, refID string) string {
-	return crMaskPrefix + "p:" + strconv.FormatInt(panelID, 10) + ":" + refID + crMaskSuffix
+	return crMaskPrefix + "p:" + strconv.FormatInt(panelID, 10) + ":" + url.QueryEscape(refID) + crMaskSuffix
 }
 
 func variableMaskValue(name string) string {
-	return crMaskPrefix + "v:" + name + crMaskSuffix
+	return crMaskPrefix + "v:" + url.QueryEscape(name) + crMaskSuffix
 }
 
 // isCodeRabbitMFE reports whether the Grafana process is configured as the

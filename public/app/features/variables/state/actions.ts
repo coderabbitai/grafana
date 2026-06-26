@@ -652,7 +652,7 @@ export const variableUpdated = (
     // so every panel re-renders on every variable change — same treatment
     // as ad-hoc variables.
     const isFnDashboard =
-      typeof window !== 'undefined' && (window as any).__FNDashboard__ === true;
+      typeof window !== 'undefined' && window.__FNDashboard__ === true;
     const event: VariablesChangedEvent =
       variableInState.type === 'adhoc' || isFnDashboard
         ? { refreshAll: true, panelIds: [] } // for adhoc variables we don't know which panels that will be impacted
