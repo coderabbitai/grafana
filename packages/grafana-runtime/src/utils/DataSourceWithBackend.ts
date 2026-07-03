@@ -225,11 +225,14 @@ class DataSourceWithBackend<
     if (mfeVariableName) {
       inlineVariableMaskOnEmptyFields(queries as unknown as Array<Record<string, unknown>>, mfeVariableName);
       // Also normalise the SQL-plugin's session-monotonic `tempVar<N>` refId
-      // to a deterministic `mfeVar-<variableName>` so identical variable
-      // queries across dashboards collapse onto ONE browser-side cache entry
-      // (see intercept-request.ts). Without this, switching dashboards
-      // produces a fresh refId — and therefore a fresh request body — for
-      // every variable, causing every switch to bust the cache.
+      // to the bare variable name (e.g. `org_name`) so identical variable
+      // queries across dashboards collapse onto ONE browser-side cache
+      // entry — see `buildVariableRefId` in fnDashboardBody.ts for the
+      // exact output shape, and `intercept-request.ts::checkIfVariablesQuery`
+      // in coderabbit-ui for the consumer that keys the cache off it.
+      // Without this, switching dashboards produces a fresh refId — and
+      // therefore a fresh request body — for every variable, causing every
+      // switch to bust the cache.
       stableRefIdForVariable(queries as unknown as Array<Record<string, unknown>>, mfeVariableName);
     }
 

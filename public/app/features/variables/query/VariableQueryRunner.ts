@@ -192,7 +192,7 @@ export class VariableQueryRunner {
     // resolution is stable across switches. `MFE_REDACTED:v:<name>` is
     // the same encoding the fork emits from `variableMaskValue()` in
     // pkg/api/dashboard_mfe_mask.go, kept in sync via
-    // `MFE_REDACTED_VARIABLE_PREFIX` in fnDashboardBody.ts.
+    // `MFE_VARIABLE_MASK_PREFIX` in fnDashboardBody.ts.
     const mfeVariableAsVars = { __mfeVariableName: { text: variable.name, value: variable.name } };
     const scopedVars = { ...searchFilterAsVars, ...variableAsVars, ...mfeVariableAsVars } as ScopedVars;
     const range = this.dependencies.getTimeSrv().timeRange();
