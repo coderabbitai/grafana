@@ -2,13 +2,16 @@ import {
   AppEvents,
   DataSourceApi,
   DataSourceInstanceSettings,
+  DataSourcePluginMeta,
   DataSourceRef,
   DataSourceSelectItem,
+  PluginType,
   ScopedVars,
   matchPluginId,
 } from '@grafana/data';
 import {
   DataSourceSrv as DataSourceService,
+  DataSourceWithBackend,
   getBackendSrv,
   GetDataSourceListFilters,
   getDataSourceSrv as getDataSourceService,
@@ -152,6 +155,23 @@ export class DatasourceSrv implements DataSourceService {
     // find the metadata
     const instanceSettings = this.getInstanceSettings(key);
     if (!instanceSettings) {
+      // When Grafana is running as the CodeRabbit microfrontend the
+      // actual datasource plugins are not provisioned inside this
+      // instance — every SQL / query call is forwarded to
+      // `coderabbitHandler` which resolves it against the shipped
+      // dashboard JSON and executes it against the real backend
+      // (BigQuery). Rejecting here would fail every panel and every
+      // variable dropdown before the request ever reaches the proxy.
+      // Fall back to a stub that mirrors the reference name/UID and
+      // whose `query()` posts to `/api/ds/query` — the endpoint the
+      // proxy already intercepts — so the flow completes without a
+      // real datasource registration.
+      if (isFnDashboardEnabled()) {
+        const stub = createFnDashboardStubDatasource(key);
+        this.datasources[key] = stub;
+        this.datasources[stub.uid] = stub;
+        return stub;
+      }
       return Promise.reject({ message: `Datasource ${key} was not found` });
     }
 
@@ -194,6 +214,17 @@ export class DatasourceSrv implements DataSourceService {
     } catch (err) {
       if (err instanceof Error) {
         appEvents.emit(AppEvents.alertError, [instanceSettings.name + ' plugin failed', err.toString()]);
+      }
+      // Same rationale as above: in the microfrontend the plugin
+      // module may fail to load (no plugin bundle is shipped for the
+      // real datasource type). Return a stub built off the settings
+      // we already resolved so the caller can still submit the query
+      // to `/api/ds/query`.
+      if (isFnDashboardEnabled()) {
+        const stub = createFnDashboardStubDatasource(key, instanceSettings);
+        this.datasources[key] = stub;
+        this.datasources[stub.uid] = stub;
+        return stub;
       }
       return Promise.reject({ message: `Datasource: ${key} was not found` });
     }
@@ -368,3 +399,88 @@ export function variableInterpolation<T>(value: T | T[]) {
 export const getDatasourceSrv = (): DatasourceSrv => {
   return getDataSourceService() as DatasourceSrv;
 };
+
+/**
+ * True when Grafana is running as the CodeRabbit microfrontend.
+ *
+ * The MFE store mirrors the `fnGlobalState.FNDashboard` Redux slice
+ * onto `window.__FNDashboard__` at dispatch time (see
+ * `store/configureMfeStore.ts`) precisely so that low-level modules
+ * imported during app bootstrap can consult the flag without pulling
+ * in `app/store/store` — importing the store here would create a
+ * circular initialisation with `configureStore` and break every
+ * dashboard-scene test that transitively loads this file.
+ *
+ * When the flag is true, every `/api/ds/query` request is routed
+ * through the CodeRabbit backend proxy (`coderabbitHandler`), which
+ * resolves the panel/variable SQL from the shipped dashboard JSON and
+ * executes it against BigQuery. Real datasource plugins are not
+ * provisioned inside the embedded Grafana, so callers should treat a
+ * missing datasource as a proxy-only path instead of a hard error.
+ */
+function isFnDashboardEnabled(): boolean {
+  return typeof window !== 'undefined' && window.__FNDashboard__ === true;
+}
+
+/**
+ * Build a fake `DataSourceApi` for the microfrontend flow.
+ *
+ * The stub inherits from `DataSourceWithBackend`, which implements
+ * `query()` by POSTing the incoming `DataQueryRequest` to
+ * `/api/ds/query`. That endpoint is intercepted by the CodeRabbit
+ * proxy, so the stub's targets never need to reach a real datasource
+ * plugin — the proxy resolves the SQL from the dashboard JSON and
+ * executes it. `testDatasource()` returns a passing status because
+ * there is nothing meaningful to health-check on this side of the
+ * proxy.
+ *
+ * If `instanceSettings` are supplied (plugin-load failure path) the
+ * stub reuses them so its `type` / `meta` remain accurate; otherwise
+ * we synthesise a minimal `DataSourceInstanceSettings` using the
+ * caller's name/UID.
+ */
+function createFnDashboardStubDatasource(
+  key: string,
+  instanceSettings?: DataSourceInstanceSettings
+): DataSourceApi {
+  const settings = instanceSettings ?? synthesiseFnDashboardStubSettings(key);
+  return new FnDashboardStubDatasource(settings);
+}
+
+function synthesiseFnDashboardStubSettings(key: string): DataSourceInstanceSettings {
+  const meta: DataSourcePluginMeta = {
+    id: 'coderabbit-fn-dashboard-stub',
+    name: 'CodeRabbit MFE stub',
+    type: PluginType.datasource,
+    info: {
+      author: { name: 'CodeRabbit' },
+      description: 'Stub datasource used when Grafana runs as the CodeRabbit microfrontend.',
+      links: [],
+      logos: { small: '', large: '' },
+      screenshots: [],
+      updated: '',
+      version: '',
+    },
+    module: '',
+    baseUrl: '',
+  };
+  return {
+    id: 0,
+    uid: key,
+    type: meta.id,
+    name: key,
+    meta,
+    jsonData: {},
+    readOnly: true,
+    access: 'proxy',
+  };
+}
+
+class FnDashboardStubDatasource extends DataSourceWithBackend {
+  constructor(instanceSettings: DataSourceInstanceSettings) {
+    super(instanceSettings);
+  }
+  async testDatasource() {
+    return { status: 'success' as const, message: 'CodeRabbit MFE stub datasource — queries are proxied.' };
+  }
+}
