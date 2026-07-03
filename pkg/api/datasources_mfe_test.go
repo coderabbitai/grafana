@@ -95,6 +95,42 @@ func TestGetDataSources_MFE_ReturnsHardcodedFixture(t *testing.T) {
 		assert.Equal(t, "grafana-bigquery-datasource", got[0]["type"])
 		assert.Equal(t, "mfe-bigquery-prod", got[0]["uid"])
 		assert.Equal(t, true, got[0]["isDefault"])
+		// FakePluginStore has no plugins registered → we fall through to
+		// the generic datasource icon (mirrors the non-MFE GetDataSources
+		// handler in datasources.go). The picker relies on this default so
+		// no logo request 404s in the browser.
+		assert.Equal(t, "public/img/icn-datasource.svg", got[0]["typeLogoUrl"])
+	}, mockSQLStore)
+}
+
+// TestGetDataSources_MFE_UsesFallbackIconWhenPluginStoreNil pins the
+// nil-pluginStore code path. Some minimal HTTPServer constructions (unit
+// tests, embedded contexts) may leave `pluginStore` unset — the handler
+// must still emit the generic fallback icon rather than an empty
+// `typeLogoUrl`, which would render as a broken image in the frontend.
+func TestGetDataSources_MFE_UsesFallbackIconWhenPluginStoreNil(t *testing.T) {
+	t.Setenv(mfeEnvVar, "1")
+
+	mockSQLStore := dbtest.NewFakeDB()
+	loggedInUserScenario(t, "GET /api/datasources under MFE with nil pluginStore", "/api/datasources/", "/api/datasources/", func(sc *scenarioContext) {
+		hs := &HTTPServer{
+			Cfg:                setting.NewCfg(),
+			pluginStore:        nil, // <- key: exercise the nil-store branch
+			DataSourcesService: &dataSourcesServiceMock{},
+			dsGuardian:         guardian.ProvideGuardian(),
+		}
+		sc.handlerFunc = hs.GetDataSources
+		sc.fakeReq("GET", "/api/datasources").exec()
+
+		require.Equal(t, http.StatusOK, sc.resp.Code)
+		var got []map[string]any
+		require.NoError(t, json.NewDecoder(sc.resp.Body).Decode(&got))
+		require.Len(t, got, 1)
+		assert.Equal(t, "public/img/icn-datasource.svg", got[0]["typeLogoUrl"], "nil pluginStore must still yield the generic datasource icon")
+		// Type / TypeName remain the raw fixture values in the nil-store
+		// path — no plugin metadata to override them with.
+		assert.Equal(t, "grafana-bigquery-datasource", got[0]["type"])
+		assert.Equal(t, "grafana-bigquery-datasource", got[0]["typeName"])
 	}, mockSQLStore)
 }
 

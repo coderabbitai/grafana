@@ -14,16 +14,19 @@ import (
 // wrapped in the same DTO shape as the real handler.
 func (hs *HTTPServer) mfeGetDataSourcesResponse(c *contextmodel.ReqContext) response.Response {
 	item := mfeHardcodedDataSourceListItem(c.SignedInUser.GetOrgID())
-	// Populate the plugin logo consistently with the non-MFE path so the
-	// datasource picker renders correctly. If the plugin is not installed
-	// in this Grafana build, fall back to the generic datasource icon.
+	// Default to the generic datasource icon so the picker never renders
+	// with an empty logo URL. If the plugin store is wired up AND the
+	// plugin is installed, override with the plugin-specific logo / name /
+	// id (matching the non-MFE `GetDataSources` handler in datasources.go);
+	// otherwise the fallback icon stays in place — covering both the
+	// nil-store case (unit tests, minimal HTTPServer setups) and the
+	// plugin-not-found case (bigquery plugin absent from this build).
+	item.TypeLogoUrl = "public/img/icn-datasource.svg"
 	if hs.pluginStore != nil {
 		if plugin, exists := hs.pluginStore.Plugin(c.Req.Context(), item.Type); exists {
 			item.TypeLogoUrl = plugin.Info.Logos.Small
 			item.TypeName = plugin.Name
 			item.Type = plugin.ID
-		} else {
-			item.TypeLogoUrl = "public/img/icn-datasource.svg"
 		}
 	}
 	result := dtos.DataSourceList{item}
