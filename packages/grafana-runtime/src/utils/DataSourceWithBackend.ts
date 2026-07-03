@@ -30,7 +30,14 @@ import {
   StreamingFrameOptions,
 } from '../services';
 
-import { buildMfeContext, hasRedactedQueryField, isFnDashboardWindow } from './fnDashboardBody';
+import {
+  buildMfeContext,
+  hasRedactedQueryField,
+  inlineVariableMaskOnEmptyFields,
+  isFnDashboardWindow,
+  MFE_VARIABLE_NAME_SCOPED_VAR,
+  stableRefIdForVariable,
+} from './fnDashboardBody';
 import { publicDashboardQueryHandler } from './publicDashboardQueryHandler';
 import { BackendDataSourceResponse, toDataQueryResponse } from './queryResponse';
 
@@ -187,6 +194,43 @@ class DataSourceWithBackend<
     // Return early if no queries exist
     if (!queries.length) {
       return of({ data: [] });
+    }
+
+    // MFE: when the request originates from the variable-refresh pipeline
+    // (`VariableQueryRunner.getRequest` stamps `__mfeVariableName` on
+    // `scopedVars`), inline a `[MFE_REDACTED:v:<name>]` marker on any
+    // still-empty query-text field on the outgoing targets. The upstream
+    // SQL-plugin datasources (bigquery, postgres, ...) build these bodies
+    // with an EMPTY `rawSql` on a metricFindQuery — the actual SQL lives
+    // only on the dashboard's templating definition, which the proxy has.
+    // The plugin's auto-generated `refId` (`tempVar<N>`) is a
+    // session-monotonic counter, so its ordinal cannot uniquely identify
+    // a variable once the user switches dashboards. The variable NAME is
+    // stable, and the proxy's existing resolver already understands the
+    // `[MFE_REDACTED:v:<name>]` marker (see pkg/api/dashboard_mfe_mask.go
+    // `variableMaskValue` for the Go-side emitter).
+    const mfeVariableName =
+      typeof request.scopedVars?.[MFE_VARIABLE_NAME_SCOPED_VAR]?.value === 'string'
+        ? (request.scopedVars[MFE_VARIABLE_NAME_SCOPED_VAR] as { value: string }).value
+        : undefined;
+    // Inline the marker unconditionally when we have a variable name — this
+    // request originated from `VariableQueryRunner.getRequest`, which only
+    // stamps `__mfeVariableName` on scopedVars for genuine query-variable
+    // metricFindQueries. Gating this on `isFnDashboardWindow()` would create
+    // a chicken-and-egg race with the MFE store mirror: the very first
+    // variable-refresh cycle can fire before `updatePartialMfeStates`
+    // dispatches and sets `window.__FNDashboard__`. Non-MFE builds never
+    // exercise this codepath because nothing else stamps
+    // `__mfeVariableName`, so the marker rewrite is a no-op there.
+    if (mfeVariableName) {
+      inlineVariableMaskOnEmptyFields(queries as unknown as Array<Record<string, unknown>>, mfeVariableName);
+      // Also normalise the SQL-plugin's session-monotonic `tempVar<N>` refId
+      // to a deterministic `mfeVar-<variableName>` so identical variable
+      // queries across dashboards collapse onto ONE browser-side cache entry
+      // (see intercept-request.ts). Without this, switching dashboards
+      // produces a fresh refId — and therefore a fresh request body — for
+      // every variable, causing every switch to bust the cache.
+      stableRefIdForVariable(queries as unknown as Array<Record<string, unknown>>, mfeVariableName);
     }
 
     let body: Record<string, unknown> = {

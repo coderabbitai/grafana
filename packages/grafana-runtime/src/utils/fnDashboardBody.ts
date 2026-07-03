@@ -114,6 +114,126 @@ const MFE_REDACTED_QUERY_FIELDS = [
 const MFE_REDACTION_PREFIX = '[MFE_REDACTED:';
 
 /**
+ * Prefix for a variable-scoped redaction marker. Full form:
+ *
+ *   [MFE_REDACTED:v:<variableName>]
+ *
+ * The proxy's `parseMaskKey` decodes this back to the variable name and
+ * looks the shipped SQL up in its indexed dashboard JSON. Must stay in
+ * lockstep with `variableMaskValue()` in pkg/api/dashboard_mfe_mask.go.
+ *
+ * `<variableName>` is URL-encoded (`encodeURIComponent` semantics — spaces
+ * become `%20`, not `+`) so names carrying the structural `:`/`]`
+ * delimiters or non-ASCII bytes still round-trip unambiguously.
+ */
+const MFE_VARIABLE_MASK_PREFIX = '[MFE_REDACTED:v:';
+const MFE_VARIABLE_MASK_SUFFIX = ']';
+
+/** ScopedVars key that carries the currently-refreshing variable's name. */
+export const MFE_VARIABLE_NAME_SCOPED_VAR = '__mfeVariableName';
+
+/** Build a `[MFE_REDACTED:v:<name>]` marker for the given variable name. */
+export function buildVariableMaskValue(variableName: string): string {
+  // Use `encodeURIComponent`, then leave `%20` alone — this matches the
+  // Go-side `mfeEncodeMaskSegment` helper exactly (both produce `%20` for
+  // spaces, unlike `URLSearchParams` which uses `+`).
+  const encoded = encodeURIComponent(variableName);
+  return `${MFE_VARIABLE_MASK_PREFIX}${encoded}${MFE_VARIABLE_MASK_SUFFIX}`;
+}
+
+/**
+ * When a request is a variable metricFindQuery (identified by the
+ * `__mfeVariableName` scoped-var stamped by `VariableQueryRunner`), the
+ * SQL plugin sends the outgoing target with an EMPTY `rawSql` / `expr`
+ * / etc. — the actual SQL lives only on the dashboard's templating
+ * definition, which the proxy also has. We inline a
+ * `[MFE_REDACTED:v:<name>]` marker on the empty field so the proxy can
+ * resolve it by name (rather than by the SQL-plugin's session-global
+ * `tempVar<N>` counter, whose ordinal is unstable across dashboards).
+ *
+ * Mutates `queries` in place and returns the (possibly-same) array so
+ * the caller can chain. Only rewrites STRING fields whose value is
+ * exactly `""` — non-empty fields are left alone (the frontend may
+ * already carry a resolved value we must forward verbatim).
+ */
+export function inlineVariableMaskOnEmptyFields<Q extends Record<string, unknown>>(
+  queries: Q[],
+  variableName: string | undefined,
+): Q[] {
+  if (!variableName) return queries;
+  const marker = buildVariableMaskValue(variableName);
+  for (const q of queries) {
+    for (const field of MFE_REDACTED_QUERY_FIELDS) {
+      const cur = Reflect.get(q, field);
+      // Rewrite the empty string on any known query-text field. Any of
+      // {rawSql, expr, query, queryText, target} may be the plugin's
+      // canonical field; the redaction marker looks the same on all of
+      // them, and the proxy's resolver walks the same list.
+      if (typeof cur === 'string' && cur.length === 0) {
+        Reflect.set(q, field, marker);
+      }
+    }
+  }
+  return queries;
+}
+
+/**
+ * Build the deterministic refId used for a variable-refresh query.
+ *
+ * The underlying SQL plugin (bigquery) auto-generates refIds of the form
+ * `tempVar<N>` from a session-monotonic counter, so the SAME variable
+ * (`org_name`) ends up with a different refId every time the user visits
+ * a new dashboard. That defeats the browser-side response cache in
+ * `coderabbit-ui/src/grafana/intercept-request.ts` (whose cache key
+ * hashes the request body, and the refId is part of that body).
+ *
+ * We use the variable name itself as the refId — dashboard-scoped
+ * uniqueness rather than session-global uniqueness — because:
+ *
+ *   - The intercept's `checkIfVariablesQuery` matcher looks the refId
+ *     up in `GRAFANA_VARIABLES` (a list of the known variable names like
+ *     `org_name`, `repo_name`, …). Using the bare variable name makes
+ *     the intercept recognise every variable refresh out of the box.
+ *   - The proxy resolves the request via the `[MFE_REDACTED:v:<name>]`
+ *     marker on `rawSql`, so the refId is only used as an echo key when
+ *     mapping the response back onto the target. Distinct variable
+ *     names guarantee distinct refIds within any single batch.
+ *   - Panel target refIds are always short letters (`A`, `B`, …) so
+ *     there is no collision with the multi-word variable names shipped
+ *     in the metrics dashboards.
+ */
+export function buildVariableRefId(variableName: string): string {
+  return variableName;
+}
+
+/**
+ * Rewrite the refId of every target in `queries` to a deterministic,
+ * per-variable value so identical variable-refresh requests collapse onto
+ * a single browser-side cache entry across dashboards (see
+ * `buildVariableRefId` for the full rationale).
+ *
+ * Mutates in place. Only operates on queries whose refId still looks like
+ * the SQL-plugin's auto-generated `tempVar<N>` — a defensive check that
+ * lets us skip anything the caller may have pre-populated with a stable
+ * refId already (e.g. tests, or a future plugin that emits sensible
+ * refIds directly).
+ */
+export function stableRefIdForVariable<Q extends Record<string, unknown>>(
+  queries: Q[],
+  variableName: string | undefined,
+): Q[] {
+  if (!variableName) return queries;
+  const nextRefId = buildVariableRefId(variableName);
+  for (const q of queries) {
+    const cur = Reflect.get(q, 'refId');
+    if (typeof cur === 'string' && /^tempVar\d+$/i.test(cur)) {
+      Reflect.set(q, 'refId', nextRefId);
+    }
+  }
+  return queries;
+}
+
+/**
  * Returns true if any of the supplied queries carries a CodeRabbit redaction
  * marker (`[MFE_REDACTED:...]`) on any of the datasource-specific query-text
  * fields the backend masks. Used to gate the attachment of the `mfeContext`
