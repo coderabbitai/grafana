@@ -47,6 +47,14 @@ var secretsPluginError datasources.ErrDatasourceSecretsPluginUserFriendly
 // 403: forbiddenError
 // 500: internalServerError
 func (hs *HTTPServer) GetDataSources(c *contextmodel.ReqContext) response.Response {
+	// When running as the CodeRabbit microfrontend, the actual BigQuery
+	// datasource lives behind the CodeRabbit proxy — Grafana itself has no
+	// datasource configured. Return a single hardcoded fixture that matches
+	// the datasource referenced by the shipped dashboards (see
+	// mfeHardcodedDataSource for the source of truth).
+	if isCodeRabbitMFE() {
+		return hs.mfeGetDataSourcesResponse(c)
+	}
 	query := datasources.GetDataSourcesQuery{OrgID: c.SignedInUser.GetOrgID(), DataSourceLimit: hs.Cfg.DataSourceLimit}
 
 	dataSources, err := hs.DataSourcesService.GetDataSources(c.Req.Context(), &query)
@@ -116,6 +124,10 @@ func (hs *HTTPServer) GetDataSourceById(c *contextmodel.ReqContext) response.Res
 	id, err := strconv.ParseInt(web.Params(c.Req)[":id"], 10, 64)
 	if err != nil {
 		return response.Error(http.StatusBadRequest, "id is invalid", nil)
+	}
+	// MFE mode: only the hardcoded fixture datasource exists.
+	if isCodeRabbitMFE() {
+		return hs.mfeGetSingleDataSourceResponse(c, func(ds *datasources.DataSource) bool { return ds.ID == id }, "id")
 	}
 	query := datasources.GetDataSourceQuery{
 		ID:    id,
@@ -210,6 +222,11 @@ func (hs *HTTPServer) DeleteDataSourceById(c *contextmodel.ReqContext) response.
 // 404: notFoundError
 // 500: internalServerError
 func (hs *HTTPServer) GetDataSourceByUID(c *contextmodel.ReqContext) response.Response {
+	// MFE mode: only the hardcoded fixture datasource exists.
+	if isCodeRabbitMFE() {
+		uid := web.Params(c.Req)[":uid"]
+		return hs.mfeGetSingleDataSourceResponse(c, func(ds *datasources.DataSource) bool { return ds.UID == uid }, "uid")
+	}
 	ds, err := hs.getRawDataSourceByUID(c.Req.Context(), web.Params(c.Req)[":uid"], c.SignedInUser.GetOrgID())
 
 	if err != nil {
@@ -695,6 +712,11 @@ func (hs *HTTPServer) getRawDataSourceByUID(ctx context.Context, uid string, org
 // 403: forbiddenError
 // 500: internalServerError
 func (hs *HTTPServer) GetDataSourceByName(c *contextmodel.ReqContext) response.Response {
+	// MFE mode: only the hardcoded fixture datasource exists.
+	if isCodeRabbitMFE() {
+		name := web.Params(c.Req)[":name"]
+		return hs.mfeGetSingleDataSourceResponse(c, func(ds *datasources.DataSource) bool { return ds.Name == name }, "name")
+	}
 	query := datasources.GetDataSourceQuery{Name: web.Params(c.Req)[":name"], OrgID: c.SignedInUser.GetOrgID()}
 
 	dataSource, err := hs.DataSourcesService.GetDataSource(c.Req.Context(), &query)
@@ -723,6 +745,15 @@ func (hs *HTTPServer) GetDataSourceByName(c *contextmodel.ReqContext) response.R
 // 404: notFoundError
 // 500: internalServerError
 func (hs *HTTPServer) GetDataSourceIdByName(c *contextmodel.ReqContext) response.Response {
+	// MFE mode: only the hardcoded fixture datasource exists.
+	if isCodeRabbitMFE() {
+		name := web.Params(c.Req)[":name"]
+		fixture := mfeHardcodedDataSource(c.SignedInUser.GetOrgID())
+		if fixture.Name != name {
+			return response.Error(http.StatusNotFound, "Data source not found", nil)
+		}
+		return response.JSON(http.StatusOK, &dtos.AnyId{Id: fixture.ID})
+	}
 	query := datasources.GetDataSourceQuery{Name: web.Params(c.Req)[":name"], OrgID: c.SignedInUser.GetOrgID()}
 
 	ds, err := hs.DataSourcesService.GetDataSource(c.Req.Context(), &query)
