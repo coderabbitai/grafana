@@ -176,6 +176,8 @@ const getStyle = stylesFactory((theme: GrafanaTheme2) => {
       flexDirection: 'row',
       justifyContent: 'space-between',
       alignItems: 'center',
+      fontSize: '14px',
+      lineHeight: '20px',
       '& button': {
         borderRadius: '6px',
       },
@@ -185,6 +187,8 @@ const getStyle = stylesFactory((theme: GrafanaTheme2) => {
       padding: '11px',
       justifyContent: 'space-between',
       alignItems: 'center',
+      fontSize: '14px',
+      lineHeight: '20px',
     }),
     spacer: css({
       marginLeft: '7px',
