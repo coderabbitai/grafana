@@ -96,8 +96,7 @@ const ButtonSelectComponent = <T,>(props: Props<T>) => {
         isOpen={isOpen}
         narrow={narrow}
         variant={variant}
-        {...getReferenceProps()}
-        {...restProps}
+        {...getReferenceProps(restProps)}
       >
         {value?.label || (value?.value != null ? String(value?.value) : null)}
       </ToolbarButton>
