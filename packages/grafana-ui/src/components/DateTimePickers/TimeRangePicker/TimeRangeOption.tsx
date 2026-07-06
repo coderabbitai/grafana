@@ -29,7 +29,9 @@ const getStyles = (theme: GrafanaTheme2) => {
     label: css({
       cursor: 'pointer',
       flex: 1,
-      padding: '7px 9px 7px 9px',
+      padding: theme.spacing(0.75, 1.25),
+      fontSize: '14px',
+      lineHeight: '20px',
 
       '&:hover': {
         background: theme.colors.action.hover,

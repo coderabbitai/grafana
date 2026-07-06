@@ -158,6 +158,11 @@ const getStyles = (theme: GrafanaTheme2) => {
       display: 'flex',
       alignItems: 'center',
       height: theme.spacing(theme.components.height.md),
+      // Carrot-UI parity: keep the default Grafana toolbar height (32px) but
+      // drop the inherited 16px body font down to 14px so labelled controls
+      // (e.g. the time-range picker) read closer to carrot-ui `Button` text
+      // when Grafana renders as the CodeRabbit MFE.
+      fontSize: '14px',
       // Carrot-UI uses tighter horizontal padding (8px for md, 6px for narrow).
       padding: theme.spacing(0, 1),
       borderRadius: theme.shape.radius.default,

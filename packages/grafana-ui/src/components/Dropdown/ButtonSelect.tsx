@@ -8,6 +8,7 @@ import {
   useDismiss,
   useFloating,
   useInteractions,
+  FloatingPortal,
 } from '@floating-ui/react';
 import { FocusScope } from '@react-aria/focus';
 import { memo, HTMLAttributes, useState } from 'react';
@@ -43,7 +44,10 @@ const ButtonSelectComponent = <T,>(props: Props<T>) => {
 
   // the order of middleware is important!
   const middleware = [
-    offset(0),
+    // Small vertical gap so the popover clears the trigger button rather than
+    // butting up against it (offset(0) previously produced a visually overlapping
+    // edge when combined with the negative marginLeft alignment tweak below).
+    offset(4),
     flip({
       fallbackAxisSideDirection: 'end',
       // see https://floating-ui.com/docs/flip#combining-with-shift
@@ -56,6 +60,20 @@ const ButtonSelectComponent = <T,>(props: Props<T>) => {
   const { context, refs, floatingStyles } = useFloating({
     open: isOpen,
     placement: 'bottom-end',
+    // `fixed` positions the floating element relative to the viewport rather
+    // than the nearest positioned ancestor. Grafana renders its dashboard
+    // controls into whichever DOM node the host app supplies via
+    // `controlsContainer` — when that container is deep inside another
+    // React tree (e.g. the CodeRabbit dashboard NavHeader slot), the
+    // `absolute` strategy anchors on the wrong offset parent and the
+    // popover ends up over the trigger. `fixed` sidesteps that entirely
+    // because floating-ui's computed coordinates are already viewport-based.
+    strategy: 'fixed',
+    // Rationale: keep strategy `fixed` so the popover coordinates are
+    // computed against the viewport. This is safer when ButtonSelect is
+    // rendered into arbitrary containers (like a portalled dashboard
+    // controls slot) whose ancestor `transform`/`filter` styles would
+    // otherwise become the containing block for `position: absolute`.
     onOpenChange: setIsOpen,
     middleware,
     whileElementsMounted: autoUpdate,
@@ -72,42 +90,42 @@ const ButtonSelectComponent = <T,>(props: Props<T>) => {
   };
 
   return (
-    <div className={styles.wrapper}>
+    <div className={styles.wrapper} ref={refs.setReference}>
       <ToolbarButton
         className={className}
         isOpen={isOpen}
         narrow={narrow}
         variant={variant}
-        ref={refs.setReference}
-        {...getReferenceProps()}
-        {...restProps}
+        {...getReferenceProps(restProps)}
       >
         {value?.label || (value?.value != null ? String(value?.value) : null)}
       </ToolbarButton>
       {isOpen && (
-        <div className={styles.menuWrapper} ref={refs.setFloating} {...getFloatingProps()} style={floatingStyles}>
-          <FocusScope contain autoFocus restoreFocus>
-            {/*
-              tabIndex=-1 is needed here to support highlighting text within the menu when using FocusScope
-              see https://github.com/adobe/react-spectrum/issues/1604#issuecomment-781574668
-            */}
-            <Menu tabIndex={-1} onClose={() => setIsOpen(false)}>
-              {options.map((item) => (
-                <MenuItem
-                  key={`${item.value}`}
-                  label={item.label ?? String(item.value)}
-                  onClick={() => onChangeInternal(item)}
-                  active={item.value === value?.value}
-                  ariaChecked={item.value === value?.value}
-                  ariaLabel={item.ariaLabel || item.label}
-                  disabled={item.isDisabled}
-                  component={item.component}
-                  role="menuitemradio"
-                />
-              ))}
-            </Menu>
-          </FocusScope>
-        </div>
+        <FloatingPortal>
+          <div className={styles.menuWrapper} ref={refs.setFloating} {...getFloatingProps()} style={floatingStyles}>
+            <FocusScope contain autoFocus restoreFocus>
+              {/*
+                tabIndex=-1 is needed here to support highlighting text within the menu when using FocusScope
+                see https://github.com/adobe/react-spectrum/issues/1604#issuecomment-781574668
+              */}
+              <Menu tabIndex={-1} onClose={() => setIsOpen(false)}>
+                {options.map((item) => (
+                  <MenuItem
+                    key={`${item.value}`}
+                    label={item.label ?? String(item.value)}
+                    onClick={() => onChangeInternal(item)}
+                    active={item.value === value?.value}
+                    ariaChecked={item.value === value?.value}
+                    ariaLabel={item.ariaLabel || item.label}
+                    disabled={item.isDisabled}
+                    component={item.component}
+                    role="menuitemradio"
+                  />
+                ))}
+              </Menu>
+            </FocusScope>
+          </div>
+        </FloatingPortal>
       )}
     </div>
   );
@@ -128,7 +146,8 @@ const getStyles = (theme: GrafanaTheme2) => {
     }),
     menuWrapper: css({
       zIndex: theme.zIndex.dropdown,
-      marginLeft: -25,
+      fontSize: '14px',
+      lineHeight: '20px',
     }),
   };
 };
