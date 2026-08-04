@@ -295,7 +295,11 @@ export function PanelChrome({
       )}
 
       {hasHeader && (
-        <div className={cx(styles.headerContainer, dragClass)} style={headerStyles} data-testid="header-container">
+        <div
+          className={cx(styles.headerContainer, title && styles.headerDivider, dragClass)}
+          style={headerStyles}
+          data-testid="header-container"
+        >
           {statusMessage && (
             <div className={dragClassCancel}>
               <PanelStatus message={statusMessage} onClick={statusMessageOnClick} ariaLabel="Panel status" />
@@ -387,12 +391,16 @@ const getStyles = (isFNPanel?: boolean) => (theme: GrafanaTheme2) => {
       label: 'panel-container',
       backgroundColor: background,
       border: `1px solid ${borderColor}`,
-      borderRadius: theme.shape.borderRadius(2),
+      // Larger corner radius + soft elevation to match the Carrot UI card language.
+      borderRadius: theme.shape.borderRadius(3),
       boxShadow: theme.shadows.z1,
       position: 'relative',
       height: '100%',
       display: 'flex',
       flexDirection: 'column',
+      transition: theme.transitions.create(['box-shadow', 'border-color'], {
+        duration: theme.transitions.duration.short,
+      }),
 
       '.show-on-hover': {
         opacity: '0',
@@ -400,6 +408,7 @@ const getStyles = (isFNPanel?: boolean) => (theme: GrafanaTheme2) => {
       },
 
       '&:hover': {
+        borderColor: theme.colors.border.medium,
         boxShadow: theme.shadows.z2,
         // only show menu icon on hover
         '.show-on-hover': {
@@ -461,6 +470,13 @@ const getStyles = (isFNPanel?: boolean) => (theme: GrafanaTheme2) => {
       display: 'flex',
       alignItems: 'center',
     }),
+    // Hairline separator between the title row and the visualisation, the way
+    // Vercel-style cards split header from body. Only applied when the panel
+    // actually renders a title, so untitled panels stay borderless.
+    headerDivider: css({
+      label: 'panel-header-divider',
+      borderBottom: `1px solid ${theme.colors.border.weak}`,
+    }),
     pointer: css({
       cursor: 'pointer',
     }),
@@ -476,8 +492,15 @@ const getStyles = (isFNPanel?: boolean) => (theme: GrafanaTheme2) => {
     title: css({
       label: 'panel-title',
       display: 'flex',
+      alignItems: 'center',
       padding: theme.spacing(0, padding),
       minWidth: 0,
+      // Panel titles are secondary chrome: slightly muted, tighter tracking.
+      '& h2': {
+        color: theme.colors.text.primary,
+        fontWeight: theme.typography.fontWeightMedium,
+        letterSpacing: '-0.01em',
+      },
       // FN-dashboard panel titles span the full chrome width so the title
       // and the right-aligned menu line up edge-to-edge. Titles render in
       // normal case — the uppercase transform that previously lived here

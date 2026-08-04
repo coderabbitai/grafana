@@ -67,10 +67,12 @@ export function createTypography(colors: ThemeColors, typographyInput: ThemeTypo
     fontFamilyMonospace = defaultFontFamilyMonospace,
     // The default font size of the Material Specification.
     fontSize = 14, // px
-    fontWeightLight = 200,
-    fontWeightRegular = 300,
-    fontWeightMedium = 400,
-    fontWeightBold = 500,
+    // Geist/Vercel-style weight ramp. The previous 200/300/400/500 ramp rendered
+    // body copy as Light, which looked washed out against the Carrot UI palette.
+    fontWeightLight = 300,
+    fontWeightRegular = 400,
+    fontWeightMedium = 500,
+    fontWeightBold = 600,
     // Tell Grafana-UI what's the font-size on the html element.
     // 16px is the default font-size used by browsers.
     htmlFontSize = 16,
@@ -111,14 +113,16 @@ export function createTypography(colors: ThemeColors, typographyInput: ThemeTypo
 
   // All our fonts/line heights should be integer multiples of 2 to prevent issues with alignment
   const variants = {
-    h1: buildVariant(fontWeightRegular, 28, 32, -0.25),
-    h2: buildVariant(fontWeightRegular, 24, 28, 0),
-    h3: buildVariant(fontWeightRegular, 22, 24, 0),
-    h4: buildVariant(fontWeightRegular, 18, 22, 0.25),
-    h5: buildVariant(fontWeightRegular, 16, 22, 0),
-    h6: buildVariant(fontWeightMedium, 14, 22, 0.15),
-    body: buildVariant(fontWeightRegular, fontSize, 22, 0.15),
-    bodySmall: buildVariant(fontWeightRegular, 12, 18, 0.15),
+    // Headings use negative tracking (Vercel/Geist convention) and a heavier weight
+    // so panel titles and section headers read as deliberate UI chrome.
+    h1: buildVariant(fontWeightBold, 28, 32, -0.6),
+    h2: buildVariant(fontWeightBold, 24, 28, -0.5),
+    h3: buildVariant(fontWeightMedium, 22, 24, -0.4),
+    h4: buildVariant(fontWeightMedium, 18, 22, -0.3),
+    h5: buildVariant(fontWeightMedium, 16, 22, -0.2),
+    h6: buildVariant(fontWeightMedium, 14, 22, -0.1),
+    body: buildVariant(fontWeightRegular, fontSize, 22, 0),
+    bodySmall: buildVariant(fontWeightRegular, 12, 18, 0),
     code: { ...buildVariant(fontWeightRegular, 14, 16, 0.15), fontFamily: fontFamilyMonospace },
   };
 
