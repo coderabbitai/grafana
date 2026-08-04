@@ -169,26 +169,39 @@ export const TimePickerFooter = (props: Props) => {
 
 const getStyle = stylesFactory((theme: GrafanaTheme2) => {
   return {
+    // Footer reads as a distinct utility bar: recessed surface, hairline top rule.
+    // `:last-child` keeps the rounding on whichever block actually ends the popover
+    // (this bar when collapsed, the edit panel when the settings are expanded).
     container: css({
       borderTop: `1px solid ${theme.colors.border.weak}`,
-      padding: '11px',
+      background: theme.colors.background.secondary,
+      padding: theme.spacing(1.5),
       display: 'flex',
       flexDirection: 'row',
       justifyContent: 'space-between',
       alignItems: 'center',
-      fontSize: '14px',
+      fontSize: theme.typography.bodySmall.fontSize,
       lineHeight: '20px',
+      '&:last-child': {
+        borderBottomLeftRadius: theme.shape.borderRadius(3),
+        borderBottomRightRadius: theme.shape.borderRadius(3),
+      },
       '& button': {
-        borderRadius: '6px',
+        borderRadius: theme.shape.radius.default,
       },
     }),
     editContainer: css({
       borderTop: `1px solid ${theme.colors.border.weak}`,
-      padding: '11px',
+      background: theme.colors.background.secondary,
+      padding: theme.spacing(1.5),
       justifyContent: 'space-between',
       alignItems: 'center',
-      fontSize: '14px',
+      fontSize: theme.typography.bodySmall.fontSize,
       lineHeight: '20px',
+      // Round the trailing corners to match the popover instead of relying on the
+      // parent clipping, which would crop the inline select menus.
+      borderBottomLeftRadius: theme.shape.borderRadius(3),
+      borderBottomRightRadius: theme.shape.borderRadius(3),
     }),
     spacer: css({
       marginLeft: '7px',
@@ -216,9 +229,22 @@ const getStyle = stylesFactory((theme: GrafanaTheme2) => {
     // orange brand gradient) with a neutral gray for the time-zone /
     // fiscal-year tabs inside the time-range picker only.
     tabsOverride: css({
-      'button[role="tab"][aria-selected="true"]::before, a[role="tab"][aria-selected="true"]::before': {
+      '[role="tab"][aria-selected="true"]': {
+        // The shared Tab sets `overflow: hidden` on the active state, which clips
+        // its own rounded underline into a boxed outline around the tab. Reset it
+        // so only the underline shows.
+        overflow: 'visible',
+        border: 'none',
+        boxShadow: 'none',
+      },
+
+      '[role="tab"][aria-selected="true"]::before': {
         backgroundImage: 'none',
-        backgroundColor: theme.colors.border.strong,
+        backgroundColor: theme.colors.text.primary,
+        // A slim square-cut rule reads as an underline; the inherited 4px/6px-radius
+        // bar looked like a stray border sitting under the label.
+        height: '2px',
+        borderRadius: 0,
       },
     }),
   };
