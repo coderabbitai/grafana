@@ -1,7 +1,8 @@
 import { EventBus } from '@grafana/data';
 import { RefreshEvent } from '@grafana/runtime';
 import { ColumnDef, ColumnFiltersState } from '@tanstack/react-table';
-import { useEffect, useState } from 'react';
+import { isEqual } from 'lodash';
+import { useCallback, useEffect, useState } from 'react';
 
 import { getVariableColumnFilters, mergeColumnFilters } from 'app/plugins/panel/volkovlabs-table-panel/utils';
 
@@ -61,19 +62,34 @@ export const useSyncedColumnFilters = <TData>({
   }, [defaultFilters, initialDefaultFiltersState]);
 
   /**
+   * Merge variable filters into the current state.
+   *
+   * `mergeColumnFilters` always returns a new array, so the previous state is returned unchanged when the
+   * merge result is equivalent. Without this bail out React keeps re-rendering, because `columns` is a new
+   * reference on every render and re-triggers the effect below, which exceeds the maximum update depth.
+   */
+  const syncVariableFilters = useCallback(() => {
+    setColumnFilters((current) => {
+      const merged = mergeColumnFilters(current, getVariableColumnFilters(columns));
+
+      return isEqual(current, merged) ? current : merged;
+    });
+  }, [columns]);
+
+  /**
    * Set initial filters from variables and update on variable change
    */
   useEffect(() => {
-    setColumnFilters((current) => mergeColumnFilters(current, getVariableColumnFilters(columns)));
+    syncVariableFilters();
 
     const subscription = eventBus.getStream(RefreshEvent).subscribe(() => {
-      setColumnFilters((current) => mergeColumnFilters(current, getVariableColumnFilters(columns)));
+      syncVariableFilters();
     });
 
     return () => {
       return subscription.unsubscribe();
     };
-  }, [columns, eventBus]);
+  }, [eventBus, syncVariableFilters]);
 
   return [columnFilters, setColumnFilters] as [typeof columnFilters, typeof setColumnFilters];
 };
