@@ -1,4 +1,4 @@
-import React, { ReactNode, useCallback } from 'react';
+import React, { ReactNode, useCallback, useMemo, useRef } from 'react';
 
 import { DataFrame, Field, LoadingState, SelectableValue, TypedVariableModel } from '@grafana/data';
 import { getAppEvents, getDataSourceSrv, getTemplateSrv } from '@grafana/runtime';
@@ -11,6 +11,7 @@ import {
   useStyles2,
 } from '@grafana/ui';
 import { css } from '@emotion/css';
+import { isEqual } from 'lodash';
 import { lastValueFrom } from 'rxjs';
 
 interface AlertWithDetailsProps {
@@ -164,8 +165,31 @@ export const useDashboardVariables = <TVariable = TypedVariableModel, TState = T
   initial: TState;
 }) => {
   const variables = toState(getTemplateSrv().getVariables());
-  const variable = getOne(variables || initial, variableName);
-  return { variable, variables, getVariable: (name?: string) => getOne(variables || initial, name) };
+
+  /**
+   * `toState` builds a new object on every render. Keeping the previous value when it is deeply equal
+   * stabilises the identity of everything derived from it (columns, filters), which otherwise causes
+   * downstream effects to loop until React reports "Maximum update depth exceeded".
+   */
+  const variablesRef = useRef(variables);
+  if (!isEqual(variablesRef.current, variables)) {
+    variablesRef.current = variables;
+  }
+  const stableVariables = variablesRef.current;
+
+  const variable = useMemo(
+    () => getOne(stableVariables ?? initial, variableName),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [stableVariables, variableName]
+  );
+
+  const getVariable = useCallback(
+    (name?: string) => getOne(stableVariables ?? initial, name),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [stableVariables]
+  );
+
+  return { variable, variables: stableVariables, getVariable };
 };
 
 class DatasourceResponseError extends Error {

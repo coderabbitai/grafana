@@ -584,14 +584,17 @@ export const Table = <TData,>({
   /**
    * Keep pagination state in sync when the clamped index drifts from the raw page index.
    */
+  const paginationValue = pagination.value;
+  const onPaginationChange = pagination.onChange;
+
   useEffect(() => {
-    if (pagination.value.pageIndex !== clampedPageIndex) {
-      pagination.onChange({
-        ...pagination.value,
+    if (paginationValue.pageIndex !== clampedPageIndex) {
+      onPaginationChange({
+        ...paginationValue,
         pageIndex: clampedPageIndex,
       });
     }
-  }, [clampedPageIndex, pagination]);
+  }, [clampedPageIndex, onPaginationChange, paginationValue]);
 
   /**
    * Is Footer Visible
