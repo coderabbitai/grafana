@@ -1,14 +1,14 @@
-import { EventBus } from '@grafana/data';
 import { ColumnDef } from '@tanstack/react-table';
 import { renderHook } from '@testing-library/react';
-import { Subject } from 'rxjs';
+
+import { EventBusSrv } from '@grafana/data';
 
 import { useSyncedColumnFilters } from './useSyncedColumnFilters';
 
 /**
  * Event Bus
  */
-const eventBus = { getStream: () => new Subject() } as unknown as EventBus;
+const eventBus = new EventBusSrv();
 
 describe('useSyncedColumnFilters render stability', () => {
   it('Should not update state endlessly when columns identity changes on every render', () => {
@@ -21,8 +21,10 @@ describe('useSyncedColumnFilters render stability', () => {
        * New array identity on every render with unchanged content,
        * which previously re-triggered the variable sync effect in a loop.
        */
+      const columns: Array<ColumnDef<unknown>> = [{ id: 'device' }];
+
       return useSyncedColumnFilters({
-        columns: [{ id: 'device' }] as Array<ColumnDef<unknown>>,
+        columns,
         eventBus,
         userFilterPreference: [],
         defaultFilters: [],
