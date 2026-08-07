@@ -39,7 +39,15 @@ export const TitleItem = forwardRef<TitleItemElement, TitleItemProps>(
       );
     } else if (onClick) {
       return (
-        <Button ref={ref} className={cx(styles.item, className)} variant="secondary" fill="text" onClick={onClick}>
+        <Button
+          ref={ref}
+          className={cx(styles.item, className)}
+          variant="secondary"
+          fill="text"
+          onClick={onClick}
+          title={title}
+          {...rest}
+        >
           {children}
         </Button>
       );

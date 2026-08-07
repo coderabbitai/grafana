@@ -5,7 +5,7 @@ import { LoadingState, TimeRange } from '@grafana/data';
 
 import { AngularNotice, PanelHeaderTitleItems } from './PanelHeaderTitleItems';
 
-function renderComponent(angularNoticeOverride?: Partial<AngularNotice>) {
+function renderComponent(angularNoticeOverride?: Partial<AngularNotice>, onEditPanel?: () => void) {
   render(
     <PanelHeaderTitleItems
       data={{
@@ -14,6 +14,7 @@ function renderComponent(angularNoticeOverride?: Partial<AngularNotice>) {
         timeRange: {} as TimeRange,
       }}
       panelId={1}
+      onEditPanel={onEditPanel}
       angularNotice={{
         ...{
           show: true,
@@ -71,5 +72,25 @@ describe('PanelHeaderTitleItems angular deprecation', () => {
         });
       });
     });
+  });
+});
+
+describe('PanelHeaderTitleItems panel edit affordance', () => {
+  const editSelector = 'fn-edit-panel';
+
+  it('does not render the edit item when the host has not opted in', () => {
+    renderComponent();
+    expect(screen.queryByTestId(editSelector)).not.toBeInTheDocument();
+  });
+
+  it('renders the edit item and reports clicks to the host', async () => {
+    const onEditPanel = jest.fn();
+    renderComponent(undefined, onEditPanel);
+
+    const editItem = screen.getByTestId(editSelector);
+    expect(editItem).toBeInTheDocument();
+
+    await userEvent.click(editItem);
+    expect(onEditPanel).toHaveBeenCalledTimes(1);
   });
 });

@@ -26,9 +26,15 @@ export interface Props {
   viewPanel: PanelModel | null;
   hidePanelMenus?: boolean;
   isFnDashboard?: boolean;
+  portalContainerID?: string;
 }
 
-export class Component extends PureComponent<Props> {
+interface State {
+  /** Host-measured height for an embedded single-panel view. */
+  viewPanelHeight?: number;
+}
+
+export class Component extends PureComponent<Props, State> {
   private panelMap: { [key: string]: PanelModel } = {};
   private eventSubs = new Subscription();
   private windowHeight = 1200;
@@ -37,18 +43,69 @@ export class Component extends PureComponent<Props> {
   /** Used to keep track of mobile panel layout position */
   private lastPanelBottom = 0;
   private isLayoutInitialized = false;
+  private portalResizeObserver?: ResizeObserver;
 
   constructor(props: Props) {
     super(props);
+    this.state = { viewPanelHeight: undefined };
   }
 
   componentDidMount() {
     const { dashboard } = this.props;
     this.eventSubs.add(dashboard.events.subscribe(DashboardPanelsChangedEvent, this.triggerForceUpdate));
+    this.observePortalContainer();
+  }
+
+  componentDidUpdate(prevProps: Props) {
+    if (prevProps.portalContainerID !== this.props.portalContainerID || prevProps.viewPanel !== this.props.viewPanel) {
+      this.observePortalContainer();
+    }
   }
 
   componentWillUnmount() {
     this.eventSubs.unsubscribe();
+    this.portalResizeObserver?.disconnect();
+    this.portalResizeObserver = undefined;
+  }
+
+  /**
+   * Embedded (MFE) single-panel mode only.
+   *
+   * The host sizes the portal container, but on first paint it can still measure
+   * 0 (the portal div mounts before the host flex layout resolves). A one-shot
+   * read therefore falls back to `windowHeight * 0.85`, which overflows the host
+   * box and crops the panel. Observing the container keeps the panel height in
+   * sync with whatever the host actually allocates, including window resizes.
+   */
+  observePortalContainer() {
+    this.portalResizeObserver?.disconnect();
+    this.portalResizeObserver = undefined;
+
+    const { isFnDashboard, viewPanel, portalContainerID } = this.props;
+    if (!isFnDashboard || !viewPanel || !portalContainerID) {
+      if (this.state.viewPanelHeight !== undefined) {
+        this.setState({ viewPanelHeight: undefined });
+      }
+      return;
+    }
+
+    const portalContainer = document.getElementById(portalContainerID);
+    if (!portalContainer) {
+      return;
+    }
+
+    this.portalResizeObserver = new ResizeObserver(() => {
+      const height = portalContainer.clientHeight;
+      if (height > 0 && height !== this.state.viewPanelHeight) {
+        this.setState({ viewPanelHeight: height });
+      }
+    });
+    this.portalResizeObserver.observe(portalContainer);
+
+    const height = portalContainer.clientHeight;
+    if (height > 0 && height !== this.state.viewPanelHeight) {
+      this.setState({ viewPanelHeight: height });
+    }
   }
 
   buildLayout() {
@@ -138,8 +195,25 @@ export class Component extends PureComponent<Props> {
     return { top, bottom: this.lastPanelBottom };
   }
 
+  getEmbeddedViewPanelHeight(): number | undefined {
+    if (!this.props.isFnDashboard || !this.props.viewPanel || !this.props.portalContainerID) {
+      return undefined;
+    }
+
+    // Prefer the observed height; fall back to a direct read for the first paint
+    // before the ResizeObserver has delivered its initial entry.
+    if (this.state.viewPanelHeight !== undefined) {
+      return this.state.viewPanelHeight;
+    }
+
+    const portalContainer = document.getElementById(this.props.portalContainerID);
+    const height = portalContainer?.clientHeight ?? 0;
+    return height > 0 ? height : undefined;
+  }
+
   renderPanels(gridWidth: number, isDashboardDraggable: boolean) {
     const panelElements = [];
+    const viewPanelHeight = this.getEmbeddedViewPanelHeight();
 
     // Reset last panel bottom
     this.lastPanelBottom = 0;
@@ -164,6 +238,7 @@ export class Component extends PureComponent<Props> {
           gridWidth={gridWidth}
           windowHeight={this.windowHeight}
           windowWidth={this.windowWidth}
+          viewPanelHeight={viewPanelHeight}
           isViewing={panel.isViewing}
         >
           {(width: number, height: number) => {
@@ -279,6 +354,7 @@ interface GrafanaGridItemProps extends React.HTMLAttributes<HTMLDivElement> {
   isViewing: boolean;
   windowHeight: number;
   windowWidth: number;
+  viewPanelHeight?: number;
   children: any;
 }
 
@@ -290,13 +366,15 @@ const GrafanaGridItem = React.forwardRef<HTMLDivElement, GrafanaGridItemProps>((
   let width = 100;
   let height = 100;
 
-  const { gridWidth, gridPos, isViewing, windowHeight, windowWidth, ...divProps } = props;
+  const { gridWidth, gridPos, isViewing, windowHeight, windowWidth, viewPanelHeight, ...divProps } = props;
   const style: CSSProperties = props.style ?? {};
 
   if (isViewing) {
-    // In fullscreen view mode a single panel take up full width & 85% height
+    // In fullscreen view mode a single panel take up full width & 85% height.
+    // Embedded FN dashboards have a host-owned viewport, so use that measured
+    // height instead of the browser window to avoid cropping inside the host.
     width = gridWidth!;
-    height = windowHeight * 0.85;
+    height = viewPanelHeight ?? windowHeight * 0.85;
     style.height = height;
     style.width = '100%';
   } else if (windowWidth < theme.breakpoints.values.md) {
@@ -339,6 +417,7 @@ GrafanaGridItem.displayName = 'GridItemWithDimensions';
 function mapStateToProps() {
   return (state: StoreState) => ({
     isFnDashboard: state.fnGlobalState.FNDashboard,
+    portalContainerID: state.fnGlobalState.portalContainerID,
   });
 }
 

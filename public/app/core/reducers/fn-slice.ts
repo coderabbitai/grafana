@@ -12,6 +12,12 @@ export interface FnState {
   pageTitle: string;
   queryParams: AnyObject;
   hiddenVariables: string[];
+  /**
+   * When true, each panel header renders an edit affordance that reports the
+   * clicked panel back to the host through `metadata.eventListener`. The host
+   * owns the editing UI, so Grafana only surfaces the trigger.
+   */
+  enablePanelEdit: boolean;
   metadata: {
     teams: string[];
     eventListener: (<T>(event: { type: string; data: T }) => void) | null;
@@ -25,7 +31,15 @@ export type SetFnStateAction = PayloadAction<Omit<FnGlobalState, 'hiddenVariable
 
 export type FnPropMappedFromState = Extract<
   keyof FnGlobalState,
-  'FNDashboard' | 'hiddenVariables' | 'mode' | 'uid' | 'queryParams' | 'slug' | 'version' | 'controlsContainer'
+  | 'FNDashboard'
+  | 'hiddenVariables'
+  | 'mode'
+  | 'uid'
+  | 'queryParams'
+  | 'slug'
+  | 'version'
+  | 'controlsContainer'
+  | 'enablePanelEdit'
 >;
 export type FnStateProp = keyof FnState;
 
@@ -33,6 +47,7 @@ export type FnPropsMappedFromState = Pick<FnGlobalState, FnPropMappedFromState>;
 
 export const fnStateProps: FnStateProp[] = [
   'controlsContainer',
+  'enablePanelEdit',
   'hiddenVariables',
   'pageTitle',
   'queryParams',
@@ -54,6 +69,7 @@ export const INITIAL_FN_STATE: FnState = {
   pageTitle: '',
   queryParams: {},
   hiddenVariables: [],
+  enablePanelEdit: false,
   metadata: {
     teams: [],
     eventListener: null,

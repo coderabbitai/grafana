@@ -18,6 +18,10 @@ interface CommonProps {
   plugin: PanelPlugin;
   isViewing: boolean;
   isEditing: boolean;
+  /** Host opt-in for the per-panel edit affordance. */
+  enablePanelEdit?: boolean;
+  /** Channel the host listens on for `panelEditClick`. */
+  panelEditListener?: <T>(event: { type: string; data: T }) => void;
   isInView: boolean;
   isDraggable?: boolean;
   width: number;
@@ -84,11 +88,27 @@ export function getPanelChromeProps(props: CommonProps) {
   const showAngularNotice =
     (config.featureToggles.angularDeprecationUI ?? false) && (isAngularDatasource || isAngularPanel);
 
+  /**
+   * Panel editing is host-driven: the host opts in with `enablePanelEdit` and
+   * receives the clicked panel through the same `eventListener` channel used by
+   * the stat/table/timeseries click events. Grafana renders only the trigger.
+   */
+  const panelEditListener = props.enablePanelEdit ? props.panelEditListener : undefined;
+
+  const onEditPanel = panelEditListener
+    ? () =>
+        panelEditListener({
+          type: 'panelEditClick',
+          data: { panelId: props.panel.id, title: props.panel.title ?? '' },
+        })
+    : undefined;
+
   const showTitleItems =
     (props.panel.links && props.panel.links.length > 0 && onShowPanelLinks) ||
     (props.data.series.length > 0 && props.data.series.some((v) => (v.meta?.notices?.length ?? 0) > 0)) ||
     (props.data.request && props.data.request.timeInfo) ||
     showAngularNotice ||
+    Boolean(onEditPanel) ||
     alertState;
 
   const titleItems = showTitleItems && (
@@ -96,6 +116,7 @@ export function getPanelChromeProps(props: CommonProps) {
       alertState={alertState}
       data={props.data}
       panelId={props.panel.id}
+      onEditPanel={onEditPanel}
       panelLinks={props.panel.links}
       angularNotice={{
         show: showAngularNotice,

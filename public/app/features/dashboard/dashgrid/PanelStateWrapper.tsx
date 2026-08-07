@@ -644,6 +644,12 @@ export class PanelStateWrapperDisConnected extends PureComponent<Props, State> {
 function mapStateToProps() {
   return (state: StoreState) => ({
     isFnDashboard: state.fnGlobalState.FNDashboard,
+    /**
+     * Read from the per-dashboard store so the edit affordance follows whichever
+     * dashboard this panel belongs to.
+     */
+    enablePanelEdit: state.fnGlobalState.enablePanelEdit,
+    panelEditListener: state.fnGlobalState.metadata?.eventListener ?? undefined,
   });
 }
 
