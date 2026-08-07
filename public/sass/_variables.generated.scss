@@ -114,8 +114,8 @@ $font-size-xs: 10px !default;
 
 $line-height-base: 1.5714285714285714 !default;
 
-$font-weight-regular: 300 !default;
-$font-weight-semi-bold: 400 !default;
+$font-weight-regular: 400 !default;
+$font-weight-semi-bold: 500 !default;
 
 $font-size-h1: 1.75rem !default;
 $font-size-h2: 1.5rem !default;
@@ -177,7 +177,7 @@ $zindex-typeahead: 1030;
 $btn-padding-x: 14px !default;
 $btn-padding-y: 0 !default;
 $btn-line-height: $line-height-base;
-$btn-font-weight: 400 !default;
+$btn-font-weight: 500 !default;
 
 $btn-padding-x-sm: 7px !default;
 $btn-padding-y-sm: 4px !default;
@@ -196,8 +196,8 @@ $navbar-padding: 20px;
 
 // dashboard
 $dashboard-padding: $space-md;
-$panel-padding: 8px;
-$panel-header-height: 32px;
+$panel-padding: 12px;
+$panel-header-height: 40px;
 $panel-header-z-index: 10;
 
 // tabs
