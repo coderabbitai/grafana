@@ -9,6 +9,7 @@ export interface FnState {
   slug: string;
   version: number;
   controlsContainer: string | null;
+  dashboardAccessMode: 'standard' | 'custom';
   pageTitle: string;
   queryParams: AnyObject;
   hiddenVariables: string[];
@@ -18,6 +19,7 @@ export interface FnState {
    * owns the editing UI, so Grafana only surfaces the trigger.
    */
   enablePanelEdit: boolean;
+  enablePanelLayoutEdit: boolean;
   metadata: {
     teams: string[];
     eventListener: (<T>(event: { type: string; data: T }) => void) | null;
@@ -39,7 +41,10 @@ export type FnPropMappedFromState = Extract<
   | 'slug'
   | 'version'
   | 'controlsContainer'
+  | 'dashboardAccessMode'
   | 'enablePanelEdit'
+  | 'enablePanelLayoutEdit'
+  | 'portalContainerID'
 >;
 export type FnStateProp = keyof FnState;
 
@@ -47,9 +52,12 @@ export type FnPropsMappedFromState = Pick<FnGlobalState, FnPropMappedFromState>;
 
 export const fnStateProps: FnStateProp[] = [
   'controlsContainer',
+  'dashboardAccessMode',
   'enablePanelEdit',
+  'enablePanelLayoutEdit',
   'hiddenVariables',
   'pageTitle',
+  'portalContainerID',
   'queryParams',
   'slug',
   'uid',
@@ -66,10 +74,12 @@ export const INITIAL_FN_STATE: FnState = {
   slug: '',
   version: 1,
   controlsContainer: null,
+  dashboardAccessMode: 'standard',
   pageTitle: '',
   queryParams: {},
   hiddenVariables: [],
   enablePanelEdit: false,
+  enablePanelLayoutEdit: false,
   metadata: {
     teams: [],
     eventListener: null,

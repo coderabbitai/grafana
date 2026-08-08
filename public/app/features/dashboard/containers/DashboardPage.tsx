@@ -72,7 +72,9 @@ export type MapStateToDashboardPageProps = MapStateToProps<
   Pick<DashboardState, 'initPhase' | 'initError'> & {
     dashboard: ReturnType<DashboardState['getModel']>;
     navIndex: StoreState['navIndex'];
-  } & Pick<FnGlobalState, 'FNDashboard' | 'controlsContainer'>,
+  } & Pick<FnGlobalState, 'FNDashboard' | 'controlsContainer' | 'enablePanelLayoutEdit'> & {
+      dashboardEventListener: FnGlobalState['metadata']['eventListener'];
+    },
   OwnProps,
   StoreState
 >;
@@ -94,6 +96,8 @@ export const mapStateToProps: MapStateToDashboardPageProps = (state) => ({
   navIndex: state.navIndex,
   FNDashboard: state.fnGlobalState.FNDashboard,
   controlsContainer: state.fnGlobalState.controlsContainer,
+  enablePanelLayoutEdit: state.fnGlobalState.enablePanelLayoutEdit,
+  dashboardEventListener: state.fnGlobalState.metadata?.eventListener ?? null,
 });
 
 const mapDispatchToProps: MapDispatchToDashboardPageProps = {
@@ -356,6 +360,22 @@ export class UnthemedDashboardPage extends PureComponent<Props, State> {
     this.setState({ scrollElement });
   };
 
+  getFnDashboardSaveModel() {
+    return this.props.dashboard?.getSaveModelClone();
+  }
+
+  onFnDashboardLayoutChange = () => {
+    const dashboardJson = this.getFnDashboardSaveModel();
+    if (!dashboardJson) {
+      return;
+    }
+
+    this.props.dashboardEventListener?.({
+      type: 'dashboardLayoutChanged',
+      data: dashboardJson,
+    });
+  };
+
   getInspectPanel() {
     const { dashboard, queryParams } = this.props;
 
@@ -376,7 +396,7 @@ export class UnthemedDashboardPage extends PureComponent<Props, State> {
   }
 
   render() {
-    const { dashboard, initError, queryParams, FNDashboard, controlsContainer } = this.props;
+    const { dashboard, initError, queryParams, FNDashboard, controlsContainer, enablePanelLayoutEdit } = this.props;
     const { editPanel, viewPanel, pageNav, sectionNav } = this.state;
     const kioskMode = getKioskMode(this.props.queryParams);
 
@@ -390,6 +410,18 @@ export class UnthemedDashboardPage extends PureComponent<Props, State> {
     const showSubMenu = !editPanel && !kioskMode && !this.props.queryParams.editview;
 
     const showToolbar = FNDashboard || (kioskMode !== KioskMode.Full && !queryParams.editview);
+    const isCustomFnDashboardLayoutEditable = FNDashboard && enablePanelLayoutEdit && !viewPanel && !editPanel;
+    const isDashboardGridLayoutEditable = FNDashboard
+      ? isCustomFnDashboardLayoutEditable
+      : Boolean(dashboard.meta.canEdit);
+    const fnControlsClassName = cx(
+      'flex w-full gap-y-2',
+      viewPanel
+        ? 'flex-row items-start justify-between gap-x-3'
+        : 'flex-col-reverse md:flex-row md:items-center md:justify-between'
+    );
+    const fnVariablesClassName = cx('flex items-center', viewPanel ? 'min-w-0 flex-1' : 'w-full');
+    const fnTimeRangeClassName = cx('flex items-center justify-end gap-2', viewPanel ? 'shrink-0' : 'w-full');
 
     const pageClassName = cx({
       'panel-in-fullscreen': Boolean(viewPanel),
@@ -455,15 +487,15 @@ export class UnthemedDashboardPage extends PureComponent<Props, State> {
           {!FNDashboard && <DashboardPrompt dashboard={dashboard} />}
           {initError && <DashboardFailed />}
           {FNDashboard && (
-            <div className="flex flex-col-reverse md:flex-row md:items-center md:justify-between w-full gap-y-2">
-              <div className="flex items-center w-full">
+            <div className={fnControlsClassName}>
+              <div className={fnVariablesClassName}>
                 {showSubMenu && (
                   <section aria-label={selectors.pages.Dashboard.SubMenu.submenu}>
                     <SubMenu dashboard={dashboard} annotations={dashboard.annotations.list} links={dashboard.links} />
                   </section>
                 )}
               </div>
-              <div className="flex items-center w-full justify-end">{FNTimeRange}</div>
+              <div className={fnTimeRangeClassName}>{FNTimeRange}</div>
             </div>
           )}
           {showSubMenu && !FNDashboard && (
@@ -474,6 +506,8 @@ export class UnthemedDashboardPage extends PureComponent<Props, State> {
           <DashboardGrid
             dashboard={dashboard}
             isEditable={!!dashboard.meta.canEdit && !FNDashboard}
+            isLayoutEditable={isDashboardGridLayoutEditable}
+            onLayoutUpdate={isCustomFnDashboardLayoutEditable ? this.onFnDashboardLayoutChange : undefined}
             viewPanel={viewPanel}
             editPanel={editPanel}
           />

@@ -22,10 +22,12 @@ import { DashboardPanel } from './DashboardPanel';
 export interface Props {
   dashboard: DashboardModel;
   isEditable: boolean;
+  isLayoutEditable?: boolean;
   editPanel: PanelModel | null;
   viewPanel: PanelModel | null;
   hidePanelMenus?: boolean;
   isFnDashboard?: boolean;
+  onLayoutUpdate?: () => void;
   portalContainerID?: string;
 }
 
@@ -33,6 +35,42 @@ interface State {
   /** Host-measured height for an embedded single-panel view. */
   viewPanelHeight?: number;
 }
+
+type GridResizeHandle = NonNullable<ReactGridLayout.ReactGridLayoutProps['resizeHandles']>[number];
+type ResizeHandleRenderer = (resizeHandle: GridResizeHandle, ref: React.RefObject<HTMLSpanElement>) => React.ReactNode;
+
+const customDashboardResizeHandles: GridResizeHandle[] = ['e', 's', 'se'];
+const customDashboardResizeHandleBaseStyle: CSSProperties = {
+  display: 'block',
+  pointerEvents: 'auto',
+  position: 'absolute',
+  touchAction: 'none',
+  visibility: 'visible',
+  zIndex: 20,
+};
+
+const customDashboardResizeHandleStyles: Record<GridResizeHandle, CSSProperties> = {
+  e: { ...customDashboardResizeHandleBaseStyle, cursor: 'ew-resize', height: '100%', right: -6, top: 0, width: 12 },
+  n: { ...customDashboardResizeHandleBaseStyle, cursor: 'ns-resize', height: 12, left: 0, top: -6, width: '100%' },
+  ne: { ...customDashboardResizeHandleBaseStyle, cursor: 'ne-resize', height: 28, right: -6, top: -6, width: 28 },
+  nw: { ...customDashboardResizeHandleBaseStyle, cursor: 'nw-resize', height: 28, left: -6, top: -6, width: 28 },
+  s: { ...customDashboardResizeHandleBaseStyle, bottom: -6, cursor: 'ns-resize', height: 12, left: 0, width: '100%' },
+  se: { ...customDashboardResizeHandleBaseStyle, bottom: -6, cursor: 'se-resize', height: 28, right: -6, width: 28 },
+  sw: { ...customDashboardResizeHandleBaseStyle, bottom: -6, cursor: 'sw-resize', height: 28, left: -6, width: 28 },
+  w: { ...customDashboardResizeHandleBaseStyle, cursor: 'ew-resize', height: '100%', left: -6, top: 0, width: 12 },
+};
+
+const renderCustomDashboardResizeHandle: ResizeHandleRenderer = (resizeHandle, ref) => (
+  <span
+    aria-hidden="true"
+    className={`react-resizable-handle react-resizable-handle-${resizeHandle}`}
+    ref={ref}
+    style={customDashboardResizeHandleStyles[resizeHandle]}
+  />
+);
+
+const customDashboardResizeHandle =
+  renderCustomDashboardResizeHandle as ReactGridLayout.ReactGridLayoutProps['resizeHandle'];
 
 export class Component extends PureComponent<Props, State> {
   private panelMap: { [key: string]: PanelModel } = {};
@@ -44,6 +82,8 @@ export class Component extends PureComponent<Props, State> {
   private lastPanelBottom = 0;
   private isLayoutInitialized = false;
   private portalResizeObserver?: ResizeObserver;
+  private gridWrapperElement?: HTMLDivElement;
+  private embeddedHeightMeasureAnimationFrame?: number;
 
   constructor(props: Props) {
     super(props);
@@ -66,6 +106,12 @@ export class Component extends PureComponent<Props, State> {
     this.eventSubs.unsubscribe();
     this.portalResizeObserver?.disconnect();
     this.portalResizeObserver = undefined;
+    if (this.embeddedHeightMeasureAnimationFrame !== undefined) {
+      if (typeof cancelAnimationFrame === 'function') {
+        cancelAnimationFrame(this.embeddedHeightMeasureAnimationFrame);
+      }
+      this.embeddedHeightMeasureAnimationFrame = undefined;
+    }
   }
 
   /**
@@ -94,25 +140,84 @@ export class Component extends PureComponent<Props, State> {
       return;
     }
 
-    this.portalResizeObserver = new ResizeObserver(() => {
-      const height = portalContainer.clientHeight;
-      if (height > 0 && height !== this.state.viewPanelHeight) {
-        this.setState({ viewPanelHeight: height });
-      }
-    });
+    this.portalResizeObserver = new ResizeObserver(this.scheduleEmbeddedViewPanelHeightMeasure);
     this.portalResizeObserver.observe(portalContainer);
 
-    const height = portalContainer.clientHeight;
-    if (height > 0 && height !== this.state.viewPanelHeight) {
+    const height = this.measureEmbeddedViewPanelHeight();
+    if (height !== undefined && height > 0 && height !== this.state.viewPanelHeight) {
       this.setState({ viewPanelHeight: height });
     }
+  }
+
+  scheduleEmbeddedViewPanelHeightMeasure = () => {
+    if (!this.props.isFnDashboard || !this.props.viewPanel) {
+      return;
+    }
+
+    if (this.embeddedHeightMeasureAnimationFrame !== undefined) {
+      if (typeof cancelAnimationFrame === 'function') {
+        cancelAnimationFrame(this.embeddedHeightMeasureAnimationFrame);
+      }
+      this.embeddedHeightMeasureAnimationFrame = undefined;
+    }
+
+    const measureHeight = () => {
+      this.embeddedHeightMeasureAnimationFrame = undefined;
+      const height = this.measureEmbeddedViewPanelHeight();
+
+      if (height !== undefined && height > 0 && height !== this.state.viewPanelHeight) {
+        this.setState({ viewPanelHeight: height });
+      }
+    };
+
+    if (typeof requestAnimationFrame !== 'function') {
+      measureHeight();
+      return;
+    }
+
+    this.embeddedHeightMeasureAnimationFrame = requestAnimationFrame(measureHeight);
+  };
+
+  measureEmbeddedViewPanelHeight(): number | undefined {
+    if (!this.props.isFnDashboard || !this.props.viewPanel || !this.props.portalContainerID) {
+      return undefined;
+    }
+
+    const portalContainer = document.getElementById(this.props.portalContainerID);
+    if (!portalContainer) {
+      return undefined;
+    }
+
+    const gridElement = this.gridWrapperElement ?? portalContainer.querySelector<HTMLElement>('.react-grid-layout');
+    if (!gridElement) {
+      const height = portalContainer.clientHeight;
+      return height > 0 ? height : undefined;
+    }
+
+    const portalRect = portalContainer.getBoundingClientRect();
+    const gridRect = gridElement.getBoundingClientRect();
+    const availableHeight = Math.floor(portalRect.bottom - gridRect.top - GRID_CELL_VMARGIN);
+
+    return availableHeight > 0 ? availableHeight : undefined;
+  }
+
+  getRenderablePanels(): PanelModel[] {
+    if (this.props.isFnDashboard && this.props.viewPanel) {
+      return [this.props.viewPanel];
+    }
+
+    return this.props.dashboard.panels;
+  }
+
+  isEmbeddedViewPanel(panel: PanelModel): boolean {
+    return Boolean(this.props.isFnDashboard && this.props.viewPanel === panel);
   }
 
   buildLayout() {
     const layout: ReactGridLayout.Layout[] = [];
     this.panelMap = {};
 
-    for (const panel of this.props.dashboard.panels) {
+    for (const panel of this.getRenderablePanels()) {
       if (!panel.key) {
         panel.key = `panel-${panel.id}-${Date.now()}`;
       }
@@ -123,11 +228,12 @@ export class Component extends PureComponent<Props, State> {
         continue;
       }
 
+      const isEmbeddedViewPanel = this.isEmbeddedViewPanel(panel);
       const panelPos: ReactGridLayout.Layout = {
         i: panel.key,
-        x: panel.gridPos.x,
-        y: panel.gridPos.y,
-        w: panel.gridPos.w,
+        x: isEmbeddedViewPanel ? 0 : panel.gridPos.x,
+        y: isEmbeddedViewPanel ? 0 : panel.gridPos.y,
+        w: isEmbeddedViewPanel ? GRID_COLUMN_COUNT : panel.gridPos.w,
         h: panel.gridPos.h,
       };
 
@@ -145,11 +251,15 @@ export class Component extends PureComponent<Props, State> {
   }
 
   onLayoutChange = (newLayout: ReactGridLayout.Layout[]) => {
+    if (this.props.isFnDashboard && this.props.viewPanel) {
+      return;
+    }
+
     for (const newPos of newLayout) {
       this.panelMap[newPos.i!].updateGridPos(newPos, this.isLayoutInitialized);
     }
 
-    if (this.isLayoutInitialized) {
+    if (!this.isLayoutInitialized) {
       this.isLayoutInitialized = true;
     }
 
@@ -172,10 +282,12 @@ export class Component extends PureComponent<Props, State> {
 
   onResizeStop: ItemCallback = (layout, oldItem, newItem) => {
     this.updateGridPos(newItem, layout);
+    this.props.onLayoutUpdate?.();
   };
 
   onDragStop: ItemCallback = (layout, oldItem, newItem) => {
     this.updateGridPos(newItem, layout);
+    this.props.onLayoutUpdate?.();
   };
 
   getPanelScreenPos(panel: PanelModel, gridWidth: number): { top: number; bottom: number } {
@@ -196,8 +308,9 @@ export class Component extends PureComponent<Props, State> {
   }
 
   getEmbeddedViewPanelHeight(): number | undefined {
-    if (!this.props.isFnDashboard || !this.props.viewPanel || !this.props.portalContainerID) {
-      return undefined;
+    const measuredHeight = this.measureEmbeddedViewPanelHeight();
+    if (measuredHeight !== undefined) {
+      return measuredHeight;
     }
 
     // Prefer the observed height; fall back to a direct read for the first paint
@@ -206,9 +319,7 @@ export class Component extends PureComponent<Props, State> {
       return this.state.viewPanelHeight;
     }
 
-    const portalContainer = document.getElementById(this.props.portalContainerID);
-    const height = portalContainer?.clientHeight ?? 0;
-    return height > 0 ? height : undefined;
+    return undefined;
   }
 
   renderPanels(gridWidth: number, isDashboardDraggable: boolean) {
@@ -226,8 +337,9 @@ export class Component extends PureComponent<Props, State> {
       this.gridWidth = gridWidth;
     }
 
-    for (const panel of this.props.dashboard.panels) {
-      const panelClasses = classNames({ 'react-grid-item--fullscreen': panel.isViewing });
+    for (const panel of this.getRenderablePanels()) {
+      const isViewing = panel.isViewing || panel === this.props.viewPanel;
+      const panelClasses = classNames({ 'react-grid-item--fullscreen': isViewing });
 
       panelElements.push(
         <GrafanaGridItem
@@ -239,7 +351,7 @@ export class Component extends PureComponent<Props, State> {
           windowHeight={this.windowHeight}
           windowWidth={this.windowWidth}
           viewPanelHeight={viewPanelHeight}
-          isViewing={panel.isViewing}
+          isViewing={isViewing}
         >
           {(width: number, height: number) => {
             return this.renderPanel(panel, width, height, isDashboardDraggable);
@@ -281,15 +393,26 @@ export class Component extends PureComponent<Props, State> {
    * This can be quite distracting and make the dashboard appear to less snappy.
    */
   onGetWrapperDivRef = (ref: HTMLDivElement | null) => {
+    if (ref) {
+      this.gridWrapperElement = ref;
+    } else {
+      this.gridWrapperElement = undefined;
+    }
+
     if (ref && contextSrv.user.authenticatedBy !== 'render') {
       setTimeout(() => {
         ref.classList.add('react-grid-layout--enable-move-animations');
       }, 50);
     }
+
+    if (ref) {
+      this.scheduleEmbeddedViewPanelHeightMeasure();
+    }
   };
 
   render() {
-    const { isEditable, dashboard, isFnDashboard } = this.props;
+    const { isEditable, isFnDashboard, isLayoutEditable = isEditable, dashboard } = this.props;
+    const useCustomResizeHandle = Boolean(isFnDashboard && isLayoutEditable);
 
     if (config.featureToggles.emptyDashboardPage && dashboard.panels.length === 0) {
       return <DashboardEmpty dashboard={dashboard} canCreate={isEditable} />;
@@ -311,7 +434,7 @@ export class Component extends PureComponent<Props, State> {
             // Disable draggable if mobile device, solving an issue with unintentionally
             // moving panels. https://github.com/grafana/grafana/issues/18497
             const isLg = width <= config.theme2.breakpoints.values.md;
-            const draggable = isLg ? false : isEditable;
+            const draggable = isLg ? false : isLayoutEditable;
 
             return (
               /**
@@ -322,8 +445,10 @@ export class Component extends PureComponent<Props, State> {
               <div style={{ width: width, height: '100%' }} ref={this.onGetWrapperDivRef}>
                 <ReactGridLayout
                   width={width}
-                  isDraggable={isFnDashboard ? false : draggable}
-                  isResizable={isFnDashboard ? false : isEditable}
+                  isDraggable={draggable}
+                  isResizable={isLayoutEditable}
+                  resizeHandle={useCustomResizeHandle ? customDashboardResizeHandle : undefined}
+                  resizeHandles={useCustomResizeHandle ? customDashboardResizeHandles : undefined}
                   containerPadding={[0, 0]}
                   useCSSTransforms={true}
                   margin={[GRID_CELL_VMARGIN, GRID_CELL_VMARGIN]}
