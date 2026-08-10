@@ -4,6 +4,12 @@ import { GrafanaThemeType } from '@grafana/data';
 
 import { AnyObject } from '../../fn-app/types';
 
+export interface FnPanelOptionsUpdate {
+  options: Record<string, unknown>;
+  panelId: number;
+  revision: number;
+}
+
 export interface FnState {
   uid: string;
   slug: string;
@@ -24,6 +30,7 @@ export interface FnState {
     teams: string[];
     eventListener: (<T>(event: { type: string; data: T }) => void) | null;
   };
+  panelOptionsUpdate?: FnPanelOptionsUpdate;
   portalContainerID: string;
 }
 
@@ -44,6 +51,7 @@ export type FnPropMappedFromState = Extract<
   | 'dashboardAccessMode'
   | 'enablePanelEdit'
   | 'enablePanelLayoutEdit'
+  | 'panelOptionsUpdate'
   | 'portalContainerID'
 >;
 export type FnStateProp = keyof FnState;
@@ -57,6 +65,7 @@ export const fnStateProps: FnStateProp[] = [
   'enablePanelLayoutEdit',
   'hiddenVariables',
   'pageTitle',
+  'panelOptionsUpdate',
   'portalContainerID',
   'queryParams',
   'slug',
@@ -84,6 +93,7 @@ export const INITIAL_FN_STATE: FnState = {
     teams: [],
     eventListener: null,
   },
+  panelOptionsUpdate: undefined,
   portalContainerID: 'grafana-portal',
 } as const;
 

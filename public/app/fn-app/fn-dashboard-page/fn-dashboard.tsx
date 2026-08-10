@@ -2,7 +2,7 @@ import { FC, useEffect, useMemo } from 'react';
 // eslint-disable-next-line no-restricted-imports
 import { Provider, shallowEqual, useSelector } from 'react-redux';
 
-import { FnPropMappedFromState, FnState, updatePartialFnStates } from 'app/core/reducers/fn-slice';
+import { FnPropMappedFromState, FnState, fnStateProps, updatePartialFnStates } from 'app/core/reducers/fn-slice';
 import { FnLoggerService } from 'app/fn_logger';
 import {
   MfeGlobalState,
@@ -19,6 +19,23 @@ import { RenderPortal } from '../utils';
 import { RenderFNDashboard } from './render-fn-dashboard';
 
 type FNDashboardComponentProps = Omit<FNDashboardProps, FnPropMappedFromState>;
+type RuntimeFNDashboardComponentProps = FNDashboardComponentProps & Partial<FnState>;
+
+function mergeRuntimeFnProps(props: FnState, runtimeProps: RuntimeFNDashboardComponentProps): FnState {
+  if (runtimeProps.uid !== props.uid) {
+    return props;
+  }
+
+  const runtimeRecord = runtimeProps as Record<string, unknown>;
+  const merged = { ...props } as Record<string, unknown>;
+  for (const key of fnStateProps) {
+    if (key in runtimeRecord) {
+      merged[key] = runtimeRecord[key];
+    }
+  }
+
+  return merged as FnState;
+}
 
 export const FNDashboard: FC<FNDashboardComponentProps> = (props) => {
   return (
@@ -29,6 +46,7 @@ export const FNDashboard: FC<FNDashboardComponentProps> = (props) => {
 };
 
 export const DashboardPortal: FC<FNDashboardComponentProps> = (p) => {
+  const runtimeProps = p as RuntimeFNDashboardComponentProps;
   const globalFnProps = useSelector(({ fnGlobalReducer }: MfeStore) => fnGlobalReducer, shallowEqual);
   const dashboards = useMemo(() => {
     return Object.entries(globalFnProps.dashboards)
@@ -66,8 +84,10 @@ export const DashboardPortal: FC<FNDashboardComponentProps> = (p) => {
         return null;
       }
 
+      const propsWithRuntimeUpdates = mergeRuntimeFnProps(props, runtimeProps);
+
       mfeStore.dispatch(updateRenderingDashboardUID(uid));
-      store.dispatch(updatePartialFnStates(props));
+      store.dispatch(updatePartialFnStates(propsWithRuntimeUpdates));
 
       return (
         <RenderPortal ID={props.portalContainerID} key={uid}>
@@ -75,7 +95,7 @@ export const DashboardPortal: FC<FNDashboardComponentProps> = (p) => {
             <div className="page-dashboard">
               <RenderFNDashboard
                 {...{
-                  ...props,
+                  ...propsWithRuntimeUpdates,
                   ...p,
                   uid,
                   mode: globalFnProps.mode,

@@ -84,6 +84,7 @@ export class Component extends PureComponent<Props, State> {
   private portalResizeObserver?: ResizeObserver;
   private gridWrapperElement?: HTMLDivElement;
   private embeddedHeightMeasureAnimationFrame?: number;
+  private embeddedViewPanelMeasureRetryTimeout?: ReturnType<typeof setTimeout>;
 
   constructor(props: Props) {
     super(props);
@@ -111,6 +112,10 @@ export class Component extends PureComponent<Props, State> {
         cancelAnimationFrame(this.embeddedHeightMeasureAnimationFrame);
       }
       this.embeddedHeightMeasureAnimationFrame = undefined;
+    }
+    if (this.embeddedViewPanelMeasureRetryTimeout !== undefined) {
+      clearTimeout(this.embeddedViewPanelMeasureRetryTimeout);
+      this.embeddedViewPanelMeasureRetryTimeout = undefined;
     }
   }
 
@@ -147,6 +152,8 @@ export class Component extends PureComponent<Props, State> {
     if (height !== undefined && height > 0 && height !== this.state.viewPanelHeight) {
       this.setState({ viewPanelHeight: height });
     }
+
+    this.scheduleEmbeddedViewPanelMeasureRetry();
   }
 
   scheduleEmbeddedViewPanelHeightMeasure = () => {
@@ -178,6 +185,40 @@ export class Component extends PureComponent<Props, State> {
     this.embeddedHeightMeasureAnimationFrame = requestAnimationFrame(measureHeight);
   };
 
+  scheduleEmbeddedViewPanelMeasureRetry = (attempt = 0) => {
+    if (this.embeddedViewPanelMeasureRetryTimeout !== undefined) {
+      clearTimeout(this.embeddedViewPanelMeasureRetryTimeout);
+      this.embeddedViewPanelMeasureRetryTimeout = undefined;
+    }
+
+    if (!this.props.isFnDashboard || !this.props.viewPanel) {
+      return;
+    }
+
+    this.embeddedViewPanelMeasureRetryTimeout = setTimeout(() => {
+      this.embeddedViewPanelMeasureRetryTimeout = undefined;
+
+      if (!this.props.isFnDashboard || !this.props.viewPanel) {
+        return;
+      }
+
+      const width = this.measureEmbeddedViewPanelWidth();
+      const height = this.measureEmbeddedViewPanelHeight();
+      if (width !== undefined && height !== undefined) {
+        if (height !== this.state.viewPanelHeight) {
+          this.setState({ viewPanelHeight: height });
+        } else {
+          this.forceUpdate();
+        }
+        return;
+      }
+
+      if (attempt < 120) {
+        this.scheduleEmbeddedViewPanelMeasureRetry(attempt + 1);
+      }
+    }, 250);
+  };
+
   measureEmbeddedViewPanelHeight(): number | undefined {
     if (!this.props.isFnDashboard || !this.props.viewPanel || !this.props.portalContainerID) {
       return undefined;
@@ -199,6 +240,30 @@ export class Component extends PureComponent<Props, State> {
     const availableHeight = Math.floor(portalRect.bottom - gridRect.top - GRID_CELL_VMARGIN);
 
     return availableHeight > 0 ? availableHeight : undefined;
+  }
+
+  measureEmbeddedViewPanelWidth(): number | undefined {
+    if (!this.props.isFnDashboard || !this.props.viewPanel || !this.props.portalContainerID) {
+      return undefined;
+    }
+
+    const portalContainer = document.getElementById(this.props.portalContainerID);
+    if (!portalContainer) {
+      return undefined;
+    }
+
+    const scrollContainer = portalContainer.querySelector<HTMLElement>('#page-scrollbar');
+    const canvasContent =
+      scrollContainer?.firstElementChild instanceof HTMLElement ? scrollContainer.firstElementChild : undefined;
+    const widthElement = canvasContent ?? portalContainer;
+    const widthElementStyle = getComputedStyle(widthElement);
+    const horizontalPadding =
+      parseFloat(widthElementStyle.paddingLeft || '0') + parseFloat(widthElementStyle.paddingRight || '0');
+    const width = Math.floor(
+      (widthElement.getBoundingClientRect().width || widthElement.clientWidth) - horizontalPadding
+    );
+
+    return width > 0 ? width : undefined;
   }
 
   getRenderablePanels(): PanelModel[] {
@@ -418,6 +483,49 @@ export class Component extends PureComponent<Props, State> {
       return <DashboardEmpty dashboard={dashboard} canCreate={isEditable} />;
     }
 
+    const renderGrid = (gridWidth: number) => {
+      // Disable draggable if mobile device, solving an issue with unintentionally
+      // moving panels. https://github.com/grafana/grafana/issues/18497
+      const isLg = gridWidth <= config.theme2.breakpoints.values.md;
+      const draggable = isLg ? false : isLayoutEditable;
+
+      return (
+        /**
+         * The children use a width of 100%, so wrap them in an element with the
+         * calculated grid width.
+         */
+        <div style={{ width: gridWidth, height: '100%' }} ref={this.onGetWrapperDivRef}>
+          <ReactGridLayout
+            width={gridWidth}
+            isDraggable={draggable}
+            isResizable={isLayoutEditable}
+            resizeHandle={useCustomResizeHandle ? customDashboardResizeHandle : undefined}
+            resizeHandles={useCustomResizeHandle ? customDashboardResizeHandles : undefined}
+            containerPadding={[0, 0]}
+            useCSSTransforms={true}
+            margin={[GRID_CELL_VMARGIN, GRID_CELL_VMARGIN]}
+            cols={GRID_COLUMN_COUNT}
+            rowHeight={GRID_CELL_HEIGHT}
+            draggableHandle=".grid-drag-handle"
+            draggableCancel=".grid-drag-cancel"
+            layout={this.buildLayout()}
+            onDragStop={this.onDragStop}
+            onResize={this.onResize}
+            onResizeStop={this.onResizeStop}
+            onLayoutChange={this.onLayoutChange}
+          >
+            {this.renderPanels(gridWidth, draggable)}
+          </ReactGridLayout>
+        </div>
+      );
+    };
+
+    const renderEmbeddedViewPanelGrid = () => {
+      const gridWidth = this.measureEmbeddedViewPanelWidth();
+
+      return gridWidth === undefined ? null : renderGrid(gridWidth);
+    };
+
     /**
      * We have a parent with "flex: 1 1 0" we need to reset it to "flex: 1 1 auto" to have the AutoSizer
      * properly working. For more information go here:
@@ -425,49 +533,19 @@ export class Component extends PureComponent<Props, State> {
      */
     return (
       <div style={{ flex: '1 1 auto', display: this.props.editPanel ? 'none' : undefined }}>
-        <AutoSizer disableHeight>
-          {({ width }) => {
-            if (width === 0) {
-              return null;
-            }
+        {isFnDashboard && this.props.viewPanel ? (
+          renderEmbeddedViewPanelGrid()
+        ) : (
+          <AutoSizer disableHeight>
+            {({ width }) => {
+              if (width === 0) {
+                return null;
+              }
 
-            // Disable draggable if mobile device, solving an issue with unintentionally
-            // moving panels. https://github.com/grafana/grafana/issues/18497
-            const isLg = width <= config.theme2.breakpoints.values.md;
-            const draggable = isLg ? false : isLayoutEditable;
-
-            return (
-              /**
-               * The children is using a width of 100% so we need to guarantee that it is wrapped
-               * in an element that has the calculated size given by the AutoSizer. The AutoSizer
-               * has a width of 0 and will let its content overflow its div.
-               */
-              <div style={{ width: width, height: '100%' }} ref={this.onGetWrapperDivRef}>
-                <ReactGridLayout
-                  width={width}
-                  isDraggable={draggable}
-                  isResizable={isLayoutEditable}
-                  resizeHandle={useCustomResizeHandle ? customDashboardResizeHandle : undefined}
-                  resizeHandles={useCustomResizeHandle ? customDashboardResizeHandles : undefined}
-                  containerPadding={[0, 0]}
-                  useCSSTransforms={true}
-                  margin={[GRID_CELL_VMARGIN, GRID_CELL_VMARGIN]}
-                  cols={GRID_COLUMN_COUNT}
-                  rowHeight={GRID_CELL_HEIGHT}
-                  draggableHandle=".grid-drag-handle"
-                  draggableCancel=".grid-drag-cancel"
-                  layout={this.buildLayout()}
-                  onDragStop={this.onDragStop}
-                  onResize={this.onResize}
-                  onResizeStop={this.onResizeStop}
-                  onLayoutChange={this.onLayoutChange}
-                >
-                  {this.renderPanels(width, draggable)}
-                </ReactGridLayout>
-              </div>
-            );
-          }}
-        </AutoSizer>
+              return renderGrid(width);
+            }}
+          </AutoSizer>
+        )}
       </div>
     );
   }

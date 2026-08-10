@@ -143,10 +143,27 @@ const getStyles = (theme: GrafanaTheme2) => {
       color: theme.colors.warning.text,
     }),
     editPanel: css({
-      color: theme.colors.text.secondary,
       cursor: 'pointer',
-      '&:hover': {
-        color: theme.colors.text.primary,
+
+      [theme.transitions.handleMotion('no-preference', 'reduce')]: {
+        transition: theme.transitions.create(['color', 'opacity'], {
+          duration: theme.transitions.duration.short,
+        }),
+      },
+
+      '&&': {
+        color: theme.colors.text.disabled,
+        opacity: 0.72,
+      },
+
+      '&&:hover': {
+        color: theme.colors.text.secondary,
+        opacity: 0.9,
+      },
+
+      '&&:focus-visible': {
+        color: theme.colors.text.secondary,
+        opacity: 1,
       },
     }),
   };
