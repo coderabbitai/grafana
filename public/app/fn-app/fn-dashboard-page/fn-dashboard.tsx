@@ -34,7 +34,7 @@ function mergeRuntimeFnProps(props: FnState, runtimeProps: RuntimeFNDashboardCom
     }
   }
 
-  return merged as FnState;
+  return merged as unknown as FnState;
 }
 
 export const FNDashboard: FC<FNDashboardComponentProps> = (props) => {
@@ -95,8 +95,8 @@ export const DashboardPortal: FC<FNDashboardComponentProps> = (p) => {
             <div className="page-dashboard">
               <RenderFNDashboard
                 {...{
-                  ...propsWithRuntimeUpdates,
                   ...p,
+                  ...propsWithRuntimeUpdates,
                   uid,
                   mode: globalFnProps.mode,
                 }}

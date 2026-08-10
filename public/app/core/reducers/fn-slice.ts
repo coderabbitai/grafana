@@ -5,9 +5,9 @@ import { GrafanaThemeType } from '@grafana/data';
 import { AnyObject } from '../../fn-app/types';
 
 export interface FnPanelOptionsUpdate {
-  options: Record<string, unknown>;
-  panelId: number;
-  revision: number;
+  readonly options: Readonly<Record<string, unknown>>;
+  readonly panelId: number;
+  readonly revision: number;
 }
 
 export interface FnState {
