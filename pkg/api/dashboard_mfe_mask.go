@@ -190,7 +190,25 @@ func maskTemplatingList(list *simplejson.Json) {
 func maskRawQueryFields(obj *simplejson.Json, mask string) {
 	for _, field := range mfeMaskedQueryFields {
 		if cur, ok := obj.CheckGet(field); ok {
-			if _, err := cur.String(); err == nil {
+			if s, err := cur.String(); err == nil {
+				// An empty query field has nothing to hide, and masking it is
+				// actively harmful: it fabricates a `[MFE_REDACTED:p:<id>:<refId>]`
+				// marker that promises the proxy a query which does not exist. The
+				// proxy then looks the panel up, finds an empty `rawSql`, and fails
+				// the whole batch closed rather than rendering the panel.
+				//
+				// Two shapes rely on an intentionally empty query field:
+				//   - CodeRabbit reporting-backed panels, whose data comes from the
+				//     reporting API via a `crReportingTag` on the target rather than
+				//     from SQL.
+				//   - Variable metricFindQueries, which the frontend already sends
+				//     with an empty rawSql and a `tempVar<N>` refId.
+				//
+				// Leaving the empty string untouched is safe by construction: there
+				// is no query text to leak.
+				if strings.TrimSpace(s) == "" {
+					continue
+				}
 				obj.Set(field, mask)
 			}
 		}
