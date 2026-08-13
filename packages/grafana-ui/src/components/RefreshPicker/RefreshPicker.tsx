@@ -1,9 +1,14 @@
+import { css, cx, keyframes } from '@emotion/css';
 import { formatDuration } from 'date-fns';
 import { PureComponent } from 'react';
 
-import { SelectableValue, parseDuration } from '@grafana/data';
+import { ArrowPathIcon, ChevronDownIcon, ChevronUpIcon } from '@heroicons/react/16/solid';
+
+import { GrafanaTheme2, SelectableValue, parseDuration } from '@grafana/data';
 import { selectors } from '@grafana/e2e-selectors';
 
+import { stylesFactory, withTheme2 } from '../../themes';
+import { Themeable2 } from '../../types/theme';
 import { t } from '../../utils/i18n';
 import { ButtonSelect } from '../Dropdown/ButtonSelect';
 import { ToolbarButtonVariant, ToolbarButton } from '../ToolbarButton';
@@ -25,28 +30,33 @@ export interface Props {
   width?: string;
   primary?: boolean;
   isOnCanvas?: boolean;
+  isFnDashboard?: boolean;
 }
 
-export class RefreshPicker extends PureComponent<Props> {
-  static offOption = {
-    label: 'Off',
-    value: '',
-    ariaLabel: 'Turn off auto refresh',
-  };
-  static liveOption = {
-    label: 'Live',
-    value: 'LIVE',
-    ariaLabel: 'Turn on live streaming',
-  };
-  static autoOption = {
-    label: 'Auto',
-    value: 'auto',
-    ariaLabel: 'Select refresh from the query range',
-  };
+const refreshPickerOffOption = {
+  label: 'Off',
+  value: '',
+  ariaLabel: 'Turn off auto refresh',
+};
+const refreshPickerLiveOption = {
+  label: 'Live',
+  value: 'LIVE',
+  ariaLabel: 'Turn on live streaming',
+};
+const refreshPickerAutoOption = {
+  label: 'Auto',
+  value: 'auto',
+  ariaLabel: 'Select refresh from the query range',
+};
 
-  static isLive = (refreshInterval?: string): boolean => refreshInterval === RefreshPicker.liveOption.value;
+class UnThemedRefreshPicker extends PureComponent<Props & Themeable2> {
+  static offOption = refreshPickerOffOption;
+  static liveOption = refreshPickerLiveOption;
+  static autoOption = refreshPickerAutoOption;
 
-  constructor(props: Props) {
+  static isLive = (refreshInterval?: string): boolean => refreshInterval === refreshPickerLiveOption.value;
+
+  constructor(props: Props & Themeable2) {
     super(props);
   }
 
@@ -70,9 +80,21 @@ export class RefreshPicker extends PureComponent<Props> {
   }
 
   render() {
-    const { onRefresh, intervals, tooltip, value, text, isLoading, noIntervalPicker, width, showAutoInterval } =
-      this.props;
+    const {
+      onRefresh,
+      intervals,
+      tooltip,
+      value,
+      text,
+      isLoading,
+      noIntervalPicker,
+      width,
+      showAutoInterval,
+      isFnDashboard,
+      theme,
+    } = this.props;
 
+    const styles = getStyles(theme);
     const currentValue = value || '';
     const variant = this.getVariant();
     const options = intervalsToOptions({ intervals, showAutoInterval });
@@ -99,6 +121,25 @@ export class RefreshPicker extends PureComponent<Props> {
     const tooltipIntervalSelected = t('refresh-picker.tooltip.interval-selected', 'Set auto refresh interval');
     const tooltipAutoRefreshOff = t('refresh-picker.tooltip.turned-off', 'Auto refresh off');
     const tooltipAutoRefresh = selectedValue.value === '' ? tooltipAutoRefreshOff : tooltipIntervalSelected;
+    const refreshIcon = isFnDashboard ? (
+      <ArrowPathIcon className={cx(styles.fnButtonIcon, isLoading && styles.fnLoadingIcon)} aria-hidden="true" />
+    ) : isLoading ? (
+      'spinner'
+    ) : (
+      'sync'
+    );
+    const intervalTrailing = isFnDashboard
+      ? (isOpen: boolean) => (
+          <span className={styles.fnTrailing}>
+            {selectedValue.value ? <span className={styles.fnSelectedDot} aria-hidden="true" /> : null}
+            {isOpen ? (
+              <ChevronUpIcon className={styles.fnButtonIcon} aria-hidden="true" />
+            ) : (
+              <ChevronDownIcon className={styles.fnButtonIcon} aria-hidden="true" />
+            )}
+          </span>
+        )
+      : undefined;
 
     return (
       <div style={{ display: 'flex', alignItems: 'center', gap: 4 }} className="refresh-picker">
@@ -107,8 +148,9 @@ export class RefreshPicker extends PureComponent<Props> {
           tooltip={tooltip}
           onClick={onRefresh}
           variant={variant}
-          icon={isLoading ? 'spinner' : 'sync'}
+          icon={refreshIcon}
           style={width ? { width } : undefined}
+          className={isFnDashboard ? styles.fnToolbarButton : undefined}
           data-testid={selectors.components.RefreshPicker.runButtonV2}
         >
           {text}
@@ -119,9 +161,12 @@ export class RefreshPicker extends PureComponent<Props> {
             options={options}
             onChange={this.onChangeSelect}
             variant={variant}
+            className={isFnDashboard ? styles.fnToolbarButton : undefined}
             data-testid={selectors.components.RefreshPicker.intervalButtonV2}
             aria-label={ariaLabel}
             tooltip={tooltipAutoRefresh}
+            trailingContent={intervalTrailing}
+            hideDefaultOpenIcon={isFnDashboard}
           />
         )}
       </div>
@@ -129,25 +174,34 @@ export class RefreshPicker extends PureComponent<Props> {
   }
 }
 
+type RefreshPickerStatics = {
+  offOption: typeof UnThemedRefreshPicker.offOption;
+  liveOption: typeof UnThemedRefreshPicker.liveOption;
+  autoOption: typeof UnThemedRefreshPicker.autoOption;
+  isLive: typeof UnThemedRefreshPicker.isLive;
+};
+
+export const RefreshPicker = withTheme2<Props & Themeable2, RefreshPickerStatics>(UnThemedRefreshPicker);
+
 export function translateOption(option: string) {
   switch (option) {
-    case RefreshPicker.liveOption.value:
+    case refreshPickerLiveOption.value:
       return {
         label: t('refresh-picker.live-option.label', 'Live'),
         value: option,
         ariaLabel: t('refresh-picker.live-option.aria-label', 'Turn on live streaming'),
       };
-    case RefreshPicker.offOption.value:
+    case refreshPickerOffOption.value:
       return {
         label: t('refresh-picker.off-option.label', 'Off'),
         value: option,
         ariaLabel: t('refresh-picker.off-option.aria-label', 'Turn off auto refresh'),
       };
-    case RefreshPicker.autoOption.value:
+    case refreshPickerAutoOption.value:
       return {
-        label: t('refresh-picker.auto-option.label', RefreshPicker.autoOption.label),
+        label: t('refresh-picker.auto-option.label', refreshPickerAutoOption.label),
         value: option,
-        ariaLabel: t('refresh-picker.auto-option.aria-label', RefreshPicker.autoOption.ariaLabel),
+        ariaLabel: t('refresh-picker.auto-option.aria-label', refreshPickerAutoOption.ariaLabel),
       };
   }
   return {
@@ -172,8 +226,66 @@ export function intervalsToOptions({
   });
 
   if (showAutoInterval) {
-    options.unshift(translateOption(RefreshPicker.autoOption.value));
+    options.unshift(translateOption(refreshPickerAutoOption.value));
   }
-  options.unshift(translateOption(RefreshPicker.offOption.value));
+  options.unshift(translateOption(refreshPickerOffOption.value));
   return options;
 }
+
+const rotate = keyframes({
+  from: {
+    transform: 'rotate(0deg)',
+  },
+  to: {
+    transform: 'rotate(360deg)',
+  },
+});
+
+const getStyles = stylesFactory((theme: GrafanaTheme2) => {
+  return {
+    fnToolbarButton: css({
+      color: theme.colors.text.primary,
+      background: theme.colors.background.primary,
+      border: `1px solid ${theme.colors.border.weak}`,
+      borderRadius: theme.shape.radius.default,
+      boxShadow: theme.shadows.z1,
+
+      '&::before': {
+        display: 'none',
+      },
+
+      '&:hover': {
+        color: theme.colors.text.primary,
+        background: theme.colors.action.hover,
+        borderColor: theme.colors.border.medium,
+      },
+
+      '&:active:not(:disabled)': {
+        background: theme.colors.action.hover,
+        boxShadow: 'inset 0 0 0 1px rgba(0, 0, 0, 0.08)',
+      },
+    }),
+    fnButtonIcon: css({
+      width: 16,
+      height: 16,
+      flexShrink: 0,
+      color: 'currentColor',
+    }),
+    fnLoadingIcon: css({
+      animation: `${rotate} 1s linear infinite`,
+    }),
+    fnTrailing: css({
+      display: 'inline-flex',
+      alignItems: 'center',
+      gap: theme.spacing(0.5),
+      marginLeft: theme.spacing(0.5),
+      color: theme.colors.text.secondary,
+    }),
+    fnSelectedDot: css({
+      width: 4,
+      height: 4,
+      borderRadius: theme.shape.radius.circle,
+      background: theme.colors.text.secondary,
+    }),
+  };
+});

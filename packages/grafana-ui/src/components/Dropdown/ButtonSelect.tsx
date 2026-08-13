@@ -11,7 +11,7 @@ import {
   FloatingPortal,
 } from '@floating-ui/react';
 import { FocusScope } from '@react-aria/focus';
-import { memo, HTMLAttributes, useState } from 'react';
+import { memo, HTMLAttributes, ReactNode, useState } from 'react';
 
 import { GrafanaTheme2, SelectableValue } from '@grafana/data';
 
@@ -31,6 +31,8 @@ export interface Props<T> extends HTMLAttributes<HTMLButtonElement> {
   narrow?: boolean;
   variant?: ToolbarButtonVariant;
   tooltip?: string;
+  trailingContent?: ReactNode | ((isOpen: boolean) => ReactNode);
+  hideDefaultOpenIcon?: boolean;
 }
 
 /**
@@ -38,7 +40,8 @@ export interface Props<T> extends HTMLAttributes<HTMLButtonElement> {
  * A temporary component until we have a proper dropdown component
  */
 const ButtonSelectComponent = <T,>(props: Props<T>) => {
-  const { className, options, value, onChange, narrow, variant, ...restProps } = props;
+  const { className, options, value, onChange, narrow, variant, trailingContent, hideDefaultOpenIcon, ...restProps } =
+    props;
   const styles = useStyles2(getStyles);
   const [isOpen, setIsOpen] = useState(false);
 
@@ -83,6 +86,7 @@ const ButtonSelectComponent = <T,>(props: Props<T>) => {
   const dismiss = useDismiss(context);
 
   const { getReferenceProps, getFloatingProps } = useInteractions([dismiss, click]);
+  const resolvedTrailingContent = typeof trailingContent === 'function' ? trailingContent(isOpen) : trailingContent;
 
   const onChangeInternal = (item: SelectableValue<T>) => {
     onChange(item);
@@ -93,10 +97,14 @@ const ButtonSelectComponent = <T,>(props: Props<T>) => {
     <div className={styles.wrapper} ref={refs.setReference}>
       <ToolbarButton
         className={className}
-        isOpen={isOpen}
+        isOpen={hideDefaultOpenIcon ? undefined : isOpen}
         narrow={narrow}
         variant={variant}
-        {...getReferenceProps(restProps)}
+        fnText={resolvedTrailingContent}
+        {...getReferenceProps({
+          ...restProps,
+          ...(hideDefaultOpenIcon ? { 'aria-expanded': isOpen } : {}),
+        })}
       >
         {value?.label || (value?.value != null ? String(value?.value) : null)}
       </ToolbarButton>
