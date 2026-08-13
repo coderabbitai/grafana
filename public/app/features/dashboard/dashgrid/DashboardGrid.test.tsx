@@ -15,7 +15,7 @@ import { VariablesChanged } from 'app/features/variables/types';
 import { configureStore } from 'app/store/configureStore';
 import { DashboardMeta } from 'app/types';
 
-import { DashboardModel } from '../state';
+import { DashboardModel, PanelModel } from '../state';
 import { createDashboardModelFixture } from '../state/__fixtures__/dashboardFixtures';
 
 import { Component, DashboardGrid, Props } from './DashboardGrid';
@@ -69,6 +69,15 @@ function getRect(overrides: Partial<DOMRect>): DOMRect {
     y: 0,
     ...overrides,
   };
+}
+
+function getRequiredPanel(dashboard: DashboardModel, panelId: number): PanelModel {
+  const panel = dashboard.getPanelById(panelId);
+  if (!panel) {
+    throw new Error(`Expected test dashboard to contain panel ${panelId}`);
+  }
+
+  return panel;
 }
 
 function getTestDashboard(
@@ -133,7 +142,7 @@ describe('DashboardGrid', () => {
 
   it('Should render only the selected panel in embedded view-panel mode', async () => {
     const dashboard = getTestDashboard();
-    const viewPanel = dashboard.getPanelById(2);
+    const viewPanel = getRequiredPanel(dashboard, 2);
     dashboard.initViewPanel(viewPanel);
 
     const props: Props = {
@@ -157,7 +166,7 @@ describe('DashboardGrid', () => {
 
   it('Should normalize selected panel layout in embedded view-panel mode without changing the dashboard model', () => {
     const dashboard = getTestDashboard();
-    const viewPanel = dashboard.getPanelById(2);
+    const viewPanel = getRequiredPanel(dashboard, 2);
     const originalGridPos = { x: 12, y: 10, w: 12, h: 10 };
     viewPanel.gridPos = { ...originalGridPos };
     dashboard.initViewPanel(viewPanel);
@@ -192,7 +201,7 @@ describe('DashboardGrid', () => {
 
   it('Should measure embedded view-panel height below dashboard controls', () => {
     const dashboard = getTestDashboard();
-    const viewPanel = dashboard.getPanelById(2);
+    const viewPanel = getRequiredPanel(dashboard, 2);
     dashboard.initViewPanel(viewPanel);
     const portal = document.createElement('div');
     const gridWrapper = document.createElement('div');

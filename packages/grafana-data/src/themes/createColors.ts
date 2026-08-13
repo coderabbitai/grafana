@@ -192,9 +192,9 @@ class LightColors implements ThemeColorsBase<Partial<ThemeRichColor>> {
   };
 
   border = {
-    weak: '#ebe9ee',
-    medium: '#dcd9e1',
-    strong: '#c4c0cb',
+    weak: '#e3e0e7',
+    medium: '#d0ccd5',
+    strong: '#bdb9c2',
   };
 
   secondary = {
@@ -228,12 +228,10 @@ class LightColors implements ThemeColorsBase<Partial<ThemeRichColor>> {
     text: '#ab6400',
   };
 
-  // Panels sit on a pure-white surface floating over a soft mauve canvas so the
-  // card edges read cleanly, matching the Carrot UI light surfaces.
   background = {
-    primary: '#ffffff',
-    canvas: '#f5f3f7',
-    secondary: '#faf9fb',
+    primary: '#faf8fb',
+    canvas: '#e9e7ed',
+    secondary: '#fdfdfe',
   };
 
   action = {

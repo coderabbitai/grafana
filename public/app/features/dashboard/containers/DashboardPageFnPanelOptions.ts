@@ -1,6 +1,17 @@
 import type { FieldConfigSource } from '@grafana/data';
 import type { FnPanelOptionsUpdate } from 'app/core/reducers/fn-slice';
-import type { PanelModel } from 'app/features/dashboard/state';
+
+export interface FnPanelOptionsPreviewTarget {
+  description?: string;
+  fieldConfig?: FieldConfigSource;
+  id: number;
+  options?: Record<string, unknown>;
+  render: () => void;
+  title: string;
+  type: string;
+  updateFieldConfig: (fieldConfig: FieldConfigSource) => void;
+  updateOptions: (options: Record<string, unknown>) => void;
+}
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
@@ -19,7 +30,7 @@ function booleanValue(value: unknown): boolean | undefined {
 }
 
 function stringArrayValue(value: unknown): string[] | undefined {
-  return Array.isArray(value) ? value.filter((item): item is string => typeof item === 'string') : undefined;
+  return Array.isArray(value) && value.every((item): item is string => typeof item === 'string') ? value : undefined;
 }
 
 interface PanelFieldConfigParts {
@@ -33,7 +44,7 @@ const EMPTY_FIELD_CONFIG: FieldConfigSource = {
   overrides: [],
 };
 
-function panelFieldConfigParts(panel: PanelModel): PanelFieldConfigParts {
+function panelFieldConfigParts(panel: FnPanelOptionsPreviewTarget): PanelFieldConfigParts {
   const baseFieldConfig = panel.fieldConfig ?? EMPTY_FIELD_CONFIG;
   const defaults = isRecord(baseFieldConfig.defaults) ? { ...baseFieldConfig.defaults } : {};
   const custom = isRecord(defaults.custom) ? { ...defaults.custom } : {};
@@ -50,39 +61,47 @@ function panelFieldConfigParts(panel: PanelModel): PanelFieldConfigParts {
   };
 }
 
-function supportsLegendAndTooltip(panel: PanelModel): boolean {
+function supportsLegendAndTooltip(panel: FnPanelOptionsPreviewTarget): boolean {
   return panel.type === 'timeseries' || panel.type === 'barchart' || panel.type === 'piechart';
 }
 
 function applyLegendOptions(
-  panel: PanelModel,
+  panel: FnPanelOptionsPreviewTarget,
   options: Record<string, unknown>,
   draft: Readonly<Record<string, unknown>>
 ): void {
+  const legendVisible = booleanValue(draft.legend);
+  const legendMode = stringValue(draft.legendMode);
+  const legendPlacement = stringValue(draft.legendPlacement);
+  const legendValues = panel.type === 'piechart' ? stringArrayValue(draft.pieLegendValues) : undefined;
+
+  if (
+    legendVisible === undefined &&
+    legendMode === undefined &&
+    legendPlacement === undefined &&
+    legendValues === undefined
+  ) {
+    return;
+  }
+
   const legend: Record<string, unknown> = isRecord(options.legend)
     ? { ...options.legend }
     : { calcs: [], displayMode: 'list', placement: 'bottom' };
 
-  const legendVisible = booleanValue(draft.legend);
   if (legendVisible !== undefined) {
     legend.showLegend = legendVisible;
   }
 
-  const legendMode = stringValue(draft.legendMode);
   if (legendMode !== undefined) {
     legend.displayMode = legendMode;
   }
 
-  const legendPlacement = stringValue(draft.legendPlacement);
   if (legendPlacement !== undefined) {
     legend.placement = legendPlacement;
   }
 
-  if (panel.type === 'piechart') {
-    const legendValues = stringArrayValue(draft.pieLegendValues);
-    if (legendValues !== undefined) {
-      legend.values = legendValues;
-    }
+  if (legendValues !== undefined) {
+    legend.values = legendValues;
   }
 
   options.legend = legend;
@@ -106,7 +125,7 @@ function applyTooltipOptions(options: Record<string, unknown>, draft: Readonly<R
 }
 
 function applySharedGraphOptions(
-  panel: PanelModel,
+  panel: FnPanelOptionsPreviewTarget,
   options: Record<string, unknown>,
   draft: Readonly<Record<string, unknown>>
 ): void {
@@ -118,7 +137,7 @@ function applySharedGraphOptions(
   applyTooltipOptions(options, draft);
 }
 
-export function applyFnPanelOptionsPreview(panel: PanelModel, update: FnPanelOptionsUpdate): void {
+export function applyFnPanelOptionsPreview(panel: FnPanelOptionsPreviewTarget, update: FnPanelOptionsUpdate): void {
   const draft = update.options;
   const previousFieldConfig = JSON.stringify(panel.fieldConfig ?? { defaults: {}, overrides: [] });
   const previousOptions = JSON.stringify(panel.options ?? {});

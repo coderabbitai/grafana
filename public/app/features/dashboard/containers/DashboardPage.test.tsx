@@ -1,9 +1,8 @@
 import type { FieldConfigSource } from '@grafana/data';
-import type { PanelModel } from 'app/features/dashboard/state';
 
-import { applyFnPanelOptionsPreview } from './DashboardPageFnPanelOptions';
+import { applyFnPanelOptionsPreview, type FnPanelOptionsPreviewTarget } from './DashboardPageFnPanelOptions';
 
-interface PanelStub {
+interface PanelStub extends FnPanelOptionsPreviewTarget {
   description?: string;
   fieldConfig: FieldConfigSource;
   id: number;
@@ -18,7 +17,8 @@ interface PanelStub {
 function getPanel(
   type: string,
   panelOverrides: Partial<Pick<PanelStub, 'description' | 'fieldConfig' | 'options' | 'title'>> = {}
-): PanelModel & PanelStub {
+): PanelStub {
+  // The preview helper mutates these fields just like PanelModel does at runtime.
   const panel: PanelStub = {
     fieldConfig: { defaults: {}, overrides: [] },
     id: 1,
@@ -38,10 +38,10 @@ function getPanel(
     panel.options = options;
   });
 
-  return panel as PanelModel & PanelStub;
+  return panel;
 }
 
-function applyOptions(panel: PanelModel, options: Record<string, unknown>): void {
+function applyOptions(panel: PanelStub, options: Record<string, unknown>): void {
   applyFnPanelOptionsPreview(panel, {
     options,
     panelId: panel.id,
@@ -146,6 +146,18 @@ describe('applyFnPanelOptionsPreview', () => {
     expect(panel.options.tooltip).toEqual({ mode: 'multi', sort: 'desc' });
   });
 
+  it('does not create legend options for unit-only graph updates', () => {
+    const panel = getPanel('timeseries');
+
+    applyOptions(panel, {
+      unit: 's',
+    });
+
+    expect(panel.fieldConfig.defaults).toEqual(expect.objectContaining({ unit: 's' }));
+    expect(panel.options).toEqual({});
+    expect(panel.updateOptions).not.toHaveBeenCalled();
+  });
+
   it('applies bar chart layout and display options', () => {
     const panel = getPanel('barchart');
 
@@ -197,5 +209,25 @@ describe('applyFnPanelOptionsPreview', () => {
         tooltip: { mode: 'none', sort: 'none' },
       })
     );
+  });
+
+  it('ignores malformed pie string arrays instead of partially applying them', () => {
+    const panel = getPanel('piechart', {
+      options: {
+        displayLabels: ['name'],
+        legend: { values: ['value'] },
+      },
+    });
+
+    applyOptions(panel, {
+      pieDisplayLabels: ['percent', true],
+      pieLegendValues: ['percent', false],
+    });
+
+    expect(panel.options).toEqual({
+      displayLabels: ['name'],
+      legend: { values: ['value'] },
+    });
+    expect(panel.updateOptions).not.toHaveBeenCalled();
   });
 });

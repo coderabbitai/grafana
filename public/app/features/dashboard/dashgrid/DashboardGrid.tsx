@@ -98,7 +98,11 @@ export class Component extends PureComponent<Props, State> {
   }
 
   componentDidUpdate(prevProps: Props) {
-    if (prevProps.portalContainerID !== this.props.portalContainerID || prevProps.viewPanel !== this.props.viewPanel) {
+    if (
+      prevProps.portalContainerID !== this.props.portalContainerID ||
+      prevProps.viewPanel !== this.props.viewPanel ||
+      prevProps.isFnDashboard !== this.props.isFnDashboard
+    ) {
       this.observePortalContainer();
     }
   }

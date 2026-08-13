@@ -56,11 +56,9 @@ export interface ThemeComponents {
 }
 
 export function createComponents(colors: ThemeColors, shadows: ThemeShadows): ThemeComponents {
-  // Roomier panel chrome (12px gutters, 40px header) so charts breathe the way
-  // they do in the Carrot UI / Vercel card language instead of hugging the border.
   const panel = {
-    padding: 1.5,
-    headerHeight: 5,
+    padding: 1,
+    headerHeight: 4,
     background: colors.background.primary,
     borderColor: colors.border.weak,
     boxShadow: 'none',
