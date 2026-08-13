@@ -260,6 +260,72 @@ func TestMaskDashboardQueriesForMFE(t *testing.T) {
 // The proxy decodes each segment with `decodeURIComponent`, which preserves
 // `+` literally — so emitting `+` for space here would break the round-trip
 // for refIDs / variable names containing spaces.
+func TestMaskDashboardQueriesLeavesEmptyQueryFields(t *testing.T) {
+	// Regression: masking an empty rawSql fabricated a redaction marker that
+	// promised the CodeRabbit proxy a query which does not exist. The proxy
+	// resolved the panel, found no SQL, and failed the whole /api/ds/query batch
+	// with "Failed to resolve FN-redacted query".
+	t.Run("leaves an empty rawSql untouched", func(t *testing.T) {
+		raw := []byte(`{
+			"panels": [
+				{
+					"id": 4,
+					"targets": [
+						{
+							"refId": "A",
+							"rawSql": "",
+							"crReportingTag": "[CR_REPORT:abc]"
+						}
+					]
+				}
+			]
+		}`)
+		data, err := simplejson.NewJson(raw)
+		require.NoError(t, err)
+
+		maskDashboardQueriesForMFE(data)
+
+		target := data.Get("panels").GetIndex(0).Get("targets").GetIndex(0)
+		require.Equal(t, "", target.Get("rawSql").MustString())
+		// The reporting tag is not a masked query field and must survive intact.
+		require.Equal(t, "[CR_REPORT:abc]", target.Get("crReportingTag").MustString())
+	})
+
+	t.Run("leaves a whitespace-only query untouched", func(t *testing.T) {
+		raw := []byte(`{
+			"panels": [
+				{"id": 7, "targets": [{"refId": "A", "rawSql": "   "}]}
+			]
+		}`)
+		data, err := simplejson.NewJson(raw)
+		require.NoError(t, err)
+
+		maskDashboardQueriesForMFE(data)
+
+		target := data.Get("panels").GetIndex(0).Get("targets").GetIndex(0)
+		require.Equal(t, "   ", target.Get("rawSql").MustString())
+	})
+
+	t.Run("still masks a non-empty query on the same dashboard", func(t *testing.T) {
+		raw := []byte(`{
+			"panels": [
+				{"id": 4, "targets": [{"refId": "A", "rawSql": ""}]},
+				{"id": 5, "targets": [{"refId": "A", "rawSql": "SELECT 1"}]}
+			]
+		}`)
+		data, err := simplejson.NewJson(raw)
+		require.NoError(t, err)
+
+		maskDashboardQueriesForMFE(data)
+
+		panels := data.Get("panels")
+		require.Equal(t, "", panels.GetIndex(0).Get("targets").GetIndex(0).Get("rawSql").MustString())
+		require.Equal(t,
+			"[MFE_REDACTED:p:5:A]",
+			panels.GetIndex(1).Get("targets").GetIndex(0).Get("rawSql").MustString())
+	})
+}
+
 func TestMfeEncodeMaskSegment(t *testing.T) {
 	cases := map[string]string{
 		"":             "",
