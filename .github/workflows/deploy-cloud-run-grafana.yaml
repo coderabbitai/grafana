@@ -11,6 +11,13 @@ on:
 jobs:
   build_and_deploy:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    env:
+      DEV4_IMAGE: gcr.io/coderabbitdev4/grafana-base:latest
+      DEV4_WIF_PROVIDER: "projects/803057949155/locations/global/workloadIdentityPools/github-actions-pool/providers/github-actions-provider"
+      DEV4_WIF_SERVICE_ACCOUNT: "gha-dev4-sa@coderabbitdev4.iam.gserviceaccount.com"
     steps:
       - uses: actions/checkout@v4
 
@@ -40,16 +47,25 @@ jobs:
           # cache-from: type=local,src=/tmp/.buildx-cache
           # cache-to: type=local,dest=/tmp/.buildx-cache-new
 
-      - uses: google-github-actions/auth@v2
+      - name: Authenticate to Google Cloud (dev4) with OIDC
+        id: auth_dev4
+        uses: google-github-actions/auth@v2
         with:
-          credentials_json: ${{ secrets.GOOGLECLOUDSA }}
+          workload_identity_provider: ${{ env.DEV4_WIF_PROVIDER }}
+          service_account: ${{ env.DEV4_WIF_SERVICE_ACCOUNT }}
+          token_format: access_token
 
-      - run: gcloud auth configure-docker gcr.io --quiet
+      - name: Login to GCR (dev4)
+        uses: docker/login-action@v3
+        with:
+          registry: gcr.io
+          username: oauth2accesstoken
+          password: ${{ steps.auth_dev4.outputs.access_token }}
 
-      - name: Push image to dev
+      - name: Push image to dev4
         run: |
-          docker tag grafana:latest gcr.io/coderabbit/grafana-base:latest
-          docker push gcr.io/coderabbit/grafana-base:latest
+          docker tag grafana:latest "$DEV4_IMAGE"
+          docker push "$DEV4_IMAGE"
 
       # - name: Move Docker cache
       #   run: |
@@ -58,7 +74,6 @@ jobs:
 
       # - name: Deploy to Cloud Run
       #   run: gcloud run deploy grafana --image gcr.io/coderabbit/grafana:latest --region us-central1 --allow-unauthenticated --vpc-connector=coderabbitai-dev-cr
-
 
       - name: Trigger a repository dispatch
         run: |
