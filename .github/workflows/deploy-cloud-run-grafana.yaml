@@ -15,9 +15,24 @@ jobs:
       contents: read
       id-token: write
     env:
+      DEV_IMAGE: gcr.io/coderabbit/grafana-base:latest
+      DEV_WIF_PROVIDER: "projects/360385018187/locations/global/workloadIdentityPools/github-actions-pool/providers/github-actions-provider"
+      DEV_WIF_SERVICE_ACCOUNT: "gha-dev-sa@coderabbit.iam.gserviceaccount.com"
+      DEV2_IMAGE: gcr.io/coderabbitdev2/grafana-base:latest
+      DEV2_WIF_PROVIDER: "projects/103024399030/locations/global/workloadIdentityPools/github-actions-pool/providers/github-actions-provider"
+      DEV2_WIF_SERVICE_ACCOUNT: "gha-dev2-sa@coderabbitdev2.iam.gserviceaccount.com"
+      DEV3_IMAGE: gcr.io/coderabbitdev3/grafana-base:latest
+      DEV3_WIF_PROVIDER: "projects/135276041522/locations/global/workloadIdentityPools/github-actions-pool/providers/github-actions-provider"
+      DEV3_WIF_SERVICE_ACCOUNT: "ga-dev3-sa@coderabbitdev3.iam.gserviceaccount.com"
       DEV4_IMAGE: gcr.io/coderabbitdev4/grafana-base:latest
       DEV4_WIF_PROVIDER: "projects/803057949155/locations/global/workloadIdentityPools/github-actions-pool/providers/github-actions-provider"
       DEV4_WIF_SERVICE_ACCOUNT: "gha-dev4-sa@coderabbitdev4.iam.gserviceaccount.com"
+      QA_IMAGE: gcr.io/coderabbit-qa/grafana-base:latest
+      QA_WIF_PROVIDER: "projects/573007642573/locations/global/workloadIdentityPools/github-actions-pool/providers/github-actions-provider"
+      QA_WIF_SERVICE_ACCOUNT: "gha-qa-sa@coderabbit-qa.iam.gserviceaccount.com"
+      STAGE_IMAGE: gcr.io/coderabbitstage/grafana-base:latest
+      STAGE_WIF_PROVIDER: "projects/622905223913/locations/global/workloadIdentityPools/github-actions-pool/providers/github-actions-provider"
+      STAGE_WIF_SERVICE_ACCOUNT: "gha-stage-sa@coderabbitstage.iam.gserviceaccount.com"
     steps:
       - uses: actions/checkout@v4
 
@@ -47,6 +62,66 @@ jobs:
           # cache-from: type=local,src=/tmp/.buildx-cache
           # cache-to: type=local,dest=/tmp/.buildx-cache-new
 
+      - name: Authenticate to Google Cloud (dev) with OIDC
+        id: auth_dev
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ env.DEV_WIF_PROVIDER }}
+          service_account: ${{ env.DEV_WIF_SERVICE_ACCOUNT }}
+          token_format: access_token
+
+      - name: Login to GCR (dev)
+        uses: docker/login-action@v3
+        with:
+          registry: gcr.io
+          username: oauth2accesstoken
+          password: ${{ steps.auth_dev.outputs.access_token }}
+
+      - name: Push image to dev
+        run: |
+          docker tag grafana:latest "$DEV_IMAGE"
+          docker push "$DEV_IMAGE"
+
+      - name: Authenticate to Google Cloud (dev2) with OIDC
+        id: auth_dev2
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ env.DEV2_WIF_PROVIDER }}
+          service_account: ${{ env.DEV2_WIF_SERVICE_ACCOUNT }}
+          token_format: access_token
+
+      - name: Login to GCR (dev2)
+        uses: docker/login-action@v3
+        with:
+          registry: gcr.io
+          username: oauth2accesstoken
+          password: ${{ steps.auth_dev2.outputs.access_token }}
+
+      - name: Push image to dev2
+        run: |
+          docker tag grafana:latest "$DEV2_IMAGE"
+          docker push "$DEV2_IMAGE"
+
+      - name: Authenticate to Google Cloud (dev3) with OIDC
+        id: auth_dev3
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ env.DEV3_WIF_PROVIDER }}
+          service_account: ${{ env.DEV3_WIF_SERVICE_ACCOUNT }}
+          token_format: access_token
+
+      - name: Login to GCR (dev3)
+        uses: docker/login-action@v3
+        with:
+          registry: gcr.io
+          username: oauth2accesstoken
+          password: ${{ steps.auth_dev3.outputs.access_token }}
+
+      - name: Push image to dev3
+        run: |
+          docker tag grafana:latest "$DEV3_IMAGE"
+          docker push "$DEV3_IMAGE"
+
       - name: Authenticate to Google Cloud (dev4) with OIDC
         id: auth_dev4
         uses: google-github-actions/auth@v2
@@ -66,6 +141,46 @@ jobs:
         run: |
           docker tag grafana:latest "$DEV4_IMAGE"
           docker push "$DEV4_IMAGE"
+
+      - name: Authenticate to Google Cloud (qa) with OIDC
+        id: auth_qa
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ env.QA_WIF_PROVIDER }}
+          service_account: ${{ env.QA_WIF_SERVICE_ACCOUNT }}
+          token_format: access_token
+
+      - name: Login to GCR (qa)
+        uses: docker/login-action@v3
+        with:
+          registry: gcr.io
+          username: oauth2accesstoken
+          password: ${{ steps.auth_qa.outputs.access_token }}
+
+      - name: Push image to qa
+        run: |
+          docker tag grafana:latest "$QA_IMAGE"
+          docker push "$QA_IMAGE"
+
+      - name: Authenticate to Google Cloud (staging) with OIDC
+        id: auth_stage
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ env.STAGE_WIF_PROVIDER }}
+          service_account: ${{ env.STAGE_WIF_SERVICE_ACCOUNT }}
+          token_format: access_token
+
+      - name: Login to GCR (staging)
+        uses: docker/login-action@v3
+        with:
+          registry: gcr.io
+          username: oauth2accesstoken
+          password: ${{ steps.auth_stage.outputs.access_token }}
+
+      - name: Push image to staging
+        run: |
+          docker tag grafana:latest "$STAGE_IMAGE"
+          docker push "$STAGE_IMAGE"
 
       # - name: Move Docker cache
       #   run: |
