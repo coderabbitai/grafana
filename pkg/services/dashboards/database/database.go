@@ -850,6 +850,10 @@ func (d *dashboardStore) FindDashboards(ctx context.Context, query *dashboards.F
 		filters = append(filters, searchstore.TagsFilter{Tags: query.Tags})
 	}
 
+	if query.WorkspaceID != "" {
+		filters = append(filters, searchstore.WorkspaceFilter{WorkspaceID: query.WorkspaceID})
+	}
+
 	if len(query.DashboardUIDs) > 0 {
 		filters = append(filters, searchstore.DashboardFilter{UIDs: query.DashboardUIDs})
 	} else if len(query.DashboardIds) > 0 {

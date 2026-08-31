@@ -1,9 +1,9 @@
 import { css, cx } from '@emotion/css';
+import { InformationCircleIcon } from '@heroicons/react/24/outline';
 
 import { GrafanaTheme2 } from '@grafana/data';
 
 import { useStyles2 } from '../../themes';
-import { Icon } from '../Icon/Icon';
 import { Tooltip } from '../Tooltip';
 
 import { TitleItem } from './TitleItem';
@@ -30,7 +30,8 @@ export function PanelDescription({ description, className }: Props) {
   return description !== '' ? (
     <Tooltip interactive content={getDescriptionContent}>
       <TitleItem className={cx(className, styles.description)}>
-        <Icon name="info-circle" size="md" />
+        {/* Heroicons is the icon set used by the CodeRabbit UI (Carrot UI) design system. */}
+        <InformationCircleIcon className={styles.icon} aria-hidden />
       </TitleItem>
     </Tooltip>
   ) : null;
@@ -46,6 +47,19 @@ const getStyles = (theme: GrafanaTheme2) => {
 
       'pre > code': {
         display: 'block',
+      },
+    }),
+    icon: css({
+      width: 16,
+      height: 16,
+      flexShrink: 0,
+      color: theme.colors.text.secondary,
+      transition: theme.transitions.create('color', {
+        duration: theme.transitions.duration.shortest,
+      }),
+
+      '&:hover': {
+        color: theme.colors.text.primary,
       },
     }),
   };

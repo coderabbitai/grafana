@@ -96,6 +96,9 @@ func (hs *HTTPServer) Search(c *contextmodel.ReqContext) response.Response {
 		FolderUIDs:    folderUIDs,
 		Permission:    permission,
 		Sort:          sort,
+		// CodeRabbit MFE: scopes AI-generated custom dashboards to the calling
+		// product workspace. Ignored when absent.
+		WorkspaceID: c.Query("workspaceId"),
 	}
 
 	hits, err := hs.SearchService.SearchHandler(c.Req.Context(), &searchQuery)

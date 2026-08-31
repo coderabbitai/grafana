@@ -1,4 +1,13 @@
 import { css, cx } from '@emotion/css';
+import {
+  CalendarDaysIcon,
+  ChevronDownIcon,
+  ChevronLeftIcon,
+  ChevronRightIcon,
+  ChevronUpIcon,
+  ExclamationTriangleIcon,
+  MagnifyingGlassMinusIcon,
+} from '@heroicons/react/16/solid';
 import { useDialog } from '@react-aria/dialog';
 import { FocusScope } from '@react-aria/focus';
 import { useOverlay } from '@react-aria/overlays';
@@ -49,6 +58,7 @@ export interface TimeRangePickerProps {
   /** Which day of the week the calendar should start on. Possible values: "saturday", "sunday" or "monday" */
   weekStart?: WeekStart;
   fnText?: ReactNode;
+  isFnDashboard?: boolean;
 }
 
 export interface State {
@@ -77,6 +87,7 @@ export function TimeRangePicker(props: TimeRangePickerProps) {
     onToolbarTimePickerClick,
     weekStart,
     fnText = '',
+    isFnDashboard = false,
   } = props;
 
   const onChange = (timeRange: TimeRange) => {
@@ -121,6 +132,27 @@ export function TimeRangePicker(props: TimeRangePickerProps) {
 
   const isFromAfterTo = value?.to?.isBefore(value.from);
   const timePickerIcon = isFromAfterTo ? 'exclamation-triangle' : 'clock-nine';
+  const pickerIcon = isFnDashboard ? (
+    isFromAfterTo ? (
+      <ExclamationTriangleIcon className={cx(styles.fnButtonIcon, styles.fnWarningIcon)} aria-hidden="true" />
+    ) : (
+      <CalendarDaysIcon className={styles.fnButtonIcon} aria-hidden="true" />
+    )
+  ) : (
+    timePickerIcon
+  );
+  const pickerTrailing = isFnDashboard ? (
+    <span className={styles.fnTrailing}>
+      {fnText}
+      {isOpen ? (
+        <ChevronUpIcon className={styles.fnChevronIcon} aria-hidden="true" />
+      ) : (
+        <ChevronDownIcon className={styles.fnChevronIcon} aria-hidden="true" />
+      )}
+    </span>
+  ) : (
+    fnText
+  );
 
   const currentTimeRange = formattedRange(value, timeZone);
 
@@ -131,8 +163,9 @@ export function TimeRangePicker(props: TimeRangePickerProps) {
           aria-label={t('time-picker.range-picker.backwards-time-aria-label', 'Move time range backwards')}
           variant={variant}
           onClick={onMoveBackward}
-          icon="angle-left"
+          icon={isFnDashboard ? <ChevronLeftIcon className={styles.fnButtonIcon} aria-hidden="true" /> : 'angle-left'}
           narrow
+          className={isFnDashboard ? styles.fnToolbarButton : undefined}
         />
       )}
 
@@ -147,12 +180,17 @@ export function TimeRangePicker(props: TimeRangePickerProps) {
             currentTimeRange,
           })}
           aria-controls="TimePickerContent"
+          aria-expanded={isFnDashboard ? isOpen : undefined}
           onClick={onToolbarButtonSwitch}
-          icon={timePickerIcon}
-          isOpen={isOpen}
+          icon={pickerIcon}
+          isOpen={isFnDashboard ? undefined : isOpen}
           variant={variant}
-          className={styles.pickerButton}
-          fnText={fnText}
+          className={cx(
+            styles.pickerButton,
+            isFnDashboard && styles.fnToolbarButton,
+            isFnDashboard && styles.fnPickerButton
+          )}
+          fnText={pickerTrailing}
         >
           <TimePickerButtonLabel {...props} />
         </ToolbarButton>
@@ -188,9 +226,10 @@ export function TimeRangePicker(props: TimeRangePickerProps) {
         <ToolbarButton
           aria-label={t('time-picker.range-picker.forwards-time-aria-label', 'Move time range forwards')}
           onClick={onMoveForward}
-          icon="angle-right"
+          icon={isFnDashboard ? <ChevronRightIcon className={styles.fnButtonIcon} aria-hidden="true" /> : 'angle-right'}
           narrow
           variant={variant}
+          className={isFnDashboard ? styles.fnToolbarButton : undefined}
         />
       )}
 
@@ -198,8 +237,15 @@ export function TimeRangePicker(props: TimeRangePickerProps) {
         <ToolbarButton
           aria-label={t('time-picker.range-picker.zoom-out-button', 'Zoom out time range')}
           onClick={onZoom}
-          icon="search-minus"
+          icon={
+            isFnDashboard ? (
+              <MagnifyingGlassMinusIcon className={styles.fnButtonIcon} aria-hidden="true" />
+            ) : (
+              'search-minus'
+            )
+          }
           variant={variant}
+          className={isFnDashboard ? styles.fnToolbarButton : undefined}
         />
       </Tooltip>
     </ButtonGroup>
@@ -297,6 +343,52 @@ const getStyles = (theme: GrafanaTheme2) => {
         backgroundImage: 'none',
         background: theme.colors.border.medium,
       },
+    }),
+    fnToolbarButton: css({
+      color: theme.colors.text.primary,
+      background: theme.colors.background.primary,
+      border: `1px solid ${theme.colors.border.weak}`,
+      borderRadius: theme.shape.radius.default,
+      boxShadow: theme.shadows.z1,
+
+      '&::before': {
+        display: 'none',
+      },
+
+      '&:hover': {
+        color: theme.colors.text.primary,
+        background: theme.colors.action.hover,
+        borderColor: theme.colors.border.medium,
+      },
+
+      '&:active:not(:disabled)': {
+        background: theme.colors.action.hover,
+        boxShadow: 'inset 0 0 0 1px rgba(0, 0, 0, 0.08)',
+      },
+    }),
+    fnPickerButton: css({
+      gap: theme.spacing(0.5),
+    }),
+    fnButtonIcon: css({
+      width: 16,
+      height: 16,
+      flexShrink: 0,
+      color: 'currentColor',
+    }),
+    fnWarningIcon: css({
+      color: theme.colors.warning.text,
+    }),
+    fnTrailing: css({
+      display: 'inline-flex',
+      alignItems: 'center',
+      gap: theme.spacing(0.75),
+      marginLeft: theme.spacing(0.25),
+    }),
+    fnChevronIcon: css({
+      width: 16,
+      height: 16,
+      flexShrink: 0,
+      color: theme.colors.text.secondary,
     }),
   };
 };

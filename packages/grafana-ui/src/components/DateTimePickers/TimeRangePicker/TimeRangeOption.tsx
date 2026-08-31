@@ -9,16 +9,23 @@ import { getFocusStyles } from '../../../themes/mixins';
 
 const getStyles = (theme: GrafanaTheme2) => {
   return {
+    // Carrot UI list rows: inset pills with a rounded hover/selected surface
+    // instead of full-bleed bars butting against the popover edges.
     container: css({
       display: 'flex',
       alignItems: 'center',
       flexDirection: 'row-reverse',
       justifyContent: 'space-between',
+      padding: theme.spacing(0, 1),
     }),
+    // Selected uses the neutral secondary surface rather than the brand orange:
+    // an orange fill fights the panel accents and hurts label contrast.
     selected: css({
-      background: theme.colors.secondary.main,
-      color: theme.colors.secondary.text,
-      fontWeight: theme.typography.fontWeightMedium,
+      '& label, & label:hover': {
+        background: theme.colors.secondary.main,
+        color: theme.colors.text.primary,
+        fontWeight: theme.typography.fontWeightMedium,
+      },
     }),
     radio: css({
       opacity: 0,
@@ -30,11 +37,17 @@ const getStyles = (theme: GrafanaTheme2) => {
       cursor: 'pointer',
       flex: 1,
       padding: theme.spacing(0.75, 1.25),
-      fontSize: '14px',
+      borderRadius: theme.shape.radius.default,
+      fontSize: theme.typography.bodySmall.fontSize,
       lineHeight: '20px',
+      color: theme.colors.text.secondary,
+      transition: theme.transitions.create(['background-color', 'color'], {
+        duration: theme.transitions.duration.shortest,
+      }),
 
       '&:hover': {
         background: theme.colors.action.hover,
+        color: theme.colors.text.primary,
         cursor: 'pointer',
       },
     }),

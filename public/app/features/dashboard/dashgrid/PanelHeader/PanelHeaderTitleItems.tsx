@@ -17,14 +17,37 @@ export interface Props {
   alertState?: string;
   data: PanelData;
   panelId: number;
+  /**
+   * Set only when the embedding host has opted into panel editing. Rendering the
+   * affordance is driven entirely by this callback's presence.
+   */
+  onEditPanel?: () => void;
   onShowPanelLinks?: () => Array<LinkModel<PanelModel>>;
   panelLinks?: DataLink[];
   angularNotice?: AngularNotice;
 }
 
 export function PanelHeaderTitleItems(props: Props) {
-  const { alertState, data, panelId, onShowPanelLinks, panelLinks, angularNotice } = props;
+  const { alertState, data, panelId, onEditPanel, onShowPanelLinks, panelLinks, angularNotice } = props;
   const styles = useStyles2(getStyles);
+
+  const editItem = (
+    <Tooltip content="Edit panel">
+      <PanelChrome.TitleItem
+        className={styles.editPanel}
+        data-testid="fn-edit-panel"
+        aria-label="Edit panel"
+        onClick={(e) => {
+          // The header doubles as the drag handle, so keep the click local.
+          e.preventDefault();
+          e.stopPropagation();
+          onEditPanel?.();
+        }}
+      >
+        <Icon name="pen" size="md" />
+      </PanelChrome.TitleItem>
+    </Tooltip>
+  );
 
   // panel health
   const alertStateItem = (
@@ -72,6 +95,7 @@ export function PanelHeaderTitleItems(props: Props) {
       {timeshift}
       {alertState && alertStateItem}
       {angularNotice?.show && angularNoticeTooltip}
+      {onEditPanel && editItem}
     </>
   );
 }
@@ -117,6 +141,30 @@ const getStyles = (theme: GrafanaTheme2) => {
     }),
     angularNotice: css({
       color: theme.colors.warning.text,
+    }),
+    editPanel: css({
+      cursor: 'pointer',
+
+      [theme.transitions.handleMotion('no-preference', 'reduce')]: {
+        transition: theme.transitions.create(['color', 'opacity'], {
+          duration: theme.transitions.duration.short,
+        }),
+      },
+
+      '&&': {
+        color: theme.colors.text.disabled,
+        opacity: 0.72,
+      },
+
+      '&&:hover': {
+        color: theme.colors.text.secondary,
+        opacity: 0.9,
+      },
+
+      '&&:focus-visible': {
+        color: theme.colors.text.secondary,
+        opacity: 1,
+      },
     }),
   };
 };

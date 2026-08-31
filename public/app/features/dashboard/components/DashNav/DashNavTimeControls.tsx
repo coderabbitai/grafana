@@ -96,7 +96,7 @@ export class DashNavTimeControls extends Component<Props> {
   };
 
   render() {
-    const { dashboard, isOnCanvas } = this.props;
+    const { dashboard, isFnDashboard, isOnCanvas } = this.props;
     const { refresh_intervals } = dashboard.timepicker;
     const intervals = getTimeSrv().getValidIntervals(refresh_intervals || defaultIntervals);
 
@@ -124,6 +124,7 @@ export class DashNavTimeControls extends Component<Props> {
           onChangeTimeZone={this.onChangeTimeZone}
           onChangeFiscalYearStartMonth={this.onChangeFiscalYearStartMonth}
           isOnCanvas={isOnCanvas}
+          isFnDashboard={isFnDashboard}
           onToolbarTimePickerClick={this.props.onToolbarTimePickerClick}
           weekStart={weekStart}
         />
@@ -136,6 +137,7 @@ export class DashNavTimeControls extends Component<Props> {
           tooltip={t('dashboard.toolbar.refresh', 'Refresh dashboard')}
           noIntervalPicker={hideIntervalPicker}
           showAutoInterval={true}
+          isFnDashboard={isFnDashboard}
           text={text}
         />
       </>

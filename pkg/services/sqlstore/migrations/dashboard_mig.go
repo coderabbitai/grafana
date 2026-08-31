@@ -239,6 +239,19 @@ func addDashboardMigration(mg *Migrator) {
 		Name: "deleted", Type: DB_DateTime, Nullable: true,
 	}))
 
+	// CodeRabbit MFE: AI-generated custom dashboards are provisioned per
+	// product workspace rather than per Grafana org, so the owning workspace is
+	// stored alongside the dashboard and used to scope list/read access.
+	// Nullable so every pre-existing dashboard row stays valid.
+	mg.AddMigration("Add workspace_id for dashboard", NewAddColumnMigration(dashboardV2, &Column{
+		Name: "workspace_id", Type: DB_NVarchar, Length: 190, Nullable: true,
+	}))
+
+	mg.AddMigration("Add index for dashboard workspace_id", NewAddIndexMigration(dashboardV2, &Index{
+		Cols: []string{"workspace_id"},
+		Type: IndexType,
+	}))
+
 	mg.AddMigration("Add index for deleted", NewAddIndexMigration(dashboardV2, &Index{
 		Cols: []string{"deleted"},
 		Type: IndexType,

@@ -3,7 +3,6 @@ import { CSSProperties, FC } from 'react';
 
 import { TimeRange, isDateTime, rangeUtil } from '@grafana/data';
 import { TimeRangePickerProps, TimeRangePicker, useTheme2 } from '@grafana/ui';
-import { useSelector } from 'app/types';
 
 import { LocalStorageValueProvider } from '../LocalStorageValueProvider';
 
@@ -20,13 +19,12 @@ interface TimePickerHistoryItem {
 // We should only be storing TimePickerHistoryItem, but in the past we also stored TimeRange
 type LSTimePickerHistoryItem = TimePickerHistoryItem | TimeRange;
 
-const FnText: React.FC = () => {
-  const { FNDashboard } = useSelector(({ fnGlobalState }) => fnGlobalState);
+const FnText: React.FC<{ isFnDashboard?: boolean }> = ({ isFnDashboard }) => {
   const theme = useTheme2();
 
   const FN_TEXT_STYLE: CSSProperties = { fontWeight: 700, fontSize: 14, marginLeft: 8 };
 
-  return <>{FNDashboard ? <span style={{ ...FN_TEXT_STYLE, color: theme.colors.text.primary }}>UTC</span> : ''}</>;
+  return <>{isFnDashboard ? <span style={{ ...FN_TEXT_STYLE, color: theme.colors.text.primary }}>UTC</span> : ''}</>;
 };
 
 export const TimePickerWithHistory: FC<Props> = (props) => (
@@ -55,7 +53,7 @@ export const Picker: FC<PickerProps> = ({ rawValues, onSaveToStore, pickerProps 
         onAppendToHistory(value, values, onSaveToStore);
         pickerProps.onChange(value);
       }}
-      fnText={<FnText />}
+      fnText={<FnText isFnDashboard={pickerProps.isFnDashboard} />}
     />
   );
 };

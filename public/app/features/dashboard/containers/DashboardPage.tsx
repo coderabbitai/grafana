@@ -14,13 +14,14 @@ import { GrafanaContext, GrafanaContextType } from 'app/core/context/GrafanaCont
 import { createErrorNotification } from 'app/core/copy/appNotification';
 import { getKioskMode } from 'app/core/navigation/kiosk';
 import { GrafanaRouteComponentProps } from 'app/core/navigation/types';
-import { FnGlobalState } from 'app/core/reducers/fn-slice';
+import { FnGlobalState, FnPanelOptionsUpdate } from 'app/core/reducers/fn-slice';
 import { getNavModel } from 'app/core/selectors/navModel';
 import { PanelModel } from 'app/features/dashboard/state';
 import { dashboardWatcher } from 'app/features/live/dashboard/dashboardWatcher';
 import { updateTimeZoneForSession } from 'app/features/profile/state/reducers';
 import { getPageNavFromSlug, getRootContentNavModel } from 'app/features/storage/StorageFolderPage';
 import { FNDashboardProps } from 'app/fn-app/types';
+import { FnLoggerService } from 'app/fn_logger';
 import { DashboardRoutes, DashboardState, KioskMode, StoreState } from 'app/types';
 import { PanelEditEnteredEvent, PanelEditExitedEvent } from 'app/types/events';
 
@@ -43,6 +44,10 @@ import { getTimeSrv } from '../services/TimeSrv';
 import { cleanUpDashboardAndVariables } from '../state/actions';
 import { initDashboard } from '../state/initDashboard';
 import { calculateNewPanelGridPos } from '../utils/panel';
+
+import { applyFnPanelOptionsPreview } from './DashboardPageFnPanelOptions';
+
+export { applyFnPanelOptionsPreview } from './DashboardPageFnPanelOptions';
 
 export interface DashboardPageRouteParams {
   uid?: string;
@@ -72,7 +77,12 @@ export type MapStateToDashboardPageProps = MapStateToProps<
   Pick<DashboardState, 'initPhase' | 'initError'> & {
     dashboard: ReturnType<DashboardState['getModel']>;
     navIndex: StoreState['navIndex'];
-  } & Pick<FnGlobalState, 'FNDashboard' | 'controlsContainer'>,
+  } & Pick<
+      FnGlobalState,
+      'FNDashboard' | 'controlsContainer' | 'dashboardAccessMode' | 'enablePanelLayoutEdit' | 'panelOptionsUpdate'
+    > & {
+      dashboardEventListener: FnGlobalState['metadata']['eventListener'];
+    },
   OwnProps,
   StoreState
 >;
@@ -94,6 +104,10 @@ export const mapStateToProps: MapStateToDashboardPageProps = (state) => ({
   navIndex: state.navIndex,
   FNDashboard: state.fnGlobalState.FNDashboard,
   controlsContainer: state.fnGlobalState.controlsContainer,
+  dashboardAccessMode: state.fnGlobalState.dashboardAccessMode,
+  enablePanelLayoutEdit: state.fnGlobalState.enablePanelLayoutEdit,
+  panelOptionsUpdate: state.fnGlobalState.panelOptionsUpdate,
+  dashboardEventListener: state.fnGlobalState.metadata?.eventListener ?? null,
 });
 
 const mapDispatchToProps: MapDispatchToDashboardPageProps = {
@@ -196,6 +210,16 @@ export class UnthemedDashboardPage extends PureComponent<Props, State> {
       return;
     }
 
+    if (
+      FNDashboard &&
+      this.props.panelOptionsUpdate &&
+      (prevProps.dashboard !== this.props.dashboard ||
+        prevProps.panelOptionsUpdate?.panelId !== this.props.panelOptionsUpdate.panelId ||
+        prevProps.panelOptionsUpdate?.revision !== this.props.panelOptionsUpdate.revision)
+    ) {
+      this.applyFnPanelOptionsUpdate(this.props.panelOptionsUpdate);
+    }
+
     if (!FNDashboard) {
       const routeReloadCounter = (this.props.history.location?.state as any)?.routeReloadCounter;
 
@@ -255,6 +279,20 @@ export class UnthemedDashboardPage extends PureComponent<Props, State> {
       this.props.notifyApp(createErrorNotification(`Panel not found`));
       locationService.partial({ editPanel: null, viewPanel: null });
     }
+  }
+
+  applyFnPanelOptionsUpdate(update: FnPanelOptionsUpdate) {
+    const panel = this.props.dashboard?.getPanelById(update.panelId);
+    if (!panel) {
+      FnLoggerService.warn('Unable to apply FN panel options update because the panel was not found', {
+        panelId: update.panelId,
+        revision: update.revision,
+        uid: this.props.dashboard?.uid,
+      });
+      return;
+    }
+
+    applyFnPanelOptionsPreview(panel, update);
   }
 
   updateLiveTimer = () => {
@@ -356,6 +394,32 @@ export class UnthemedDashboardPage extends PureComponent<Props, State> {
     this.setState({ scrollElement });
   };
 
+  getFnDashboardSaveModel() {
+    return this.props.dashboard?.getSaveModelClone();
+  }
+
+  emitFnDashboardEvent<T>(type: string, data: T): void {
+    const listener = this.props.dashboardEventListener;
+    if (!listener) {
+      return;
+    }
+
+    try {
+      listener({ type, data });
+    } catch (error) {
+      FnLoggerService.warn('FN dashboard event listener failed', { error, type });
+    }
+  }
+
+  onFnDashboardLayoutChange = () => {
+    const dashboardJson = this.getFnDashboardSaveModel();
+    if (!dashboardJson) {
+      return;
+    }
+
+    this.emitFnDashboardEvent('dashboardLayoutChanged', dashboardJson);
+  };
+
   getInspectPanel() {
     const { dashboard, queryParams } = this.props;
 
@@ -376,7 +440,15 @@ export class UnthemedDashboardPage extends PureComponent<Props, State> {
   }
 
   render() {
-    const { dashboard, initError, queryParams, FNDashboard, controlsContainer } = this.props;
+    const {
+      dashboard,
+      initError,
+      queryParams,
+      FNDashboard,
+      controlsContainer,
+      dashboardAccessMode,
+      enablePanelLayoutEdit,
+    } = this.props;
     const { editPanel, viewPanel, pageNav, sectionNav } = this.state;
     const kioskMode = getKioskMode(this.props.queryParams);
 
@@ -390,6 +462,19 @@ export class UnthemedDashboardPage extends PureComponent<Props, State> {
     const showSubMenu = !editPanel && !kioskMode && !this.props.queryParams.editview;
 
     const showToolbar = FNDashboard || (kioskMode !== KioskMode.Full && !queryParams.editview);
+    const isCustomFnDashboardLayoutEditable =
+      FNDashboard && dashboardAccessMode === 'custom' && enablePanelLayoutEdit && !viewPanel && !editPanel;
+    const isDashboardGridLayoutEditable = FNDashboard
+      ? isCustomFnDashboardLayoutEditable
+      : Boolean(dashboard.meta.canEdit);
+    const fnControlsClassName = cx(
+      'flex w-full gap-y-2',
+      viewPanel
+        ? 'flex-row items-start justify-between gap-x-3'
+        : 'flex-col-reverse md:flex-row md:items-center md:justify-between'
+    );
+    const fnVariablesClassName = cx('flex items-center', viewPanel ? 'min-w-0 flex-1' : 'w-full');
+    const fnTimeRangeClassName = cx('flex items-center justify-end gap-2', viewPanel ? 'shrink-0' : 'w-full');
 
     const pageClassName = cx({
       'panel-in-fullscreen': Boolean(viewPanel),
@@ -455,15 +540,15 @@ export class UnthemedDashboardPage extends PureComponent<Props, State> {
           {!FNDashboard && <DashboardPrompt dashboard={dashboard} />}
           {initError && <DashboardFailed />}
           {FNDashboard && (
-            <div className="flex flex-col-reverse md:flex-row md:items-center md:justify-between w-full gap-y-2">
-              <div className="flex items-center w-full">
+            <div className={fnControlsClassName}>
+              <div className={fnVariablesClassName}>
                 {showSubMenu && (
                   <section aria-label={selectors.pages.Dashboard.SubMenu.submenu}>
                     <SubMenu dashboard={dashboard} annotations={dashboard.annotations.list} links={dashboard.links} />
                   </section>
                 )}
               </div>
-              <div className="flex items-center w-full justify-end">{FNTimeRange}</div>
+              <div className={fnTimeRangeClassName}>{FNTimeRange}</div>
             </div>
           )}
           {showSubMenu && !FNDashboard && (
@@ -474,6 +559,8 @@ export class UnthemedDashboardPage extends PureComponent<Props, State> {
           <DashboardGrid
             dashboard={dashboard}
             isEditable={!!dashboard.meta.canEdit && !FNDashboard}
+            isLayoutEditable={isDashboardGridLayoutEditable}
+            onLayoutUpdate={isCustomFnDashboardLayoutEditable ? this.onFnDashboardLayoutChange : undefined}
             viewPanel={viewPanel}
             editPanel={editPanel}
           />

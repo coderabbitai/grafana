@@ -217,15 +217,16 @@ func (dr *DashboardServiceImpl) BuildSaveDashboardCommand(ctx context.Context, d
 
 	metrics.MFolderIDsServiceCount.WithLabelValues(metrics.Dashboard).Inc()
 	cmd := &dashboards.SaveDashboardCommand{
-		Dashboard: dash.Data,
-		Message:   dto.Message,
-		OrgID:     dto.OrgID,
-		Overwrite: dto.Overwrite,
-		UserID:    userID,
-		FolderID:  dash.FolderID, // nolint:staticcheck
-		FolderUID: dash.FolderUID,
-		IsFolder:  dash.IsFolder,
-		PluginID:  dash.PluginID,
+		Dashboard:   dash.Data,
+		Message:     dto.Message,
+		OrgID:       dto.OrgID,
+		Overwrite:   dto.Overwrite,
+		UserID:      userID,
+		FolderID:    dash.FolderID, // nolint:staticcheck
+		FolderUID:   dash.FolderUID,
+		IsFolder:    dash.IsFolder,
+		PluginID:    dash.PluginID,
+		WorkspaceID: dash.WorkspaceID,
 	}
 
 	if !dto.UpdatedAt.IsZero() {

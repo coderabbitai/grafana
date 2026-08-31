@@ -48,6 +48,11 @@ type Dashboard struct {
 
 	Title string
 	Data  *simplejson.Json
+
+	// WorkspaceID is the CodeRabbit product workspace that owns this dashboard.
+	// Only set for AI-generated custom dashboards saved through the MFE; empty
+	// for every dashboard provisioned the normal Grafana way.
+	WorkspaceID string `xorm:"workspace_id"`
 }
 
 func (d *Dashboard) SetID(id int64) {
@@ -136,6 +141,7 @@ func (cmd *SaveDashboardCommand) GetDashboardModel() *Dashboard {
 
 	dash.UpdatedBy = userID
 	dash.OrgID = cmd.OrgID
+	dash.WorkspaceID = cmd.WorkspaceID
 	dash.PluginID = cmd.PluginID
 	dash.IsFolder = cmd.IsFolder
 	metrics.MFolderIDsServiceCount.WithLabelValues(metrics.Dashboard).Inc()
@@ -206,6 +212,11 @@ type SaveDashboardCommand struct {
 	FolderID  int64  `json:"folderId" xorm:"folder_id"`
 	FolderUID string `json:"folderUid" xorm:"folder_uid"`
 	IsFolder  bool   `json:"isFolder"`
+
+	// WorkspaceID scopes an AI-generated custom dashboard to a CodeRabbit
+	// product workspace. Accepted from the save payload so the handler can
+	// persist it without a second write.
+	WorkspaceID string `json:"workspaceId" xorm:"workspace_id"`
 
 	UpdatedAt time.Time
 }
@@ -416,11 +427,15 @@ type FindPersistedDashboardsQuery struct {
 	FolderIds  []int64
 	FolderUIDs []string
 	Tags       []string
-	Limit      int64
-	Page       int64
-	Permission dashboardaccess.PermissionType
-	Sort       model.SortOption
-	IsDeleted  bool
+	// WorkspaceID restricts results to dashboards owned by a single CodeRabbit
+	// product workspace. Empty means "no workspace filter" and preserves the
+	// stock Grafana search behaviour.
+	WorkspaceID string
+	Limit       int64
+	Page        int64
+	Permission  dashboardaccess.PermissionType
+	Sort        model.SortOption
+	IsDeleted   bool
 
 	Filters []any
 }

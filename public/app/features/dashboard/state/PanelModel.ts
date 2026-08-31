@@ -34,7 +34,7 @@ import {
 } from 'app/types/events';
 
 import { PanelQueryRunner } from '../../query/state/PanelQueryRunner';
-import { TimeOverrideResult } from '../utils/panel';
+import type { TimeOverrideResult } from '../utils/panel';
 
 import { getPanelPluginToMigrateTo } from './getPanelPluginToMigrateTo';
 

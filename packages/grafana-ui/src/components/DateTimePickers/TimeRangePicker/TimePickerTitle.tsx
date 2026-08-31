@@ -7,10 +7,14 @@ import { useStyles2 } from '../../../themes';
 
 const getStyles = (theme: GrafanaTheme2) => {
   return {
+    // Section labels read as small-caps eyebrows (Carrot UI convention) so the
+    // quick-range values below them stay the dominant text in the popover.
     text: css({
-      fontSize: theme.typography.size.md,
+      fontSize: theme.typography.size.xs,
       fontWeight: theme.typography.fontWeightMedium,
-      color: theme.colors.text.primary,
+      textTransform: 'uppercase',
+      letterSpacing: '0.06em',
+      color: theme.colors.text.secondary,
       margin: 0,
       display: 'flex',
     }),

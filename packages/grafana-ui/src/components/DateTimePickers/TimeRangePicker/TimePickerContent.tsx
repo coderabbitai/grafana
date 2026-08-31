@@ -162,7 +162,6 @@ const NarrowScreenForm = (props: FormProps) => {
               weekStart={weekStart}
             />
           </div>
-
         </div>
       )}
     </fieldset>
@@ -198,7 +197,6 @@ const FullScreenForm = (props: FormProps) => {
           weekStart={weekStart}
         />
       </div>
-
     </>
   );
 };
@@ -254,11 +252,16 @@ const useTimeOption = (raw: RawTimeRange, quickOptions: TimeOption[]): TimeOptio
 
 const getStyles = stylesFactory((theme: GrafanaTheme2, isReversed, hideQuickRanges, isContainerTall, isFullscreen) => {
   return {
+    // Carrot UI popover surface: soft 12px radius, hairline border and layered
+    // elevation so the panel floats above the dashboard rather than boxing it in.
+    // NOTE: no `overflow: hidden` here — the time zone / fiscal year selects render
+    // their menus inline (menuShouldPortal={false}), so clipping the container would
+    // crop the open dropdown list. Corner bleed is handled by the footer's own radius.
     container: css({
       background: theme.colors.background.primary,
       boxShadow: theme.shadows.z3,
       width: `${isFullscreen ? '546px' : '262px'}`,
-      borderRadius: theme.shape.borderRadius(),
+      borderRadius: theme.shape.borderRadius(3),
       border: `1px solid ${theme.colors.border.weak}`,
       [`${isReversed ? 'left' : 'right'}`]: 0,
     }),
@@ -286,7 +289,8 @@ const getStyles = stylesFactory((theme: GrafanaTheme2, isReversed, hideQuickRang
       flexDirection: 'column',
     }),
     timeRangeFilter: css({
-      padding: theme.spacing(1),
+      padding: theme.spacing(1.5),
+      borderBottom: `1px solid ${theme.colors.border.weak}`,
     }),
     spacing: css({
       marginTop: '16px',
@@ -325,12 +329,11 @@ const getNarrowScreenStyles = (theme: GrafanaTheme2) => ({
 
 const getFullScreenStyles = (theme: GrafanaTheme2, hideQuickRanges?: boolean) => ({
   container: css({
-    paddingTop: '9px',
-    paddingLeft: '11px',
-    paddingRight: !hideQuickRanges ? '20%' : '11px',
+    padding: theme.spacing(1.5),
+    paddingRight: !hideQuickRanges ? '20%' : theme.spacing(1.5),
   }),
   title: css({
-    marginBottom: '11px',
+    marginBottom: theme.spacing(1.5),
   }),
   recent: css({
     flexGrow: 1,

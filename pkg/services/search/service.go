@@ -48,6 +48,8 @@ type Query struct {
 	FolderUIDs []string
 	Permission dashboardaccess.PermissionType
 	Sort       string
+	// WorkspaceID scopes results to a single CodeRabbit product workspace.
+	WorkspaceID string
 }
 
 type Service interface {
@@ -101,6 +103,7 @@ func (s *SearchService) SearchHandler(ctx context.Context, query *Query) (model.
 		Page:          query.Page,
 		Permission:    query.Permission,
 		IsDeleted:     query.IsDeleted,
+		WorkspaceID:   query.WorkspaceID,
 	}
 
 	if sortOpt, exists := s.sortOptions[query.Sort]; exists {
