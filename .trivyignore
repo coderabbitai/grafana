@@ -40,3 +40,28 @@
 # upgraded.
 CVE-2026-42151
 CVE-2026-42154
+
+# VULN-278 / CVE-2026-21728, CVE-2026-28377 — github.com/grafana/tempo
+#
+# Both advisories are Tempo *server* issues. Grafana pins Tempo at
+# v1.5.1-0.20240604192202-01f4bc8ac2d1 and imports exactly one package tree
+# from it: pkg/tempopb, the generated protobuf types used by the Tempo
+# datasource to talk to a remote Tempo. No Tempo server, query-frontend or
+# tempodb storage code is linked into the Grafana binary.
+#
+# Neither vulnerable code path is reachable:
+#  - CVE-2026-21728 is unbounded memory allocation on large Tempo query
+#    limits, mitigated server-side via max_result_limit. Grafana has no such
+#    config and does not run the Tempo query path.
+#  - CVE-2026-28377 leaks the S3 SSE-C encryption key via Tempo's
+#    /status/config endpoint. Grafana does not serve /status/config and never
+#    constructs Tempo S3 storage config.
+#
+# Upgrading is also not viable in isolation: Tempo stopped publishing tagged
+# Go module versions after v1.5.0, and the 2.10.3 fix commit requires
+# go 1.25.7 and drags a ~250-line transitive upgrade wave into go.mod that
+# breaks grafana-plugin-sdk-go against the newer tablewriter API.
+#
+# Revisit when upstream Grafana moves its own Tempo pin.
+CVE-2026-21728
+CVE-2026-28377
