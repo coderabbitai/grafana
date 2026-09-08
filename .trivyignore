@@ -2,8 +2,9 @@
 
 # VULN-279 / CVE-2026-42151, CVE-2026-42154 — github.com/prometheus/prometheus
 #
-# Both advisories are fixed only in Prometheus 3.5.3 / 3.11.3 (Go module
-# v0.305.3 / v0.311.3). Grafana pins Prometheus 2.52.0 (v0.52.0) via a replace
+# Both advisories are fixed in Prometheus 3.5.3 (Go module v0.305.3) on the 3.5
+# LTS branch and in 3.11.3 (v0.311.3) on the current branch; the latest fixed
+# release is 3.11.3. Grafana pins Prometheus 2.52.0 (v0.52.0) via a replace
 # directive, and moving to the 3.x line is a breaking major upgrade: it forces
 # an incompatible k8s.io/* bump (kube-aggregator, apiserver), a
 # grpc_health_v1.HealthServer signature change and the labels.Labels type
@@ -18,8 +19,13 @@
 #    (/api/v1/read) in prometheus/web/api, which is not linked into the
 #    Grafana binary at all.
 #
-# Revisit when Grafana upstream moves its Prometheus pin to the 3.x line. The
-# exp: dates make these suppressions self-expiring, so Trivy reports them
-# again after 2027-03-08 instead of the exception persisting silently.
-CVE-2026-42151 exp:2027-03-08
-CVE-2026-42154 exp:2027-03-08
+# Revisit when Grafana upstream moves its Prometheus pin to the 3.x line.
+#
+# REVIEW BY 2027-03-08. Trivy's self-expiring 'exp:' suffix is deliberately not
+# used here: .drone.yml pins aquasec/trivy:0.21.0, whose ignorefile parser
+# (getIgnoredIDs in pkg/result/result.go) appends the entire line as the ID, so
+# 'CVE-... exp:...' would match nothing and silently stop suppressing. 'exp:'
+# only became available in Trivy v0.31.0. Re-add it once the scanner is
+# upgraded.
+CVE-2026-42151
+CVE-2026-42154
