@@ -1,1 +1,23 @@
 # See https://aquasecurity.github.io/trivy/v0.48/docs/configuration/filtering/#trivyignore
+
+# VULN-279 / CVE-2026-42151, CVE-2026-42154 — github.com/prometheus/prometheus
+#
+# Both advisories are fixed only in Prometheus 3.5.3 / 3.11.3 (Go module
+# v0.305.3 / v0.311.3). Grafana pins Prometheus 2.52.0 (v0.52.0) via a replace
+# directive, and moving to the 3.x line is a breaking major upgrade: it forces
+# an incompatible k8s.io/* bump (kube-aggregator, apiserver), a
+# grpc_health_v1.HealthServer signature change and the labels.Labels type
+# change, none of which are in scope for a security patch.
+#
+# Neither vulnerable code path is reachable in the Grafana binary:
+#  - CVE-2026-42151 leaks the Azure AD remote-write client_secret through the
+#    Prometheus /-/config API. Grafana does not serve /-/config and never
+#    builds a RemoteWriteConfig; storage/remote/azuread is linked only as a
+#    side effect of importing prometheus/config from the ngalert sender.
+#  - CVE-2026-42154 is a DoS on the Prometheus remote read endpoint
+#    (/api/v1/read) in prometheus/web/api, which is not linked into the
+#    Grafana binary at all.
+#
+# Revisit when Grafana upstream moves its Prometheus pin to the 3.x line.
+CVE-2026-42151
+CVE-2026-42154
