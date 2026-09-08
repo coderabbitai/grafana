@@ -4,7 +4,7 @@ import { useToggle } from 'react-use';
 import { LoadingState } from '@grafana/data';
 import { selectors } from '@grafana/e2e-selectors';
 
-import { getPanelLoadingBarStyles, PanelChrome, PanelChromeProps } from './PanelChrome';
+import { PanelChrome, PanelChromeProps } from './PanelChrome';
 
 const setup = (propOverrides?: Partial<PanelChromeProps>) => {
   const props: PanelChromeProps = {
@@ -140,10 +140,13 @@ it.each<[string, Partial<PanelChromeProps>]>([
 it('aligns the loading indicator with the flat part of the rounded panel border', () => {
   setup({ loadingState: LoadingState.Loading });
 
-  expect(screen.getByLabelText('Panel loading bar')).toBeInTheDocument();
-  expect(getPanelLoadingBarStyles('12px', 1)).toEqual({
+  const loadingBar = screen.getByLabelText('Panel loading bar');
+  const loadingBarContainer = loadingBar.parentElement?.parentElement;
+
+  expect(loadingBarContainer).toBeInTheDocument();
+  expect(getComputedStyle(loadingBarContainer!)).toMatchObject({
     position: 'absolute',
-    top: -1,
+    top: '-1px',
     left: 'calc(12px - 1px)',
     right: 'calc(12px - 1px)',
     pointerEvents: 'none',

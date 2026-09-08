@@ -104,8 +104,7 @@ interface HoverHeader {
  */
 export type PanelPadding = 'none' | 'md';
 
-/** @internal Exported only so the geometry remains independently testable. */
-export function getPanelLoadingBarStyles(panelBorderRadius: string, panelBorderWidth: number) {
+function getPanelLoadingBarStyles(panelBorderRadius: string, panelBorderWidth: number) {
   const inset = `calc(${panelBorderRadius} - ${panelBorderWidth}px)`;
 
   return {
