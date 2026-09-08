@@ -4,7 +4,7 @@ import { useToggle } from 'react-use';
 import { LoadingState } from '@grafana/data';
 import { selectors } from '@grafana/e2e-selectors';
 
-import { PanelChrome, PanelChromeProps } from './PanelChrome';
+import { getPanelLoadingBarStyles, PanelChrome, PanelChromeProps } from './PanelChrome';
 
 const setup = (propOverrides?: Partial<PanelChromeProps>) => {
   const props: PanelChromeProps = {
@@ -123,22 +123,31 @@ it('does not render error status in the panel header if loadingState is error, b
   expect(screen.queryByTestId('panel-status')).not.toBeInTheDocument();
 });
 
-it('renders loading indicator in the panel header if loadingState is loading', () => {
+it.each<[string, Partial<PanelChromeProps>]>([
+  ['default panel', {}],
+  ['panel with a fixed header', { hoverHeader: false }],
+  ['panel with a hover header', { hoverHeader: true }],
+  ['transparent panel', { displayMode: 'transparent' }],
+  ['collapsed panel', { collapsible: true, collapsed: true }],
+  ['mobile-width panel', { width: 320, height: 100 }],
+  ['narrow grid panel', { width: 24, height: 100 }],
+])('renders the loading indicator for a %s', (_name, propOverrides) => {
+  setup({ ...propOverrides, loadingState: LoadingState.Loading });
+
+  expect(screen.getByLabelText('Panel loading bar')).toBeInTheDocument();
+});
+
+it('aligns the loading indicator with the flat part of the rounded panel border', () => {
   setup({ loadingState: LoadingState.Loading });
 
   expect(screen.getByLabelText('Panel loading bar')).toBeInTheDocument();
-});
-
-it('renders loading indicator in the panel header if loadingState is loading regardless of not having a header', () => {
-  setup({ loadingState: LoadingState.Loading, hoverHeader: true });
-
-  expect(screen.getByLabelText('Panel loading bar')).toBeInTheDocument();
-});
-
-it('renders loading indicator in the panel header if loadingState is loading regardless of having a header', () => {
-  setup({ loadingState: LoadingState.Loading, hoverHeader: false });
-
-  expect(screen.getByLabelText('Panel loading bar')).toBeInTheDocument();
+  expect(getPanelLoadingBarStyles('12px', 1)).toEqual({
+    position: 'absolute',
+    top: -1,
+    left: 'calc(12px - 1px)',
+    right: 'calc(12px - 1px)',
+    pointerEvents: 'none',
+  });
 });
 
 it('renders streaming indicator in the panel header if loadingState is streaming', () => {
