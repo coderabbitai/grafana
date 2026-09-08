@@ -1,8 +1,6 @@
 module github.com/grafana/grafana
 
-go 1.24.0
-
-toolchain go1.24.10
+go 1.25
 
 // contains openapi encoder fixes. remove ASAP
 replace cuelang.org/go => github.com/grafana/cue v0.0.0-20230926092038-971951014e3f // @grafana/grafana-as-code
@@ -231,7 +229,7 @@ require (
 	github.com/alecthomas/units v0.0.0-20231202071711-9a357b53e9c9 // indirect
 	github.com/alicebob/gopher-json v0.0.0-20200520072559-a9ecdc9d1d3a // indirect
 	github.com/antlr4-go/antlr/v4 v4.13.0 // indirect
-	github.com/apache/thrift v0.20.0 // indirect
+	github.com/apache/thrift v0.23.0 // indirect
 	github.com/apapsch/go-jsonmerge/v2 v2.0.0 // indirect
 	github.com/apparentlymart/go-textseg/v13 v13.0.0 // indirect
 	github.com/armon/go-metrics v0.4.1 // indirect
