@@ -62,8 +62,13 @@ CVE-2026-42154
 # go 1.25.7 and drags a ~250-line transitive upgrade wave into go.mod that
 # breaks grafana-plugin-sdk-go against the newer tablewriter API.
 #
-# Revisit when upstream Grafana moves its own Tempo pin. The exp: dates make
-# these suppressions self-expiring, so Trivy reports them again after
-# 2027-03-08 instead of the exception persisting silently.
-CVE-2026-21728 exp:2027-03-08
-CVE-2026-28377 exp:2027-03-08
+# Revisit when upstream Grafana moves its own Tempo pin.
+#
+# REVIEW BY 2027-03-08. Trivy's self-expiring 'exp:' suffix is deliberately not
+# used here: .drone.yml pins aquasec/trivy:0.21.0, whose ignorefile parser
+# (getIgnoredIDs in pkg/result/result.go) appends the entire line as the ID, so
+# 'CVE-... exp:...' would match nothing and silently stop suppressing. 'exp:'
+# only became available in Trivy v0.31.0. Re-add it once the scanner is
+# upgraded.
+CVE-2026-21728
+CVE-2026-28377
