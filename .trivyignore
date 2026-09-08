@@ -18,6 +18,8 @@
 #    (/api/v1/read) in prometheus/web/api, which is not linked into the
 #    Grafana binary at all.
 #
-# Revisit when Grafana upstream moves its Prometheus pin to the 3.x line.
-CVE-2026-42151
-CVE-2026-42154
+# Revisit when Grafana upstream moves its Prometheus pin to the 3.x line. The
+# exp: dates make these suppressions self-expiring, so Trivy reports them
+# again after 2027-03-08 instead of the exception persisting silently.
+CVE-2026-42151 exp:2027-03-08
+CVE-2026-42154 exp:2027-03-08
