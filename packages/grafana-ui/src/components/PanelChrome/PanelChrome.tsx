@@ -104,6 +104,18 @@ interface HoverHeader {
  */
 export type PanelPadding = 'none' | 'md';
 
+function getPanelLoadingBarStyles(panelBorderRadius: string, panelBorderWidth: number) {
+  const inset = `calc(${panelBorderRadius} - ${panelBorderWidth}px)`;
+
+  return {
+    position: 'absolute' as const,
+    top: -panelBorderWidth,
+    left: inset,
+    right: inset,
+    pointerEvents: 'none' as const,
+  };
+}
+
 /**
  * @internal
  */
@@ -383,6 +395,8 @@ const getContentStyle = (
 
 const getStyles = (isFNPanel?: boolean) => (theme: GrafanaTheme2) => {
   const { background, borderColor, padding } = theme.components.panel;
+  const panelBorderWidth = 1;
+  const panelBorderRadius = theme.shape.borderRadius(3);
   const focusStyles = getFocusStyles(theme);
   const elevatedFocusShadow = `${focusStyles.boxShadow}, ${theme.shadows.z2}`;
 
@@ -390,9 +404,9 @@ const getStyles = (isFNPanel?: boolean) => (theme: GrafanaTheme2) => {
     container: css({
       label: 'panel-container',
       backgroundColor: background,
-      border: `1px solid ${borderColor}`,
+      border: `${panelBorderWidth}px solid ${borderColor}`,
       // Larger corner radius + soft elevation to match the Carrot UI card language.
-      borderRadius: theme.shape.borderRadius(3),
+      borderRadius: panelBorderRadius,
       boxShadow: theme.shadows.z1,
       position: 'relative',
       height: '100%',
@@ -439,19 +453,20 @@ const getStyles = (isFNPanel?: boolean) => (theme: GrafanaTheme2) => {
     transparentContainer: css({
       label: 'panel-transparent-container',
       backgroundColor: 'transparent',
-      border: '1px solid transparent',
+      border: `${panelBorderWidth}px solid transparent`,
       boxShadow: 'none',
       boxSizing: 'border-box',
       '&:hover': {
-        border: `1px solid ${borderColor}`,
+        border: `${panelBorderWidth}px solid ${borderColor}`,
         boxShadow: theme.shadows.z1,
       },
     }),
     loadingBarContainer: css({
       label: 'panel-loading-bar-container',
-      position: 'absolute',
-      top: 0,
-      width: '100%',
+      // Overlay the flat part of the panel's top border without painting through
+      // its rounded corners. Absolute positioning is relative to the inner edge
+      // of the panel border, hence the border-width adjustment on each inset.
+      ...getPanelLoadingBarStyles(panelBorderRadius, panelBorderWidth),
       // this is to force the loading bar container to create a new stacking context
       // otherwise, in webkit browsers on windows/linux, the aliasing of panel text changes when the loading bar is shown
       // see https://github.com/grafana/grafana/issues/88104
