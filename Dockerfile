@@ -39,7 +39,11 @@ ARG COMMIT_SHA=""
 ARG BUILD_BRANCH=""
 ARG GO_BUILD_TAGS="oss"
 ARG WIRE_TAGS="oss"
-ARG BINGO="true"
+# BINGO=false by default: the image build only runs `make build-go`, which needs
+# no .bingo-managed tool. Building them all pulled golangci-lint v1.60.1, whose
+# golang.org/x/tools v0.24.0 fails to compile on Go >= 1.25 (invalid array length
+# in internal/tokeninternal). Set BINGO=true only where those tools are needed.
+ARG BINGO="false"
 
 RUN if grep -i -q alpine /etc/issue; then \
       apk add --no-cache \
