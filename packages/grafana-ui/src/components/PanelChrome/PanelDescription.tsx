@@ -40,6 +40,12 @@ export function PanelDescription({ description, className }: Props) {
 const getStyles = (theme: GrafanaTheme2) => {
   return {
     description: css({
+      // Keep the icon in the same 32px layout footprint while containing its
+      // hover surface inside the panel border and header divider.
+      height: theme.spacing(theme.components.panel.headerHeight - 1),
+      padding: theme.spacing(0, 0.5),
+      margin: theme.spacing(0.5),
+
       code: {
         whiteSpace: 'normal',
         wordWrap: 'break-word',

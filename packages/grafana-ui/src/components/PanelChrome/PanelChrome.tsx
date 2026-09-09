@@ -515,6 +515,10 @@ const getStyles = (isFNPanel?: boolean) => (theme: GrafanaTheme2) => {
         color: theme.colors.text.primary,
         fontWeight: theme.typography.fontWeightMedium,
         letterSpacing: '-0.01em',
+        // The MFE's scoped Sass reset has greater specificity than Text's class
+        // and is loaded after runtime Emotion styles. Limit the override to the
+        // panel title instead of weakening heading spacing across the MFE.
+        marginBottom: '0 !important',
       },
       // FN-dashboard panel titles span the full chrome width so the title
       // and the right-aligned menu line up edge-to-edge. Titles render in

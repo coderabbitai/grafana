@@ -73,6 +73,46 @@ it('renders panel with title in place if prop title', () => {
   expect(screen.getByText('Test Panel Header')).toBeInTheDocument();
 });
 
+it('keeps the panel title centered when the MFE heading reset adds a bottom margin', () => {
+  const mfeReset = document.createElement('style');
+  mfeReset.textContent = '[data-grafana-mf-root] h2 { margin-bottom: 8px; }';
+  document.head.appendChild(mfeReset);
+
+  try {
+    const rendered = setup({ title: 'Test Panel Header' });
+    rendered.container.setAttribute('data-grafana-mf-root', '');
+    const heading = screen.getByText('Test Panel Header');
+    const titleClass = heading.parentElement?.classList.item(0);
+    const rules = Array.from(document.styleSheets).flatMap((sheet) => Array.from(sheet.cssRules));
+    const titleRule = rules.find(
+      (rule): rule is CSSStyleRule =>
+        rule instanceof CSSStyleRule && Boolean(titleClass && rule.selectorText.includes(`.${titleClass} h2`))
+    );
+
+    expect(titleRule?.style.getPropertyValue('margin-bottom')).toBe('0');
+    expect(titleRule?.style.getPropertyPriority('margin-bottom')).toBe('important');
+  } finally {
+    mfeReset.remove();
+  }
+});
+
+it('insets the description hover surface without changing its header footprint', () => {
+  setup({ title: 'Test Panel Header', description: 'Test panel description' });
+
+  const descriptionItem = screen.getByTestId('title-items-container').querySelector('span');
+
+  expect(descriptionItem).toBeInTheDocument();
+  expect(getComputedStyle(descriptionItem!)).toMatchObject({
+    height: '24px',
+    paddingLeft: '4px',
+    paddingRight: '4px',
+    marginTop: '4px',
+    marginRight: '4px',
+    marginBottom: '4px',
+    marginLeft: '4px',
+  });
+});
+
 // Check for backwards compatibility
 it('renders panel with a header if prop leftItems', () => {
   setup({
