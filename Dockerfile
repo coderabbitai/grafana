@@ -1,6 +1,11 @@
 # syntax=docker/dockerfile:1
 
-ARG BASE_IMAGE=alpine:3.19.1
+# alpine:3.19.1 shipped openssl 3.1.4-r5, flagged CRITICAL for CVE-2024-5535
+# (fix >= 3.1.6-r0) and CVE-2026-31789 on the deployed grafana-internal image
+# (VULN-233). 3.19.9 is the latest patch release on the same 3.19 branch and
+# carries openssl 3.1.8-r1, so this stays a patch-level bump with no Alpine
+# minor-version churn. Re-pin to the newest 3.19.x when bumping.
+ARG BASE_IMAGE=alpine:3.19.9
 ARG JS_IMAGE=node:20-alpine
 ARG JS_PLATFORM=linux/amd64
 ARG GO_IMAGE=golang:1.25.14-alpine
