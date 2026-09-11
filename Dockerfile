@@ -3,7 +3,7 @@
 ARG BASE_IMAGE=alpine:3.19.1
 ARG JS_IMAGE=node:20-alpine
 ARG JS_PLATFORM=linux/amd64
-ARG GO_IMAGE=golang:1.23.0-alpine
+ARG GO_IMAGE=golang:1.25.0-alpine
 
 ARG GO_SRC=go-builder
 ARG JS_SRC=js-builder
@@ -39,7 +39,9 @@ ARG COMMIT_SHA=""
 ARG BUILD_BRANCH=""
 ARG GO_BUILD_TAGS="oss"
 ARG WIRE_TAGS="oss"
-ARG BINGO="true"
+# The image only needs build-go; do not install the optional lint/dev tool suite.
+# Pinned legacy tools (including golangci-lint) do not build with Go 1.25.
+ARG BINGO="false"
 
 RUN if grep -i -q alpine /etc/issue; then \
       apk add --no-cache \
