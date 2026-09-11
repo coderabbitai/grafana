@@ -58,6 +58,7 @@ WORKDIR /tmp/grafana
 
 COPY go.* ./
 COPY .bingo .bingo
+COPY hack/go.* hack/
 
 # Include vendored dependencies
 COPY pkg/util/xorm/go.* pkg/util/xorm/

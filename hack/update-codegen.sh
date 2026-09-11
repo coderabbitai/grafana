@@ -10,6 +10,8 @@ set -o nounset
 set -o pipefail
 
 SCRIPT_ROOT=$(dirname "${BASH_SOURCE[0]}")/..
+# Keep the workspace dependency graph when upstream scripts install tools from the module cache.
+export GOWORK="$(cd "${SCRIPT_ROOT}" && pwd)/go.work"
 pushd "${SCRIPT_ROOT}/hack" && GO111MODULE=on go mod tidy && popd
 CODEGEN_PKG=${CODEGEN_PKG:-$(cd "${SCRIPT_ROOT}"; ls -d -1 ./vendor/k8s.io/code-generator 2>/dev/null || echo $(go env GOPATH)/pkg/mod/k8s.io/code-generator@v0.31.0)}
 

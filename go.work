@@ -5,6 +5,7 @@ go 1.25.0
 
 use (
 	. // skip:golangci-lint
+	./hack // skip:golangci-lint
 	./pkg/aggregator
 	./pkg/apimachinery
 	./pkg/apiserver
