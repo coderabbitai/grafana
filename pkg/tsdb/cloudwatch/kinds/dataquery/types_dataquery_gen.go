@@ -129,7 +129,7 @@ type CloudWatchAnnotationQuery struct {
 	// For non mixed scenarios this is undefined.
 	// TODO find a better way to do this ^ that's friendly to schema
 	// TODO this shouldn't be unknown but DataSourceRef | null
-	Datasource *any `json:"datasource,omitempty"`
+	Datasource any `json:"datasource,omitempty"`
 
 	// A name/value pair that is part of the identity of a metric. For example, you can get statistics for a specific EC2 instance by specifying the InstanceId dimension when you search for metrics.
 	Dimensions *Dimensions `json:"dimensions,omitempty"`
@@ -181,7 +181,7 @@ type CloudWatchLogsQuery struct {
 	// For non mixed scenarios this is undefined.
 	// TODO find a better way to do this ^ that's friendly to schema
 	// TODO this shouldn't be unknown but DataSourceRef | null
-	Datasource *any `json:"datasource,omitempty"`
+	Datasource any `json:"datasource,omitempty"`
 
 	// The CloudWatch Logs Insights query to execute
 	Expression *string `json:"expression,omitempty"`
@@ -226,7 +226,7 @@ type CloudWatchMetricsQuery struct {
 	// For non mixed scenarios this is undefined.
 	// TODO find a better way to do this ^ that's friendly to schema
 	// TODO this shouldn't be unknown but DataSourceRef | null
-	Datasource *any `json:"datasource,omitempty"`
+	Datasource any `json:"datasource,omitempty"`
 
 	// A name/value pair that is part of the identity of a metric. For example, you can get statistics for a specific EC2 instance by specifying the InstanceId dimension when you search for metrics.
 	Dimensions *Dimensions `json:"dimensions,omitempty"`
@@ -292,7 +292,7 @@ type DataQuery struct {
 	// For non mixed scenarios this is undefined.
 	// TODO find a better way to do this ^ that's friendly to schema
 	// TODO this shouldn't be unknown but DataSourceRef | null
-	Datasource *any `json:"datasource,omitempty"`
+	Datasource any `json:"datasource,omitempty"`
 
 	// If hide is set to true, Grafana will filter out the response(s) associated with this query before returning it to the panel.
 	Hide *bool `json:"hide,omitempty"`
@@ -309,6 +309,12 @@ type DataQuery struct {
 
 // A name/value pair that is part of the identity of a metric. For example, you can get statistics for a specific EC2 instance by specifying the InstanceId dimension when you search for metrics.
 type Dimensions map[string]any
+
+// Dimensions0 defines model for Dimensions.0.
+type Dimensions0 = string
+
+// Dimensions1 defines model for Dimensions.1.
+type Dimensions1 = []string
 
 // LogGroup defines model for LogGroup.
 type LogGroup struct {
@@ -407,6 +413,18 @@ type QueryEditorOperator struct {
 	Value *any    `json:"value,omitempty"`
 }
 
+// QueryEditorOperatorValue0 defines model for QueryEditorOperator.Value.0.
+type QueryEditorOperatorValue0 = string
+
+// QueryEditorOperatorValue1 defines model for QueryEditorOperator.Value.1.
+type QueryEditorOperatorValue1 = bool
+
+// QueryEditorOperatorValue2 defines model for QueryEditorOperator.Value.2.
+type QueryEditorOperatorValue2 = float32
+
+// QueryEditorOperatorValue3 defines model for QueryEditorOperator.Value.3.
+type QueryEditorOperatorValue3 = []any
+
 // QueryEditorOperatorExpression defines model for QueryEditorOperatorExpression.
 type QueryEditorOperatorExpression struct {
 	// TS type is QueryEditorOperator<T extends QueryEditorOperatorValueType>, extended in veneer
@@ -417,6 +435,27 @@ type QueryEditorOperatorExpression struct {
 
 // QueryEditorOperatorExpressionType defines model for QueryEditorOperatorExpression.Type.
 type QueryEditorOperatorExpressionType string
+
+// QueryEditorOperatorType0 defines model for QueryEditorOperatorType.0.
+type QueryEditorOperatorType0 = string
+
+// QueryEditorOperatorType1 defines model for QueryEditorOperatorType.1.
+type QueryEditorOperatorType1 = bool
+
+// QueryEditorOperatorType2 defines model for QueryEditorOperatorType.2.
+type QueryEditorOperatorType2 = float32
+
+// QueryEditorOperatorValueType0 defines model for QueryEditorOperatorValueType.0.
+type QueryEditorOperatorValueType0 = string
+
+// QueryEditorOperatorValueType1 defines model for QueryEditorOperatorValueType.1.
+type QueryEditorOperatorValueType1 = bool
+
+// QueryEditorOperatorValueType2 defines model for QueryEditorOperatorValueType.2.
+type QueryEditorOperatorValueType2 = float32
+
+// QueryEditorOperatorValueType3 defines model for QueryEditorOperatorValueType.3.
+type QueryEditorOperatorValueType3 = []any
 
 // QueryEditorProperty defines model for QueryEditorProperty.
 type QueryEditorProperty struct {

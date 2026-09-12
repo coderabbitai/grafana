@@ -51,7 +51,7 @@ type DataQuery struct {
 	// For non mixed scenarios this is undefined.
 	// TODO find a better way to do this ^ that's friendly to schema
 	// TODO this shouldn't be unknown but DataSourceRef | null
-	Datasource *any `json:"datasource,omitempty"`
+	Datasource any `json:"datasource,omitempty"`
 
 	// If hide is set to true, Grafana will filter out the response(s) associated with this query before returning it to the panel.
 	Hide *bool `json:"hide,omitempty"`
@@ -81,7 +81,7 @@ type TempoQuery struct {
 	// For non mixed scenarios this is undefined.
 	// TODO find a better way to do this ^ that's friendly to schema
 	// TODO this shouldn't be unknown but DataSourceRef | null
-	Datasource *any            `json:"datasource,omitempty"`
+	Datasource any             `json:"datasource,omitempty"`
 	Filters    []TraceqlFilter `json:"filters,omitempty"`
 
 	// Filters that are used to query the metrics summary
@@ -136,6 +136,12 @@ type TempoQuery struct {
 	TableType *SearchTableType `json:"tableType,omitempty"`
 }
 
+// TempoQueryServiceMapQuery0 defines model for TempoQuery.ServiceMapQuery.0.
+type TempoQueryServiceMapQuery0 = string
+
+// TempoQueryServiceMapQuery1 defines model for TempoQuery.ServiceMapQuery.1.
+type TempoQueryServiceMapQuery1 = []string
+
 // TempoQueryType defines model for TempoQueryType.
 type TempoQueryType string
 
@@ -159,6 +165,12 @@ type TraceqlFilter struct {
 	// The type of the value, used for example to check whether we need to wrap the value in quotes when generating the query
 	ValueType *string `json:"valueType,omitempty"`
 }
+
+// TraceqlFilterValue0 defines model for TraceqlFilter.Value.0.
+type TraceqlFilterValue0 = string
+
+// TraceqlFilterValue1 defines model for TraceqlFilter.Value.1.
+type TraceqlFilterValue1 = []string
 
 // TraceqlSearchScope static fields are pre-set in the UI, dynamic fields are added by the user
 type TraceqlSearchScope string
