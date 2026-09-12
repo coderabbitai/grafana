@@ -1,303 +1,233 @@
-import { screen, waitFor } from '@testing-library/react';
-import { KBarProvider } from 'kbar';
-import { Component } from 'react';
-import { match } from 'react-router-dom';
-import { useEffectOnce } from 'react-use';
-import { mockToolkitActionCreator } from 'test/core/redux/mocks';
-import { render } from 'test/test-utils';
+import type { FieldConfigSource } from '@grafana/data';
 
-import { createTheme } from '@grafana/data';
-import { selectors } from '@grafana/e2e-selectors';
-import { config, setDataSourceSrv } from '@grafana/runtime';
-import { Dashboard } from '@grafana/schema';
-import { notifyApp } from 'app/core/actions';
-import { AppChrome } from 'app/core/components/AppChrome/AppChrome';
-import { getRouteComponentProps } from 'app/core/navigation/__mocks__/routeProps';
-import { RouteDescriptor } from 'app/core/navigation/types';
-import { HOME_NAV_ID } from 'app/core/reducers/navModel';
-import { DashboardInitPhase, DashboardMeta, DashboardRoutes } from 'app/types';
+import { applyFnPanelOptionsPreview, type FnPanelOptionsPreviewTarget } from './DashboardPageFnPanelOptions';
 
-import { Props as LazyLoaderProps } from '../dashgrid/LazyLoader';
-import { DashboardSrv, setDashboardSrv } from '../services/DashboardSrv';
-import { DashboardModel } from '../state';
-import { createDashboardModelFixture } from '../state/__fixtures__/dashboardFixtures';
-
-import { Props, UnthemedDashboardPage } from './DashboardPage';
-
-jest.mock('app/features/dashboard/dashgrid/LazyLoader', () => {
-  const LazyLoader = ({ children, onLoad }: Pick<LazyLoaderProps, 'children' | 'onLoad'>) => {
-    useEffectOnce(() => {
-      onLoad?.();
-    });
-    return <>{typeof children === 'function' ? children({ isInView: true }) : children}</>;
-  };
-  return { LazyLoader };
-});
-
-jest.mock('app/features/dashboard/components/DashboardSettings/GeneralSettings', () => {
-  class GeneralSettings extends Component<{}, {}> {
-    render() {
-      return <>general settings</>;
-    }
-  }
-
-  return { GeneralSettings };
-});
-
-jest.mock('app/features/query/components/QueryGroup', () => {
-  return {
-    QueryGroup: () => null,
-  };
-});
-
-jest.mock('app/core/core', () => ({
-  appEvents: {
-    subscribe: () => {
-      return { unsubscribe: () => {} };
-    },
-  },
-  contextSrv: {
-    user: { orgId: 1 },
-  },
-}));
-
-jest.mock('@grafana/runtime', () => ({
-  ...jest.requireActual('@grafana/runtime'),
-  getPluginLinkExtensions: jest.fn().mockReturnValue({ extensions: [] }),
-  usePluginLinkExtensions: jest.fn().mockReturnValue({ extensions: [] }),
-}));
-
-function getTestDashboard(overrides?: Partial<Dashboard>, metaOverrides?: Partial<DashboardMeta>): DashboardModel {
-  const data = Object.assign(
-    {
-      title: 'My dashboard',
-      panels: [
-        {
-          id: 1,
-          type: 'timeseries',
-          title: 'My panel title',
-          gridPos: { x: 0, y: 0, w: 1, h: 1 },
-        },
-      ],
-    },
-    overrides
-  );
-
-  return createDashboardModelFixture(data, metaOverrides);
+interface PanelStub extends FnPanelOptionsPreviewTarget {
+  description?: string;
+  fieldConfig: FieldConfigSource;
+  id: number;
+  options: Record<string, unknown>;
+  render: jest.Mock<void, []>;
+  title: string;
+  type: string;
+  updateFieldConfig: jest.Mock<void, [FieldConfigSource]>;
+  updateOptions: jest.Mock<void, [Record<string, unknown>]>;
 }
 
-const mockInitDashboard = jest.fn();
-const mockCleanUpDashboardAndVariables = jest.fn();
-
-function setup(propOverrides?: Partial<Props>) {
-  config.bootData.navTree = [
-    { text: 'Dashboards', id: 'dashboards/browse' },
-    { text: 'Home', id: HOME_NAV_ID },
-    {
-      text: 'Help',
-      id: 'help',
-    },
-  ];
-
-  const props: Props = {
-    ...getRouteComponentProps({
-      match: { params: { slug: 'my-dash', uid: '11' } } as unknown as match,
-      route: { routeName: DashboardRoutes.Normal } as RouteDescriptor,
-    }),
-    navIndex: {
-      'dashboards/browse': {
-        text: 'Dashboards',
-        id: 'dashboards/browse',
-        parentItem: { text: 'Home', id: HOME_NAV_ID },
-      },
-      [HOME_NAV_ID]: { text: 'Home', id: HOME_NAV_ID },
-    },
-    initPhase: DashboardInitPhase.NotStarted,
-    initError: null,
-    initDashboard: mockInitDashboard,
-    notifyApp: mockToolkitActionCreator(notifyApp),
-    cleanUpDashboardAndVariables: mockCleanUpDashboardAndVariables,
-    cancelVariables: jest.fn(),
-    templateVarsChangedInUrl: jest.fn(),
-    dashboard: null,
-    theme: createTheme(),
+function getPanel(
+  type: string,
+  panelOverrides: Partial<Pick<PanelStub, 'description' | 'fieldConfig' | 'options' | 'title'>> = {}
+): PanelStub {
+  // The preview helper mutates these fields just like PanelModel does at runtime.
+  const panel: PanelStub = {
+    fieldConfig: { defaults: {}, overrides: [] },
+    id: 1,
+    options: {},
+    render: jest.fn<void, []>(),
+    title: 'Panel',
+    type,
+    updateFieldConfig: jest.fn<void, [FieldConfigSource]>(),
+    updateOptions: jest.fn<void, [Record<string, unknown>]>(),
+    ...panelOverrides,
   };
 
-  Object.assign(props, propOverrides);
+  panel.updateFieldConfig.mockImplementation((fieldConfig) => {
+    panel.fieldConfig = fieldConfig;
+  });
+  panel.updateOptions.mockImplementation((options) => {
+    panel.options = options;
+  });
 
-  const { unmount, rerender } = render(<UnthemedDashboardPage {...props} />);
-
-  const wrappedRerender = (newProps: Partial<Props>) => {
-    Object.assign(props, newProps);
-    return rerender(<UnthemedDashboardPage {...props} />);
-  };
-
-  return { rerender: wrappedRerender, unmount };
+  return panel;
 }
 
-describe('DashboardPage', () => {
-  beforeEach(() => {
-    jest.clearAllMocks();
+function applyOptions(panel: PanelStub, options: Record<string, unknown>): void {
+  applyFnPanelOptionsPreview(panel, {
+    options,
+    panelId: panel.id,
+    revision: 1,
+  });
+}
+
+describe('applyFnPanelOptionsPreview', () => {
+  it('applies common field config and stat text options', () => {
+    const panel = getPanel('stat', {
+      options: { text: { valueSize: 18 } },
+    });
+
+    applyOptions(panel, {
+      decimals: 2,
+      description: 'Updated description',
+      fontSize: 36,
+      title: 'Updated title',
+      unit: 'suffix:s',
+    });
+
+    expect(panel.title).toBe('Updated title');
+    expect(panel.description).toBe('Updated description');
+    expect(panel.fieldConfig.defaults).toEqual(
+      expect.objectContaining({
+        decimals: 2,
+        unit: 'suffix:s',
+      })
+    );
+    expect(panel.options).toEqual(expect.objectContaining({ text: { valueSize: 36 } }));
   });
 
-  it('Should call initDashboard on mount', () => {
-    setup();
-    expect(mockInitDashboard).toBeCalledWith({
-      fixUrl: true,
-      routeName: 'normal-dashboard',
-      urlSlug: 'my-dash',
-      urlUid: '11',
-      keybindingSrv: expect.anything(),
-    });
-  });
+  it('applies table pagination, filters, sort, header, and footer options', () => {
+    const panel = getPanel('table');
 
-  describe('Given a simple dashboard', () => {
-    it('Should render panels', async () => {
-      setup({ dashboard: getTestDashboard() });
-      expect(await screen.findByText('My panel title')).toBeInTheDocument();
+    applyOptions(panel, {
+      tableCellHeight: 'lg',
+      tableColumnFilter: true,
+      tableFooter: true,
+      tablePagination: true,
+      tableShowHeader: false,
+      tableSortBy: 'Author',
+      tableSortDesc: true,
     });
 
-    it('Should update title', async () => {
-      setup({ dashboard: getTestDashboard() });
-      await waitFor(() => {
-        expect(document.title).toBe('My dashboard - Dashboards - Grafana');
-      });
-    });
-
-    it('only calls initDashboard once when wrapped in AppChrome', async () => {
-      const props: Props = {
-        ...getRouteComponentProps({
-          match: { params: { slug: 'my-dash', uid: '11' }, isExact: true, path: '', url: '' },
-          route: { routeName: DashboardRoutes.Normal } as RouteDescriptor,
+    expect(panel.fieldConfig.defaults.custom).toEqual({ filterable: true });
+    expect(panel.options).toEqual(
+      expect.objectContaining({
+        cellHeight: 'lg',
+        footer: expect.objectContaining({
+          enablePagination: true,
+          show: true,
         }),
-        navIndex: {
-          'dashboards/browse': {
-            text: 'Dashboards',
-            id: 'dashboards/browse',
-            parentItem: { text: 'Home', id: HOME_NAV_ID },
-          },
-          [HOME_NAV_ID]: { text: 'Home', id: HOME_NAV_ID },
-        },
-        initPhase: DashboardInitPhase.Completed,
-        initError: null,
-        initDashboard: mockInitDashboard,
-        notifyApp: mockToolkitActionCreator(notifyApp),
-        cleanUpDashboardAndVariables: mockCleanUpDashboardAndVariables,
-        cancelVariables: jest.fn(),
-        templateVarsChangedInUrl: jest.fn(),
-        dashboard: getTestDashboard(),
-        theme: createTheme(),
-      };
-
-      render(
-        <KBarProvider>
-          <AppChrome>
-            <UnthemedDashboardPage {...props} />
-          </AppChrome>
-        </KBarProvider>
-      );
-
-      await screen.findByText('My dashboard');
-      expect(mockInitDashboard).toHaveBeenCalledTimes(1);
-    });
+        showHeader: false,
+        sortBy: [{ desc: true, displayName: 'Author' }],
+      })
+    );
   });
 
-  describe('When going into view mode', () => {
-    beforeEach(() => {
-      setDataSourceSrv({
-        get: jest.fn().mockResolvedValue({ getRef: jest.fn(), query: jest.fn().mockResolvedValue([]) }),
-        getInstanceSettings: jest.fn().mockReturnValue({ meta: {} }),
-        getList: jest.fn(),
-        reload: jest.fn(),
-      });
-      setDashboardSrv({
-        getCurrent: () => getTestDashboard(),
-      } as DashboardSrv);
+  it('applies timeseries style, stacking, legend, and tooltip options', () => {
+    const panel = getPanel('timeseries', {
+      fieldConfig: {
+        defaults: { custom: { stacking: { group: 'B', mode: 'none' } } },
+        overrides: [],
+      },
+      options: { legend: { displayMode: 'list', placement: 'bottom', showLegend: true } },
     });
 
-    it('Should render panel in view mode', async () => {
-      const dashboard = getTestDashboard();
-      setup({
-        dashboard,
-        queryParams: { viewPanel: '1' },
-      });
-      await waitFor(() => {
-        expect(dashboard.panelInView).toBeDefined();
-        expect(dashboard.panels[0].isViewing).toBe(true);
-      });
+    applyOptions(panel, {
+      legend: false,
+      legendMode: 'table',
+      legendPlacement: 'right',
+      timeseriesDrawStyle: 'bars',
+      timeseriesFillOpacity: 30,
+      timeseriesLineInterpolation: 'smooth',
+      timeseriesLineWidth: 3,
+      timeseriesPointSize: 8,
+      timeseriesShowPoints: 'always',
+      timeseriesStacking: 'normal',
+      tooltipMode: 'multi',
+      tooltipSort: 'desc',
     });
 
-    it('Should reset state when leaving', async () => {
-      const dashboard = getTestDashboard();
-      const { rerender } = setup({
-        dashboard,
-        queryParams: { viewPanel: '1' },
-      });
-      rerender({ queryParams: {}, dashboard });
-
-      await waitFor(() => {
-        expect(dashboard.panelInView).toBeUndefined();
-        expect(dashboard.panels[0].isViewing).toBe(false);
-      });
-    });
+    expect(panel.fieldConfig.defaults.custom).toEqual(
+      expect.objectContaining({
+        drawStyle: 'bars',
+        fillOpacity: 30,
+        lineInterpolation: 'smooth',
+        lineWidth: 3,
+        pointSize: 8,
+        showPoints: 'always',
+        stacking: { group: 'B', mode: 'normal' },
+      })
+    );
+    expect(panel.options.legend).toEqual(
+      expect.objectContaining({
+        displayMode: 'table',
+        placement: 'right',
+        showLegend: false,
+      })
+    );
+    expect(panel.options.tooltip).toEqual({ mode: 'multi', sort: 'desc' });
   });
 
-  describe('When going into edit mode', () => {
-    it('Should render panel in edit mode', async () => {
-      const dashboard = getTestDashboard();
-      setup({
-        dashboard,
-        queryParams: { editPanel: '1' },
-      });
-      await waitFor(() => {
-        expect(dashboard.panelInEdit).toBeDefined();
-      });
+  it('does not create legend options for unit-only graph updates', () => {
+    const panel = getPanel('timeseries');
+
+    applyOptions(panel, {
+      unit: 's',
     });
+
+    expect(panel.fieldConfig.defaults).toEqual(expect.objectContaining({ unit: 's' }));
+    expect(panel.options).toEqual({});
+    expect(panel.updateOptions).not.toHaveBeenCalled();
   });
 
-  describe('When dashboard unmounts', () => {
-    it('Should call close action', async () => {
-      const { rerender, unmount } = setup();
-      rerender({ dashboard: getTestDashboard() });
-      unmount();
-      await waitFor(() => {
-        expect(mockCleanUpDashboardAndVariables).toHaveBeenCalledTimes(1);
-      });
+  it('applies bar chart layout and display options', () => {
+    const panel = getPanel('barchart');
+
+    applyOptions(panel, {
+      barFillOpacity: 75,
+      barGroupWidth: 0.6,
+      barRadius: 0.2,
+      barShowValue: 'always',
+      barStacking: 'percent',
+      barTickLabelMaxLength: 18,
+      barTickLabelRotation: -30,
+      barWidth: 0.8,
+      orientation: 'horizontal',
     });
+
+    expect(panel.fieldConfig.defaults.custom).toEqual({ fillOpacity: 75 });
+    expect(panel.options).toEqual(
+      expect.objectContaining({
+        barRadius: 0.2,
+        barWidth: 0.8,
+        groupWidth: 0.6,
+        orientation: 'horizontal',
+        showValue: 'always',
+        stacking: 'percent',
+        xTickLabelMaxLength: 18,
+        xTickLabelRotation: -30,
+      })
+    );
   });
 
-  describe('When dashboard changes', () => {
-    it('Should call clean up action and init', async () => {
-      const { rerender } = setup();
-      rerender({ dashboard: getTestDashboard() });
-      rerender({
-        match: { params: { uid: 'new-uid' } } as unknown as match,
-        dashboard: getTestDashboard({ title: 'Another dashboard' }),
-      });
-      await waitFor(() => {
-        expect(mockCleanUpDashboardAndVariables).toHaveBeenCalledTimes(1);
-        expect(mockInitDashboard).toHaveBeenCalledTimes(2);
-      });
+  it('applies pie chart labels, legend values, and tooltip options', () => {
+    const panel = getPanel('piechart');
+
+    applyOptions(panel, {
+      pieDisplayLabels: ['name', 'percent'],
+      pieLegendValues: ['value'],
+      pieType: 'donut',
+      tooltipMode: 'none',
+      tooltipSort: 'none',
     });
+
+    expect(panel.options).toEqual(
+      expect.objectContaining({
+        displayLabels: ['name', 'percent'],
+        legend: expect.objectContaining({
+          values: ['value'],
+        }),
+        pieType: 'donut',
+        tooltip: { mode: 'none', sort: 'none' },
+      })
+    );
   });
 
-  describe('No kiosk mode tv', () => {
-    it('should render dashboard page toolbar with no submenu', async () => {
-      setup({
-        dashboard: getTestDashboard(),
-      });
-      expect(await screen.findAllByTestId(selectors.pages.Dashboard.DashNav.navV2)).toHaveLength(1);
-      expect(screen.queryAllByLabelText(selectors.pages.Dashboard.SubMenu.submenu)).toHaveLength(0);
+  it('ignores malformed pie string arrays instead of partially applying them', () => {
+    const panel = getPanel('piechart', {
+      options: {
+        displayLabels: ['name'],
+        legend: { values: ['value'] },
+      },
     });
-  });
 
-  describe('When in full kiosk mode', () => {
-    it('should not render page toolbar and submenu', async () => {
-      setup({ dashboard: getTestDashboard(), queryParams: { kiosk: true } });
-      await waitFor(() => {
-        expect(screen.queryAllByTestId(selectors.pages.Dashboard.DashNav.navV2)).toHaveLength(0);
-        expect(screen.queryAllByLabelText(selectors.pages.Dashboard.SubMenu.submenu)).toHaveLength(0);
-      });
+    applyOptions(panel, {
+      pieDisplayLabels: ['percent', true],
+      pieLegendValues: ['percent', false],
     });
+
+    expect(panel.options).toEqual({
+      displayLabels: ['name'],
+      legend: { values: ['value'] },
+    });
+    expect(panel.updateOptions).not.toHaveBeenCalled();
   });
 });

@@ -1,4 +1,4 @@
-import { css } from '@emotion/react';
+import { CSSObject } from '@emotion/react';
 
 import { GrafanaTheme2 } from '@grafana/data';
 
@@ -33,8 +33,8 @@ function buttonSizeMixin(paddingY: string, paddingX: string, fontSize: string, b
   };
 }
 
-export function getUtilityClassStyles(theme: GrafanaTheme2) {
-  return css({
+export function getUtilityClassStyles(theme: GrafanaTheme2): CSSObject {
+  return {
     '.highlight-word': {
       color: theme.v1.palette.orange,
     },
@@ -137,5 +137,5 @@ export function getUtilityClassStyles(theme: GrafanaTheme2) {
         boxShadow: 'none',
       },
     },
-  });
+  };
 }

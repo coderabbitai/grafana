@@ -1,9 +1,9 @@
-import { css } from '@emotion/react';
+import { CSSObject } from '@emotion/react';
 
 import { GrafanaTheme2 } from '@grafana/data';
 
-export function getQueryEditorStyles(theme: GrafanaTheme2) {
-  return css({
+export function getQueryEditorStyles(theme: GrafanaTheme2): CSSObject {
+  return {
     '.query-editor-row': {
       marginBottom: '2px',
 
@@ -56,5 +56,5 @@ export function getQueryEditorStyles(theme: GrafanaTheme2) {
         marginLeft: '10px',
       },
     },
-  });
+  };
 }

@@ -130,6 +130,8 @@ type FeatureFlag struct {
 
 	// The server must be initialized with the value
 	RequiresRestart bool `json:"requiresRestart,omitempty"`
+
+	FlagPublicDashboards bool `json:"flagPublicDashboards,omitempty"` // flag for public dashboards
 }
 
 type FeatureToggleWebhookPayload struct {

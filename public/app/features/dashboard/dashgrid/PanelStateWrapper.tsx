@@ -1,5 +1,6 @@
 import { debounce } from 'lodash';
 import { PureComponent } from 'react';
+import { connect } from 'react-redux';
 import { Subscription } from 'rxjs';
 
 import {
@@ -22,7 +23,7 @@ import {
   toDataFrameDTO,
   toUtc,
 } from '@grafana/data';
-import { RefreshEvent } from '@grafana/runtime';
+import { RefreshEvent, ThemeChangedEvent } from '@grafana/runtime';
 import { VizLegendOptions } from '@grafana/schema';
 import {
   ErrorBoundary,
@@ -41,6 +42,7 @@ import { applyFilterFromTable } from 'app/features/variables/adhoc/actions';
 import { onUpdatePanelSnapshotData } from 'app/plugins/datasource/grafana/utils';
 import { changeSeriesColorConfigFactory } from 'app/plugins/panel/timeseries/overrides/colorSeriesConfigFactory';
 import { dispatch } from 'app/store/store';
+import { StoreState } from 'app/types';
 import { RenderEvent } from 'app/types/events';
 
 import { deleteAnnotation, saveAnnotation, updateAnnotation } from '../../annotations/api';
@@ -71,6 +73,7 @@ export interface Props {
   onInstanceStateChange: (value: unknown) => void;
   timezone?: string;
   hideMenu?: boolean;
+  isFnDashboard?: boolean;
 }
 
 export interface State {
@@ -80,9 +83,18 @@ export interface State {
   context: PanelContext;
   data: PanelData;
   liveTime?: TimeRange;
+  /**
+   * Incremented whenever the active theme changes so that the inner viz
+   * component is remounted with a fresh key. This is needed because some
+   * panel plugins (built-in bar chart, third-party business charts, etc.)
+   * cache theme-derived state in effects whose dependency arrays do not
+   * include the theme, so they otherwise keep stale colors until the next
+   * query/time-range change.
+   */
+  themeRev: number;
 }
 
-export class PanelStateWrapper extends PureComponent<Props, State> {
+export class PanelStateWrapperDisConnected extends PureComponent<Props, State> {
   private readonly timeSrv: TimeSrv = getTimeSrv();
   private subs = new Subscription();
   private eventFilter: EventFilterOptions = { onlyLocal: true };
@@ -98,6 +110,7 @@ export class PanelStateWrapper extends PureComponent<Props, State> {
     this.state = {
       isFirstLoad: true,
       renderCounter: 0,
+      themeRev: 0,
       context: {
         eventsScope: '__global_',
         eventBus,
@@ -212,6 +225,15 @@ export class PanelStateWrapper extends PureComponent<Props, State> {
     // Subscribe to panel events
     this.subs.add(panel.events.subscribe(RefreshEvent, this.onRefresh));
     this.subs.add(panel.events.subscribe(RenderEvent, this.onRender));
+    this.subs.add(
+      appEvents.subscribe(ThemeChangedEvent, () => {
+        // Bumping `themeRev` changes the React key on <PanelComponent /> below,
+        // forcing the viz to unmount + remount so its setup effects run again
+        // with the new theme. This is the only reliable way to refresh plugins
+        // whose internal effects (e.g. echarts.init) don't depend on theme.
+        this.setState((prev) => ({ themeRev: prev.themeRev + 1 }));
+      })
+    );
 
     dashboard.panelInitialized(this.props.panel);
 
@@ -519,10 +541,16 @@ export class PanelStateWrapper extends PureComponent<Props, State> {
     // Yes this is called ever render for a function that is triggered on every mouse move
     this.eventFilter.onlyLocal = dashboard.graphTooltip === 0;
 
+    // Remount the inner viz when the theme changes so plugins that cache
+    // theme-derived state in their own effects (bar chart, business charts,
+    // etc.) pick up the new colors immediately.
+    const panelKey = `panel-${panel.id}-theme-${this.state.themeRev}`;
+
     return (
       <>
         <PanelContextProvider value={this.state.context}>
           <PanelComponent
+            key={panelKey}
             id={panel.id}
             data={data}
             title={panel.title}
@@ -555,7 +583,7 @@ export class PanelStateWrapper extends PureComponent<Props, State> {
   debouncedSetPanelAttention() {}
 
   render() {
-    const { dashboard, panel, width, height, plugin } = this.props;
+    const { dashboard, panel, width, height, plugin, isFnDashboard } = this.props;
     const { errorMessage, data } = this.state;
     const { transparent } = panel;
     const panelChromeProps = getPanelChromeProps({ ...this.props, data });
@@ -590,6 +618,7 @@ export class PanelStateWrapper extends PureComponent<Props, State> {
         onFocus={() => this.setPanelAttention()}
         onMouseEnter={() => this.setPanelAttention()}
         onMouseMove={() => this.debouncedSetPanelAttention()}
+        isFNPanel={isFnDashboard}
       >
         {(innerWidth, innerHeight) => (
           <>
@@ -611,3 +640,17 @@ export class PanelStateWrapper extends PureComponent<Props, State> {
     );
   }
 }
+
+function mapStateToProps() {
+  return (state: StoreState) => ({
+    isFnDashboard: state.fnGlobalState.FNDashboard,
+    /**
+     * Read from the per-dashboard store so the edit affordance follows whichever
+     * dashboard this panel belongs to.
+     */
+    enablePanelEdit: state.fnGlobalState.enablePanelEdit,
+    panelEditListener: state.fnGlobalState.metadata?.eventListener ?? undefined,
+  });
+}
+
+export const PanelStateWrapper = connect(mapStateToProps)(PanelStateWrapperDisConnected);

@@ -105,6 +105,9 @@ export const BarChartPanel = (props: PanelProps<Options>) => {
       orientation,
       timeZone,
       props.data.structureRev,
+      // Include the active theme so axis/grid/text colors are recomputed when
+      // the user toggles dark/light without waiting for the next query.
+      theme,
 
       totalSeries,
       seriesCount,

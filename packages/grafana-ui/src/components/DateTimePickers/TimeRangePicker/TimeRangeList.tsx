@@ -1,7 +1,7 @@
 import { css } from '@emotion/css';
 import { useRef, ReactNode } from 'react';
 
-import { TimeOption } from '@grafana/data';
+import { GrafanaTheme2, TimeOption } from '@grafana/data';
 
 import { useStyles2 } from '../../../themes';
 import { t } from '../../../utils/i18n';
@@ -82,12 +82,12 @@ function isEqual(x: TimeOption, y?: TimeOption): boolean {
   return y.from === x.from && y.to === x.to;
 }
 
-const getStyles = () => ({
+const getStyles = (theme: GrafanaTheme2) => ({
   title: css({
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'space-between',
-    padding: '8px 16px 5px 9px',
+    padding: theme.spacing(1.5, 2, 0.75, 2),
   }),
 });
 

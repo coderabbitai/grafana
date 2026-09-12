@@ -30,7 +30,8 @@ import {
   StreamingDataFrame,
   DataTopic,
 } from '@grafana/data';
-import { toDataQueryError } from '@grafana/runtime';
+import { ThemeChangedEvent, toDataQueryError } from '@grafana/runtime';
+import appEvents from 'app/core/app_events';
 import { ExpressionDatasourceRef } from '@grafana/runtime/src/utils/DataSourceWithBackend';
 import { isStreamingDataFrame } from 'app/features/live/data/utils';
 import { getDatasourceSrv } from 'app/features/plugins/datasource_srv';
@@ -82,10 +83,16 @@ export class PanelQueryRunner {
   private dataConfigSource: DataConfigSource;
   private lastRequest?: DataQueryRequest;
   private templateSrv = getTemplateSrv();
+  // Unsubscribe handle for the global ThemeChangedEvent listener. We resend the
+  // last panel result whenever the theme changes so that field overrides
+  // (which colorize values using the active theme) are recomputed and panels
+  // re-render with the new theme colors without waiting for the next query.
+  private themeChangeSub?: Unsubscribable;
 
   constructor(dataConfigSource: DataConfigSource) {
     this.subject = new ReplaySubject(1);
     this.dataConfigSource = dataConfigSource;
+    this.themeChangeSub = appEvents.subscribe(ThemeChangedEvent, () => this.resendLastResult());
   }
 
   /**
@@ -100,6 +107,11 @@ export class PanelQueryRunner {
     let lastTransformations: DataTransformerConfig[] | undefined;
     let isFirstPacket = true;
     let lastConfigRev = -1;
+    // Tracks the theme used to compute the last processed frames. When the
+    // active theme changes, this differs from `fieldConfig.theme` and forces
+    // applyFieldOverrides to re-run so panel text/colors update immediately
+    // instead of staying stale until the next query.
+    let lastTheme: ApplyFieldOverrideOptions['theme'] | undefined = undefined;
 
     if (this.dataConfigSource.snapshotData) {
       const snapshotPanelData: PanelData = {
@@ -119,7 +131,8 @@ export class PanelQueryRunner {
         if (
           data.series === lastRawFrames &&
           lastFieldConfig?.fieldConfig === fieldConfig?.fieldConfig &&
-          lastTransformations === transformations
+          lastTransformations === transformations &&
+          lastTheme === fieldConfig?.theme
         ) {
           return of({ ...data, structureRev, series: lastProcessedFrames });
         }
@@ -139,7 +152,7 @@ export class PanelQueryRunner {
             let streamingPacketWithSameSchema = false;
 
             if (withFieldConfig && data.series?.length) {
-              if (lastConfigRev === this.dataConfigSource.configRev) {
+              if (lastConfigRev === this.dataConfigSource.configRev && lastTheme === fieldConfig?.theme) {
                 let streamingDataFrame: StreamingDataFrame | undefined;
 
                 for (const frame of data.series) {
@@ -177,8 +190,9 @@ export class PanelQueryRunner {
                 }
               }
 
-              if (fieldConfig != null && (isFirstPacket || !streamingPacketWithSameSchema)) {
+              if (fieldConfig != null && (isFirstPacket || !streamingPacketWithSameSchema || lastTheme !== fieldConfig.theme)) {
                 lastConfigRev = this.dataConfigSource.configRev!;
+                lastTheme = fieldConfig.theme;
                 processedData = {
                   ...processedData,
                   series: applyFieldOverrides({
@@ -446,6 +460,11 @@ export class PanelQueryRunner {
 
     if (this.subscription) {
       this.subscription.unsubscribe();
+    }
+
+    if (this.themeChangeSub) {
+      this.themeChangeSub.unsubscribe();
+      this.themeChangeSub = undefined;
     }
   }
 

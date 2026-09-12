@@ -28,7 +28,7 @@ export function createBreakpoints(): ThemeBreakpoints {
   const values: ThemeBreakpointValues = {
     xs: 0,
     sm: 544,
-    md: 769, // 1 more than regular ipad in portrait
+    md: 768, // 1 more than regular ipad in portrait
     lg: 992,
     xl: 1200,
     xxl: 1440,

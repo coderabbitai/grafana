@@ -399,7 +399,13 @@ func (hs *HTTPServer) getFSDataSources(c *contextmodel.ReqContext, availablePlug
 	defer span.End()
 
 	orgDataSources := make([]*datasources.DataSource, 0)
-	if c.SignedInUser.GetOrgID() != 0 {
+	// MFE mode: skip the real DataSourcesService entirely and hand out the
+	// hardcoded BigQuery Prod fixture. See datasources_mfe.go for the source
+	// of truth — the same fixture powers /api/datasources/* so the frontend
+	// settings map and the individual datasource endpoints stay consistent.
+	if isCodeRabbitMFE() {
+		orgDataSources = []*datasources.DataSource{mfeHardcodedDataSource(c.SignedInUser.GetOrgID())}
+	} else if c.SignedInUser.GetOrgID() != 0 {
 		query := datasources.GetDataSourcesQuery{OrgID: c.SignedInUser.GetOrgID(), DataSourceLimit: hs.Cfg.DataSourceLimit}
 		dataSources, err := hs.DataSourcesService.GetDataSources(c.Req.Context(), &query)
 		if err != nil {

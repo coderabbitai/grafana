@@ -1,13 +1,14 @@
 const path = require('path');
 const webpack = require('webpack');
 
+const packageName = require('../../package.json').name;
+
 const CorsWorkerPlugin = require('./plugins/CorsWorkerPlugin');
 
 module.exports = {
   target: 'web',
   entry: {
     app: './public/app/index.ts',
-    swagger: './public/swagger/index.tsx',
   },
   output: {
     clean: true,
@@ -15,6 +16,9 @@ module.exports = {
     filename: '[name].[contenthash].js',
     // Keep publicPath relative for host.com/grafana/ deployments
     publicPath: 'public/build/',
+    library: `${packageName}-[name]`,
+    libraryTarget: 'umd',
+    chunkLoadingGlobal: `webpackJsonp_${packageName}`,
   },
   resolve: {
     extensions: ['.ts', '.tsx', '.es6', '.js', '.json', '.svg'],
@@ -79,7 +83,7 @@ module.exports = {
       },
       {
         test: /\.html$/,
-        exclude: /(index|error)\-template\.html/,
+        exclude: /(index|error|index-microfrontend)\-template\.html/,
         use: [
           {
             loader: 'ngtemplate-loader?relativeTo=' + path.resolve(__dirname, '../../public') + '&prefix=public',

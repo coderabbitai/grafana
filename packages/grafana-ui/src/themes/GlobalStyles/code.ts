@@ -1,9 +1,9 @@
-import { css } from '@emotion/react';
+import { CSSObject } from '@emotion/react';
 
 import { GrafanaTheme2 } from '@grafana/data';
 
-export function getCodeStyles(theme: GrafanaTheme2) {
-  return css({
+export function getCodeStyles(theme: GrafanaTheme2): CSSObject {
+  return {
     'code, pre, kbd, samp': {
       ...theme.typography.code,
       fontSize: theme.typography.bodySmall.fontSize,
@@ -37,5 +37,5 @@ export function getCodeStyles(theme: GrafanaTheme2) {
         border: 0,
       },
     },
-  });
+  };
 }

@@ -90,146 +90,153 @@ export type ThemeColorsInput = DeepPartial<ThemeColorsBase<ThemeRichColor>>;
 class DarkColors implements ThemeColorsBase<Partial<ThemeRichColor>> {
   mode: ThemeColorsMode = 'dark';
 
-  // Used to get more white opacity colors
-  whiteBase = '204, 204, 220';
+  whiteBase = '255, 255, 255';
 
-  border = {
-    weak: `rgba(${this.whiteBase}, 0.12)`,
-    medium: `rgba(${this.whiteBase}, 0.20)`,
-    strong: `rgba(${this.whiteBase}, 0.30)`,
+  primary = {
+    main: '#ff570a',
+    border: '#a35829',
+    text: '#efedf0',
   };
 
   text = {
-    primary: `rgb(${this.whiteBase})`,
-    secondary: `rgba(${this.whiteBase}, 0.65)`,
-    disabled: `rgba(${this.whiteBase}, 0.6)`,
-    link: palette.blueDarkText,
+    primary: '#efedf0',
+    secondary: '#b5b2b9',
+    disabled: '#6f6b75',
+    link: '#ffa057',
     maxContrast: palette.white,
   };
 
-  primary = {
-    main: palette.blueDarkMain,
-    text: palette.blueDarkText,
-    border: palette.blueDarkText,
+  border = {
+    weak: '#322f37',
+    medium: '#4a464f',
+    strong: '#625e68',
   };
 
   secondary = {
-    main: `rgba(${this.whiteBase}, 0.10)`,
-    shade: `rgba(${this.whiteBase}, 0.14)`,
-    transparent: `rgba(${this.whiteBase}, 0.08)`,
+    main: '#2d2a33',
+    shade: '#363240',
+    contrastText: `rgba(${this.whiteBase},  1)`,
     text: this.text.primary,
-    contrastText: `rgb(${this.whiteBase})`,
-    border: `rgba(${this.whiteBase}, 0.08)`,
+    border: this.border.weak,
   };
 
-  info = this.primary;
+  info = {
+    main: '#687ff5',
+    text: '#95afff',
+  };
 
+  // Carrot UI danger tokens (dark): bg #dc3b5d, text #ff949d, border #883447
   error = {
-    main: palette.redDarkMain,
-    text: palette.redDarkText,
+    main: '#dc3b5d',
+    text: '#ff949d',
+    border: '#883447',
   };
 
+  // Carrot UI success tokens (dark): main #30a46c (green-9), text #7ce2b3 (green-11 dark)
   success = {
-    main: palette.greenDarkMain,
-    text: palette.greenDarkText,
+    main: '#30a46c',
+    text: '#7ce2b3',
   };
 
   warning = {
-    main: palette.orangeDarkMain,
-    text: palette.orangeDarkText,
+    main: '#ffc53d',
+    text: '#ffca16',
   };
 
   background = {
-    canvas: palette.gray05,
-    primary: palette.gray10,
-    secondary: palette.gray15,
+    primary: '#1a181d',
+    canvas: '#121014',
+    secondary: '#232127',
   };
 
   action = {
-    hover: `rgba(${this.whiteBase}, 0.16)`,
-    selected: `rgba(${this.whiteBase}, 0.12)`,
+    hover: 'rgba(255, 255, 255, 0.06)',
+    selected: '#ff570a',
     selectedBorder: palette.orangeDarkMain,
-    focus: `rgba(${this.whiteBase}, 0.16)`,
     hoverOpacity: 0.08,
-    disabledText: this.text.disabled,
+    focus: `rgba(${this.whiteBase}, 0.12)`,
     disabledBackground: `rgba(${this.whiteBase}, 0.04)`,
+    disabledText: this.text.disabled,
     disabledOpacity: 0.38,
   };
 
   gradients = {
-    brandHorizontal: 'linear-gradient(270deg, #F55F3E 0%, #FF8833 100%)',
-    brandVertical: 'linear-gradient(0.01deg, #F55F3E 0.01%, #FF8833 99.99%)',
+    brandHorizontal: 'linear-gradient(90deg, #ff570a 0%, #ef4f00 100%)',
+    brandVertical: 'linear-gradient(0.01deg, #ff570a -31.2%, #ef4f00 113.07%)',
   };
 
   contrastThreshold = 3;
+
   hoverFactor = 0.03;
-  tonalOffset = 0.15;
+
+  tonalOffset = 0.2;
 }
 
 class LightColors implements ThemeColorsBase<Partial<ThemeRichColor>> {
   mode: ThemeColorsMode = 'light';
 
-  blackBase = '36, 41, 46';
+  blackBase = '45, 51, 62';
 
   primary = {
-    main: palette.blueLightMain,
-    border: palette.blueLightText,
-    text: palette.blueLightText,
+    main: '#ff570a',
+    border: '#d0ccd5',
+    text: '#211f24',
   };
 
   text = {
-    primary: `rgba(${this.blackBase}, 1)`,
-    secondary: `rgba(${this.blackBase}, 0.75)`,
-    disabled: `rgba(${this.blackBase}, 0.64)`,
-    link: this.primary.text,
+    primary: '#211f24',
+    secondary: '#65616a',
+    disabled: '#8e8a94',
+    link: '#cc4e00',
     maxContrast: palette.black,
   };
 
   border = {
-    weak: `rgba(${this.blackBase}, 0.12)`,
-    medium: `rgba(${this.blackBase}, 0.30)`,
-    strong: `rgba(${this.blackBase}, 0.40)`,
+    weak: '#e3e0e7',
+    medium: '#d0ccd5',
+    strong: '#bdb9c2',
   };
 
   secondary = {
-    main: `rgba(${this.blackBase}, 0.08)`,
-    shade: `rgba(${this.blackBase}, 0.15)`,
-    transparent: `rgba(${this.blackBase}, 0.08)`,
+    main: '#ede9f0',
+    shade: '#e4dfe9',
     contrastText: `rgba(${this.blackBase},  1)`,
     text: this.text.primary,
     border: this.border.weak,
   };
 
   info = {
-    main: palette.blueLightMain,
-    text: palette.blueLightText,
+    main: '#687ff5',
+    text: '#4354c8',
   };
 
+  // Carrot UI danger tokens (light): bg #dc3b5d, text #ca244d, border #dc3b5d
   error = {
-    main: palette.redLightMain,
-    text: palette.redLightText,
-    border: palette.redLightText,
+    main: '#dc3b5d',
+    text: '#ca244d',
+    border: '#dc3b5d',
   };
 
+  // Carrot UI success tokens (light): main #30a46c (green-9), text #218358 (green-11)
   success = {
-    main: palette.greenLightMain,
-    text: palette.greenLightText,
+    main: '#30a46c',
+    text: '#218358',
   };
 
   warning = {
-    main: palette.orangeLightMain,
-    text: palette.orangeLightText,
+    main: '#ffc53d',
+    text: '#ab6400',
   };
 
   background = {
-    canvas: palette.gray90,
-    primary: palette.white,
-    secondary: palette.gray100,
+    primary: '#faf8fb',
+    canvas: '#e9e7ed',
+    secondary: '#fdfdfe',
   };
 
   action = {
-    hover: `rgba(${this.blackBase}, 0.12)`,
-    selected: `rgba(${this.blackBase}, 0.08)`,
+    hover: 'rgba(0, 0, 0, 0.06)',
+    selected: '#ff570a',
     selectedBorder: palette.orangeLightMain,
     hoverOpacity: 0.08,
     focus: `rgba(${this.blackBase}, 0.12)`,
@@ -239,19 +246,23 @@ class LightColors implements ThemeColorsBase<Partial<ThemeRichColor>> {
   };
 
   gradients = {
-    brandHorizontal: 'linear-gradient(90deg, #FF8833 0%, #F53E4C 100%)',
-    brandVertical: 'linear-gradient(0.01deg, #F53E4C -31.2%, #FF8833 113.07%)',
+    brandHorizontal: 'linear-gradient(90deg, #ff570a 0%, #ef4f00 100%)',
+    brandVertical: 'linear-gradient(0.01deg, #ff570a -31.2%, #ef4f00 113.07%)',
   };
 
   contrastThreshold = 3;
+
   hoverFactor = 0.03;
+
   tonalOffset = 0.2;
 }
 
 export function createColors(colors: ThemeColorsInput): ThemeColors {
   const dark = new DarkColors();
   const light = new LightColors();
+
   const base = (colors.mode ?? 'dark') === 'dark' ? dark : light;
+
   const {
     primary = base.primary,
     secondary = base.secondary,

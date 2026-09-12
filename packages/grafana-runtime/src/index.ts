@@ -20,6 +20,12 @@ export {
   isExpressionReference,
 } from './utils/DataSourceWithBackend';
 export {
+  buildMfeContext,
+  hasRedactedQueryField,
+  isFnDashboardWindow,
+  type MfeContext,
+} from './utils/fnDashboardBody';
+export {
   toDataQueryResponse,
   frameToMetricFindValue,
   type BackendDataSourceResponse,

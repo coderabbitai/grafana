@@ -23,7 +23,7 @@ import { TitleItem } from './TitleItem';
 /**
  * @internal
  */
-export type PanelChromeProps = (AutoSize | FixedDimensions) & (Collapsible | HoverHeader);
+export type PanelChromeProps = (AutoSize | FixedDimensions) & (Collapsible | HoverHeader) & { isFNPanel?: boolean };
 
 interface BaseProps {
   padding?: PanelPadding;
@@ -104,6 +104,18 @@ interface HoverHeader {
  */
 export type PanelPadding = 'none' | 'md';
 
+function getPanelLoadingBarStyles(panelBorderRadius: string, panelBorderWidth: number) {
+  const inset = `calc(${panelBorderRadius} - ${panelBorderWidth}px)`;
+
+  return {
+    position: 'absolute' as const,
+    top: -panelBorderWidth,
+    left: inset,
+    right: inset,
+    pointerEvents: 'none' as const,
+  };
+}
+
 /**
  * @internal
  */
@@ -134,9 +146,10 @@ export function PanelChrome({
   onFocus,
   onMouseMove,
   onMouseEnter,
+  isFNPanel,
 }: PanelChromeProps) {
   const theme = useTheme2();
-  const styles = useStyles2(getStyles);
+  const styles = useStyles2(getStyles(isFNPanel));
   const panelContentId = useId();
   const panelTitleId = useId().replace(/:/g, '_');
 
@@ -294,7 +307,11 @@ export function PanelChrome({
       )}
 
       {hasHeader && (
-        <div className={cx(styles.headerContainer, dragClass)} style={headerStyles} data-testid="header-container">
+        <div
+          className={cx(styles.headerContainer, title && styles.headerDivider, dragClass)}
+          style={headerStyles}
+          data-testid="header-container"
+        >
           {statusMessage && (
             <div className={dragClassCancel}>
               <PanelStatus message={statusMessage} onClick={statusMessageOnClick} ariaLabel="Panel status" />
@@ -303,7 +320,7 @@ export function PanelChrome({
 
           {headerContent}
 
-          {menu && (
+          {menu && !isFNPanel && (
             <PanelMenu
               menu={menu}
               title={typeof title === 'string' ? title : undefined}
@@ -376,37 +393,57 @@ const getContentStyle = (
   return { contentStyle, innerWidth, innerHeight };
 };
 
-const getStyles = (theme: GrafanaTheme2) => {
+const getStyles = (isFNPanel?: boolean) => (theme: GrafanaTheme2) => {
   const { background, borderColor, padding } = theme.components.panel;
+  const panelBorderWidth = 1;
+  const panelBorderRadius = theme.shape.borderRadius(3);
+  const focusStyles = getFocusStyles(theme);
+  const elevatedFocusShadow = `${focusStyles.boxShadow}, ${theme.shadows.z2}`;
 
   return {
     container: css({
       label: 'panel-container',
       backgroundColor: background,
-      border: `1px solid ${borderColor}`,
+      border: `${panelBorderWidth}px solid ${borderColor}`,
+      // Larger corner radius + soft elevation to match the Carrot UI card language.
+      borderRadius: panelBorderRadius,
+      boxShadow: theme.shadows.z1,
       position: 'relative',
-      borderRadius: theme.shape.radius.default,
       height: '100%',
       display: 'flex',
       flexDirection: 'column',
+      transition: theme.transitions.create(['box-shadow', 'border-color'], {
+        duration: theme.transitions.duration.short,
+      }),
 
       '.show-on-hover': {
         opacity: '0',
         visibility: 'hidden',
       },
 
-      '&:focus-visible, &:hover': {
-        // only show menu icon on hover or focused panel
+      '&:hover': {
+        borderColor: theme.colors.border.medium,
+        boxShadow: theme.shadows.z2,
+        // only show menu icon on hover
         '.show-on-hover': {
           opacity: '1',
           visibility: 'visible',
         },
       },
 
-      '&:focus-visible': getFocusStyles(theme),
+      '&:focus-visible': {
+        ...focusStyles,
+        boxShadow: elevatedFocusShadow,
+        // only show menu icon when panel is focused
+        '.show-on-hover': {
+          opacity: '1',
+          visibility: 'visible',
+        },
+      },
 
-      // The not:(:focus) clause is so that this rule is only applied when decendants are focused (important otherwise the hover header is visible when panel is clicked).
+      // The not:(:focus) clause is so that this rule is only applied when descendants are focused (important otherwise the hover header is visible when panel is clicked).
       '&:focus-within:not(:focus)': {
+        boxShadow: theme.shadows.z2,
         '.show-on-hover': {
           visibility: 'visible',
           opacity: '1',
@@ -416,17 +453,20 @@ const getStyles = (theme: GrafanaTheme2) => {
     transparentContainer: css({
       label: 'panel-transparent-container',
       backgroundColor: 'transparent',
-      border: '1px solid transparent',
+      border: `${panelBorderWidth}px solid transparent`,
+      boxShadow: 'none',
       boxSizing: 'border-box',
       '&:hover': {
-        border: `1px solid ${borderColor}`,
+        border: `${panelBorderWidth}px solid ${borderColor}`,
+        boxShadow: theme.shadows.z1,
       },
     }),
     loadingBarContainer: css({
       label: 'panel-loading-bar-container',
-      position: 'absolute',
-      top: 0,
-      width: '100%',
+      // Overlay the flat part of the panel's top border without painting through
+      // its rounded corners. Absolute positioning is relative to the inner edge
+      // of the panel border, hence the border-width adjustment on each inset.
+      ...getPanelLoadingBarStyles(panelBorderRadius, panelBorderWidth),
       // this is to force the loading bar container to create a new stacking context
       // otherwise, in webkit browsers on windows/linux, the aliasing of panel text changes when the loading bar is shown
       // see https://github.com/grafana/grafana/issues/88104
@@ -445,6 +485,13 @@ const getStyles = (theme: GrafanaTheme2) => {
       display: 'flex',
       alignItems: 'center',
     }),
+    // Hairline separator between the title row and the visualisation, the way
+    // Vercel-style cards split header from body. Only applied when the panel
+    // actually renders a title, so untitled panels stay borderless.
+    headerDivider: css({
+      label: 'panel-header-divider',
+      borderBottom: `1px solid ${theme.colors.border.weak}`,
+    }),
     pointer: css({
       cursor: 'pointer',
     }),
@@ -460,8 +507,26 @@ const getStyles = (theme: GrafanaTheme2) => {
     title: css({
       label: 'panel-title',
       display: 'flex',
+      alignItems: 'center',
       padding: theme.spacing(0, padding),
       minWidth: 0,
+      // Panel titles are secondary chrome: slightly muted, tighter tracking.
+      '& h2': {
+        color: theme.colors.text.primary,
+        fontWeight: theme.typography.fontWeightMedium,
+        letterSpacing: '-0.01em',
+        // The MFE's scoped Sass reset has greater specificity than Text's class
+        // and is loaded after runtime Emotion styles. Limit the override to the
+        // panel title instead of weakening heading spacing across the MFE.
+        marginBottom: '0 !important',
+      },
+      // FN-dashboard panel titles span the full chrome width so the title
+      // and the right-aligned menu line up edge-to-edge. Titles render in
+      // normal case — the uppercase transform that previously lived here
+      // has been removed.
+      ...(isFNPanel && {
+        width: '100%',
+      }),
       '& > h2': {
         minWidth: 0,
       },

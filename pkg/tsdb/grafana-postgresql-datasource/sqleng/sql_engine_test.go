@@ -1,11 +1,16 @@
 package sqleng
 
 import (
+	"context"
 	"fmt"
 	"net"
+	"net/http"
+	"net/http/httptest"
+	"net/url"
 	"testing"
 	"time"
 
+	"github.com/golang-jwt/jwt/v4"
 	"github.com/grafana/grafana-plugin-sdk-go/backend"
 	"github.com/grafana/grafana-plugin-sdk-go/data"
 	"github.com/grafana/grafana-plugin-sdk-go/data/sqlutil"
@@ -13,6 +18,9 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/grafana/grafana-plugin-sdk-go/backend/log"
+	"github.com/grafana/grafana/pkg/services/contexthandler/ctxkey"
+	contextmodel "github.com/grafana/grafana/pkg/services/contexthandler/model"
+	"github.com/grafana/grafana/pkg/web"
 )
 
 func Pointer[T any](v T) *T { return &v }
@@ -423,6 +431,112 @@ func TestSQLEngine(t *testing.T) {
 		assert.Equal(t, err, resultErr)
 		assert.ErrorIs(t, err, resultErr)
 	})
+}
+
+func TestCodeRabbitRenderContextToken(t *testing.T) {
+	const rendererAuthToken = "renderer-token"
+
+	t.Run("prefers CodeRabbit headers when present", func(t *testing.T) {
+		req := httptest.NewRequest(http.MethodPost, "/api/ds/query", nil)
+		req.Header.Set(headerCodeRabbitOrg, "org-from-header")
+
+		handler := DataSourceHandler{
+			log:               backend.NewLoggerWith("logger", "test"),
+			rendererAuthToken: rendererAuthToken,
+		}
+		reqCtx := &contextmodel.ReqContext{Context: &web.Context{Req: req}}
+		ctx := ctxkey.Set(context.Background(), reqCtx)
+
+		renderContext := handler.findCodeRabbitIdentifiers(ctx)
+		require.Equal(t, "org-from-header", renderContext.orgID)
+		require.Empty(t, renderContext.selfHostedInstanceID)
+	})
+
+	t.Run("decodes org ID from render context token in referer", func(t *testing.T) {
+		token := signCodeRabbitRenderContextToken(t, rendererAuthToken, codeRabbitRenderContextClaims{
+			OrgID: "org-from-token",
+		})
+		refererURL := url.URL{
+			Scheme:   "http",
+			Host:     "grafana.local",
+			Path:     "/d/summary/summary",
+			RawQuery: url.Values{queryCodeRabbitRenderContextToken: []string{token}}.Encode(),
+		}
+		req := httptest.NewRequest(http.MethodPost, "/api/ds/query", nil)
+		req.Header.Set("Referer", refererURL.String())
+
+		handler := DataSourceHandler{
+			log:               backend.NewLoggerWith("logger", "test"),
+			rendererAuthToken: rendererAuthToken,
+		}
+
+		renderContext := handler.findCodeRabbitIdentifiersFromRequest(req)
+		require.Equal(t, "org-from-token", renderContext.orgID)
+		require.Empty(t, renderContext.selfHostedInstanceID)
+	})
+
+	t.Run("decodes self-hosted ID from render context token in query params", func(t *testing.T) {
+		token := signCodeRabbitRenderContextToken(t, rendererAuthToken, codeRabbitRenderContextClaims{
+			SelfHostedInstanceID: "self-hosted-from-token",
+		})
+		req := httptest.NewRequest(http.MethodPost, "/api/ds/query?"+url.Values{queryCodeRabbitRenderContextToken: []string{token}}.Encode(), nil)
+
+		handler := DataSourceHandler{
+			log:               backend.NewLoggerWith("logger", "test"),
+			rendererAuthToken: rendererAuthToken,
+		}
+
+		renderContext := handler.findCodeRabbitIdentifiersFromRequest(req)
+		require.Empty(t, renderContext.orgID)
+		require.Equal(t, "self-hosted-from-token", renderContext.selfHostedInstanceID)
+	})
+
+	t.Run("ignores render context tokens signed with the wrong renderer token", func(t *testing.T) {
+		token := signCodeRabbitRenderContextToken(t, "wrong-token", codeRabbitRenderContextClaims{
+			OrgID: "org-from-token",
+		})
+		req := httptest.NewRequest(http.MethodPost, "/api/ds/query?"+url.Values{queryCodeRabbitRenderContextToken: []string{token}}.Encode(), nil)
+
+		handler := DataSourceHandler{
+			log:               backend.NewLoggerWith("logger", "test"),
+			rendererAuthToken: rendererAuthToken,
+		}
+
+		renderContext := handler.findCodeRabbitIdentifiersFromRequest(req)
+		require.Empty(t, renderContext.orgID)
+		require.Empty(t, renderContext.selfHostedInstanceID)
+	})
+
+	t.Run("rejects render context tokens with both identifiers", func(t *testing.T) {
+		token := signCodeRabbitRenderContextToken(t, rendererAuthToken, codeRabbitRenderContextClaims{
+			OrgID:                "org-from-token",
+			SelfHostedInstanceID: "self-hosted-from-token",
+		})
+		req := httptest.NewRequest(http.MethodPost, "/api/ds/query?"+url.Values{queryCodeRabbitRenderContextToken: []string{token}}.Encode(), nil)
+
+		handler := DataSourceHandler{
+			log:               backend.NewLoggerWith("logger", "test"),
+			rendererAuthToken: rendererAuthToken,
+		}
+
+		renderContext := handler.findCodeRabbitIdentifiersFromRequest(req)
+		require.Empty(t, renderContext.orgID)
+		require.Empty(t, renderContext.selfHostedInstanceID)
+	})
+}
+
+func signCodeRabbitRenderContextToken(t *testing.T, rendererAuthToken string, claims codeRabbitRenderContextClaims) string {
+	t.Helper()
+
+	if claims.ExpiresAt == nil {
+		claims.ExpiresAt = jwt.NewNumericDate(time.Now().UTC().Add(time.Minute))
+	}
+
+	token := jwt.NewWithClaims(jwt.SigningMethodHS512, claims)
+	signedToken, err := token.SignedString([]byte(rendererAuthToken))
+	require.NoError(t, err)
+
+	return signedToken
 }
 
 type testQueryResultTransformer struct {

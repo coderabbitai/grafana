@@ -58,27 +58,28 @@ html {
 // might still respond to pointer events.
 //
 // Credit: https://github.com/suitcss/base
-[tabindex='-1']:focus {
+[data-grafana-mf-root] [tabindex='-1']:focus {
   outline: none !important;
 }
 
 // This is specified in runtime Emotion GlobalStyles but we need them for the Grafana loading styles
 html {
-  font-size: $font-size-base;
   height: 100%;
 }
 
-// This is specified in runtime Emotion GlobalStyles but we need them for the Grafana loading styles
-body {
-  font-family: $font-family-sans-serif;
-  font-size: $font-size-base;
-  line-height: $line-height-base;
-  color: $text-color;
-  background-color: $body-bg;
+// The runtime Emotion GlobalStyles (scoped via `prefix="[data-grafana-mf-root]"`)
+// already applies Grafana's body font/color/background to this root once the app is
+// booted. Re-declaring them here paints the MFE wrapper with Grafana's $body-bg even
+// when the wrapper is embedded inside a host application that supplies its own
+// container background (e.g. CodeRabbit's dashboard), so we intentionally don't set
+// font-family/color/background-color here. The grafana loading screen renders
+// inside the host container and inherits its background, which is what we want.
+#grafanaRoot,
+[data-grafana-mf-root] {
   height: 100%;
+  min-height: 100%;
   width: 100%;
   margin: 0;
-  position: absolute;
 }
 
 //
@@ -89,12 +90,12 @@ body {
 //
 // By default, `<h1>`-`<h6>` all receive top and bottom margins. We nuke the top
 // margin for easier control within type scales as it avoids margin collapsing.
-h1,
-h2,
-h3,
-h4,
-h5,
-h6 {
+[data-grafana-mf-root] h1,
+[data-grafana-mf-root] h2,
+[data-grafana-mf-root] h3,
+[data-grafana-mf-root] h4,
+[data-grafana-mf-root] h5,
+[data-grafana-mf-root] h6 {
   margin-top: 0;
   margin-bottom: $space-sm;
 }
@@ -103,47 +104,47 @@ h6 {
 //
 // Similarly, the top margin on `<p>`s get reset. However, we also reset the
 // bottom margin to use `rem` units instead of `em`.
-p {
+[data-grafana-mf-root] p {
   margin-top: 0;
   margin-bottom: $space-md;
 }
 
 // Abbreviations and acronyms
-abbr[title] {
+[data-grafana-mf-root] abbr[title] {
   cursor: help;
   border-bottom: 1px dotted $abbr-border-color;
 }
 
-address {
+[data-grafana-mf-root] address {
   margin-bottom: $space-md;
   font-style: normal;
   line-height: inherit;
 }
 
-ol,
-ul,
-dl {
+[data-grafana-mf-root] ol,
+[data-grafana-mf-root] ul,
+[data-grafana-mf-root] dl {
   margin-top: 0;
   margin-bottom: 0;
 }
 
-ol ol,
-ul ul,
-ol ul,
-ul ol {
+[data-grafana-mf-root] ol ol,
+[data-grafana-mf-root] ul ul,
+[data-grafana-mf-root] ol ul,
+[data-grafana-mf-root] ul ol {
   margin-bottom: 0;
 }
 
-dt {
+[data-grafana-mf-root] dt {
   font-weight: $font-weight-semi-bold;
 }
 
-dd {
+[data-grafana-mf-root] dd {
   margin-bottom: $space-sm;
   margin-left: 0; // Undo browser default
 }
 
-blockquote {
+[data-grafana-mf-root] blockquote {
   margin: 0 0 $space-md;
 }
 
@@ -155,7 +156,7 @@ blockquote {
 // Code
 //
 
-pre {
+[data-grafana-mf-root] pre {
   // Remove browser default top margin
   margin-top: 0;
   // Reset browser default of `1em` to use `rem`s
@@ -166,7 +167,7 @@ pre {
 // Figures
 //
 
-figure {
+[data-grafana-mf-root] figure {
   // Normalize adds `margin` to `figure`s as browsers apply it inconsistently.
   // We reset that to create a better flow in-page.
   margin: 0 0 $space-md;
@@ -176,7 +177,7 @@ figure {
 // Images
 //
 
-img {
+[data-grafana-mf-root] img {
   // By default, `<img>`s are `inline-block`. This assumes that, and vertically
   // centers them. This won't apply should you reset them to `block` level.
   vertical-align: middle;
@@ -190,7 +191,7 @@ img {
 // for traditionally non-focusable elements with role="button"
 // see https://developer.mozilla.org/en-US/docs/Web/Events/click#Safari_Mobile
 
-[role='button'] {
+[data-grafana-mf-root] [role='button'] {
   cursor: pointer;
 }
 
@@ -204,15 +205,15 @@ img {
 // * http://caniuse.com/#feat=css-touch-action
 // * http://patrickhlauke.github.io/touch/tests/results/#suppressing-300ms-delay
 
-a,
-area,
-button,
-[role='button'],
-input,
-label,
-select,
-summary,
-textarea {
+[data-grafana-mf-root] a,
+[data-grafana-mf-root] area,
+[data-grafana-mf-root] button,
+[data-grafana-mf-root] [role='button'],
+[data-grafana-mf-root] input,
+[data-grafana-mf-root] label,
+[data-grafana-mf-root] select,
+[data-grafana-mf-root] summary,
+[data-grafana-mf-root] textarea {
   touch-action: manipulation;
 }
 
@@ -220,12 +221,12 @@ textarea {
 // Tables
 //
 
-table {
+[data-grafana-mf-root] table {
   // Reset for nesting within parents with `background-color`.
   background-color: transparent;
 }
 
-caption {
+[data-grafana-mf-root] caption {
   padding-top: $space-inset-squish-md;
   padding-bottom: $space-inset-squish-md;
   color: $text-muted;
@@ -233,7 +234,7 @@ caption {
   caption-side: bottom;
 }
 
-th {
+[data-grafana-mf-root] th {
   // Centered by default, but left-align-ed to match the `td`s below.
   text-align: left;
 }
@@ -241,7 +242,7 @@ th {
 //
 // Forms
 //
-label {
+[data-grafana-mf-root] label {
   // Allow labels to use `margin` for spacing.
   display: inline-block;
 }
@@ -250,31 +251,38 @@ label {
 // results in a loss of the default `button` focus styles.
 //
 // Credit: https://github.com/suitcss/base/
-button:focus {
+// NOTE: scoped to the MFE root so the browser focus ring does not leak into
+// the host application's buttons (it overrides the host's own focus styling
+// and paints an unwanted light-blue outline around every clicked tab once
+// the dashboard has mounted).
+[data-grafana-mf-root] button:focus {
   outline: 1px dotted;
   outline: 5px auto -webkit-focus-ring-color;
 }
 
-input,
-button,
-select,
-textarea {
+[data-grafana-mf-root] input,
+[data-grafana-mf-root] button,
+[data-grafana-mf-root] select,
+[data-grafana-mf-root] textarea {
   // Remove all `margin`s so our classes don't have to do it themselves.
   margin: 0;
   // Normalize includes `font: inherit;`, so `font-family`. `font-size`, etc are
   // properly inherited. However, `line-height` isn't addressed there. Using this
   // ensures we don't need to unnecessarily redeclare the global font stack.
   line-height: inherit;
-  // iOS adds rounded borders by default
-  border-radius: 0;
+  // Note: the historical iOS `border-radius: 0` reset has been intentionally
+  // removed here. When the MFE wrapper is embedded inside a host app, that
+  // reset clobbers the host's own button/input border-radius (e.g. Tailwind
+  // `rounded-*`). Grafana's own form controls set their radii via Emotion, so
+  // dropping the reset has no visible effect on Grafana UI.
 }
 
-textarea {
+[data-grafana-mf-root] textarea {
   // Textareas should really only resize vertically so they don't break their (horizontal) containers.
   resize: vertical;
 }
 
-fieldset {
+[data-grafana-mf-root] fieldset {
   // Chrome and Firefox set a `min-width: min-content;` on fieldsets,
   // so we reset that to ensure it behaves more like a standard block element.
   // See https://github.com/twbs/bootstrap/issues/12359.
@@ -285,7 +293,7 @@ fieldset {
   border: 0;
 }
 
-legend {
+[data-grafana-mf-root] legend {
   // Reset the entire legend element to match the `fieldset`
   display: block;
   width: 100%;
@@ -296,7 +304,7 @@ legend {
   border: 0;
 }
 
-input[type='search'] {
+[data-grafana-mf-root] input[type='search'] {
   // This overrides the extra rounded corners on search inputs in iOS so that our
   // `.form-control` class can properly style them. Note that this cannot simply
   // be added to `.form-control` as it's not specific enough. For details, see
@@ -305,7 +313,7 @@ input[type='search'] {
 }
 
 // todo: needed?
-output {
+[data-grafana-mf-root] output {
   display: inline-block;
   //  font-size: $font-size-base;
   //  line-height: $line-height;
@@ -313,6 +321,6 @@ output {
 }
 
 // Always hide an element with the `hidden` HTML attribute (from PureCSS).
-[hidden] {
+[data-grafana-mf-root] [hidden] {
   display: none !important;
 }

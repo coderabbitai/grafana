@@ -180,7 +180,21 @@ export class VariableQueryRunner {
     const variableAsVars = { variable: { text: variable.current.text, value: variable.current.value } };
     const searchFilterScope = { searchFilter: { text: searchFilter, value: searchFilter } };
     const searchFilterAsVars = searchFilter ? searchFilterScope : {};
-    const scopedVars = { ...searchFilterAsVars, ...variableAsVars } as ScopedVars;
+    // MFE: expose the identity of the variable being refreshed so
+    // `DataSourceWithBackend.query` can inline a `[MFE_REDACTED:v:<name>]`
+    // marker on any empty query-text field of the outgoing request. The
+    // CodeRabbit proxy resolves this marker back to the shipped variable
+    // SQL — which is critical because the SQL plugin's generated `refId`
+    // (`tempVar<N>`) is a monotonically-increasing counter across the
+    // session, so its ordinal cannot uniquely identify a variable once
+    // the user switches dashboards (N runs past the variable count of
+    // the first dashboard). The marker carries the variable name, so
+    // resolution is stable across switches. `MFE_REDACTED:v:<name>` is
+    // the same encoding the fork emits from `variableMaskValue()` in
+    // pkg/api/dashboard_mfe_mask.go, kept in sync via
+    // `MFE_VARIABLE_MASK_PREFIX` in fnDashboardBody.ts.
+    const mfeVariableAsVars = { __mfeVariableName: { text: variable.name, value: variable.name } };
+    const scopedVars = { ...searchFilterAsVars, ...variableAsVars, ...mfeVariableAsVars } as ScopedVars;
     const range = this.dependencies.getTimeSrv().timeRange();
 
     const request: DataQueryRequest = {

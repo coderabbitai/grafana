@@ -9,6 +9,7 @@ import { VizTooltipFooter } from '@grafana/ui/src/components/VizTooltip/VizToolt
 import { VizTooltipHeader } from '@grafana/ui/src/components/VizTooltip/VizTooltipHeader';
 import { VizTooltipItem } from '@grafana/ui/src/components/VizTooltip/types';
 import { getContentItems } from '@grafana/ui/src/components/VizTooltip/utils';
+import { useSelector } from 'app/types/store';
 
 import { getDataLinks } from '../status-history/utils';
 import { fmt } from '../xychart/utils';
@@ -54,6 +55,8 @@ export const TimeSeriesTooltip = ({
   const xField = series.fields[0];
   const xVal = formattedValueToString(xField.display!(xField.values[dataIdxs[0]!]));
 
+  const eventListener = useSelector((state) => state.fnGlobalState.metadata.eventListener);
+
   const contentItems = getContentItems(
     series.fields,
     xField,
@@ -91,7 +94,25 @@ export const TimeSeriesTooltip = ({
       };
 
   return (
-    <div className={styles.wrapper}>
+    // eslint-disable-next-line jsx-a11y/no-static-element-interactions, jsx-a11y/click-events-have-key-events
+    <div
+      className={styles.wrapper}
+      onClick={() => {
+        if ((!headerItem && !contentItems.length) || !eventListener) {
+          return;
+        }
+
+        const data = [...(headerItem ? [headerItem] : []), ...contentItems].map((item) => ({
+          title: item.label,
+          text: item.value,
+        }));
+
+        eventListener({
+          type: 'barTooltipClick',
+          data,
+        });
+      }}
+    >
       {headerItem != null && <VizTooltipHeader item={headerItem} isPinned={isPinned} />}
       <VizTooltipContent
         items={contentItems}
@@ -108,5 +129,6 @@ export const getStyles = () => ({
   wrapper: css({
     display: 'flex',
     flexDirection: 'column',
+    zIndex: 999,
   }),
 });

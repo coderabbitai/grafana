@@ -73,6 +73,46 @@ it('renders panel with title in place if prop title', () => {
   expect(screen.getByText('Test Panel Header')).toBeInTheDocument();
 });
 
+it('keeps the panel title centered when the MFE heading reset adds a bottom margin', () => {
+  const mfeReset = document.createElement('style');
+  mfeReset.textContent = '[data-grafana-mf-root] h2 { margin-bottom: 8px; }';
+  document.head.appendChild(mfeReset);
+
+  try {
+    const rendered = setup({ title: 'Test Panel Header' });
+    rendered.container.setAttribute('data-grafana-mf-root', '');
+    const heading = screen.getByText('Test Panel Header');
+    const titleClass = heading.parentElement?.classList.item(0);
+    const rules = Array.from(document.styleSheets).flatMap((sheet) => Array.from(sheet.cssRules));
+    const titleRule = rules.find(
+      (rule): rule is CSSStyleRule =>
+        rule instanceof CSSStyleRule && Boolean(titleClass && rule.selectorText.includes(`.${titleClass} h2`))
+    );
+
+    expect(titleRule?.style.getPropertyValue('margin-bottom')).toBe('0');
+    expect(titleRule?.style.getPropertyPriority('margin-bottom')).toBe('important');
+  } finally {
+    mfeReset.remove();
+  }
+});
+
+it('insets the description hover surface without changing its header footprint', () => {
+  setup({ title: 'Test Panel Header', description: 'Test panel description' });
+
+  const descriptionItem = screen.getByTestId('title-items-container').querySelector('span');
+
+  expect(descriptionItem).toBeInTheDocument();
+  expect(getComputedStyle(descriptionItem!)).toMatchObject({
+    height: '24px',
+    paddingLeft: '4px',
+    paddingRight: '4px',
+    marginTop: '4px',
+    marginRight: '4px',
+    marginBottom: '4px',
+    marginLeft: '4px',
+  });
+});
+
 // Check for backwards compatibility
 it('renders panel with a header if prop leftItems', () => {
   setup({
@@ -123,22 +163,34 @@ it('does not render error status in the panel header if loadingState is error, b
   expect(screen.queryByTestId('panel-status')).not.toBeInTheDocument();
 });
 
-it('renders loading indicator in the panel header if loadingState is loading', () => {
+it.each<[string, Partial<PanelChromeProps>]>([
+  ['default panel', {}],
+  ['panel with a fixed header', { hoverHeader: false }],
+  ['panel with a hover header', { hoverHeader: true }],
+  ['transparent panel', { displayMode: 'transparent' }],
+  ['collapsed panel', { collapsible: true, collapsed: true }],
+  ['mobile-width panel', { width: 320, height: 100 }],
+  ['narrow grid panel', { width: 24, height: 100 }],
+])('renders the loading indicator for a %s', (_name, propOverrides) => {
+  setup({ ...propOverrides, loadingState: LoadingState.Loading });
+
+  expect(screen.getByLabelText('Panel loading bar')).toBeInTheDocument();
+});
+
+it('aligns the loading indicator with the flat part of the rounded panel border', () => {
   setup({ loadingState: LoadingState.Loading });
 
-  expect(screen.getByLabelText('Panel loading bar')).toBeInTheDocument();
-});
+  const loadingBar = screen.getByLabelText('Panel loading bar');
+  const loadingBarContainer = loadingBar.parentElement?.parentElement;
 
-it('renders loading indicator in the panel header if loadingState is loading regardless of not having a header', () => {
-  setup({ loadingState: LoadingState.Loading, hoverHeader: true });
-
-  expect(screen.getByLabelText('Panel loading bar')).toBeInTheDocument();
-});
-
-it('renders loading indicator in the panel header if loadingState is loading regardless of having a header', () => {
-  setup({ loadingState: LoadingState.Loading, hoverHeader: false });
-
-  expect(screen.getByLabelText('Panel loading bar')).toBeInTheDocument();
+  expect(loadingBarContainer).toBeInTheDocument();
+  expect(getComputedStyle(loadingBarContainer!)).toMatchObject({
+    position: 'absolute',
+    top: '-1px',
+    left: 'calc(12px - 1px)',
+    right: 'calc(12px - 1px)',
+    pointerEvents: 'none',
+  });
 });
 
 it('renders streaming indicator in the panel header if loadingState is streaming', () => {

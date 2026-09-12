@@ -35,6 +35,10 @@ type DashboardMeta struct {
 	ProvisionedExternalId  string                             `json:"provisionedExternalId"`
 	AnnotationsPermissions *dashboardsV0.AnnotationPermission `json:"annotationsPermissions"`
 	PublicDashboardEnabled bool                               `json:"publicDashboardEnabled,omitempty"`
+	HasPublicDashboard     bool                               `json:"hasPublicDashboard,omitempty"`
+	// WorkspaceID scopes a dashboard to a CodeRabbit workspace. Empty for
+	// dashboards provisioned outside the micro frontend flow.
+	WorkspaceID string `json:"workspaceId,omitempty"`
 }
 
 type DashboardFullWithMeta struct {

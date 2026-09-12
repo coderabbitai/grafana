@@ -1,11 +1,11 @@
 // some plugins depend on these classes
 // TODO we should aim to remove this for Grafana 12
-import { css } from '@emotion/react';
+import { CSSObject } from '@emotion/react';
 
 import { GrafanaTheme2 } from '@grafana/data';
 
-export function getLegacySelectStyles(theme: GrafanaTheme2) {
-  return css({
+export function getLegacySelectStyles(theme: GrafanaTheme2): CSSObject {
+  return {
     '.gf-form-select-box__control': {
       width: '100%',
       marginRight: theme.spacing(0.5),
@@ -203,5 +203,5 @@ export function getLegacySelectStyles(theme: GrafanaTheme2) {
       display: 'flex',
       alignItems: 'center',
     },
-  });
+  };
 }

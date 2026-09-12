@@ -1,6 +1,7 @@
 import { css, cx } from '@emotion/css';
 import { indexOf } from 'lodash';
-import { Component } from 'react';
+import React from 'react';
+import { connect } from 'react-redux';
 import { Unsubscribable } from 'rxjs';
 
 import { GrafanaTheme2 } from '@grafana/data';
@@ -9,6 +10,7 @@ import { getTemplateSrv, RefreshEvent } from '@grafana/runtime';
 import { Icon, TextLink, Themeable2, withTheme2 } from '@grafana/ui';
 import appEvents from 'app/core/app_events';
 import { SHARED_DASHBOARD_QUERY } from 'app/plugins/datasource/dashboard/types';
+import { StoreState } from 'app/types';
 
 import { ShowConfirmModalEvent } from '../../../../types/events';
 import { DashboardModel } from '../../state/DashboardModel';
@@ -18,9 +20,10 @@ import { RowOptionsButton } from '../RowOptions/RowOptionsButton';
 export interface DashboardRowProps extends Themeable2 {
   panel: PanelModel;
   dashboard: DashboardModel;
+  isFnDashboard: boolean;
 }
 
-export class UnthemedDashboardRow extends Component<DashboardRowProps> {
+class Component extends React.Component<DashboardRowProps> {
   sub?: Unsubscribable;
 
   componentDidMount() {
@@ -94,12 +97,14 @@ export class UnthemedDashboardRow extends Component<DashboardRowProps> {
   };
 
   render() {
+    const { isFnDashboard } = this.props;
+
     const title = getTemplateSrv().replace(this.props.panel.title, this.props.panel.scopedVars, 'text');
     const count = this.props.panel.panels ? this.props.panel.panels.length : 0;
     const panels = count === 1 ? 'panel' : 'panels';
-    const canEdit = this.props.dashboard.meta.canEdit === true;
-    const collapsed = this.props.panel.collapsed;
+    const canEdit = this.props.dashboard.meta.canEdit === true && !isFnDashboard;
     const styles = getStyles(this.props.theme);
+    const collapsed = this.props.panel.collapsed;
 
     return (
       <div
@@ -164,7 +169,13 @@ export class UnthemedDashboardRow extends Component<DashboardRowProps> {
   }
 }
 
-export const DashboardRow = withTheme2(UnthemedDashboardRow);
+function mapStateToProps() {
+  return (state: StoreState) => ({
+    isFnDashboard: state.fnGlobalState.FNDashboard,
+  });
+}
+
+export const DashboardRow = withTheme2(connect(mapStateToProps)(Component));
 
 const getStyles = (theme: GrafanaTheme2) => {
   const actions = css({

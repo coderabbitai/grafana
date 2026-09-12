@@ -1,9 +1,9 @@
-import { css } from '@emotion/react';
+import { CSSObject } from '@emotion/react';
 
 import { GrafanaTheme2 } from '@grafana/data';
 
-export function getDashDiffStyles(theme: GrafanaTheme2) {
-  return css({
+export function getDashDiffStyles(theme: GrafanaTheme2): CSSObject {
+  return {
     '.delta-html': {
       background: theme.colors.background.secondary,
       paddingTop: '5px',
@@ -200,5 +200,5 @@ export function getDashDiffStyles(theme: GrafanaTheme2) {
     '.diff-list-circle': {
       marginBottom: '3px',
     },
-  });
+  };
 }

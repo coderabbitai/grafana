@@ -38,10 +38,12 @@ on:
         required: false
         default: false
         type: boolean
+        description: 'Dry run mode'
       latest:
         required: false
         default: false
         type: boolean
+        description: 'Generate changelog for the latest release'
 
 permissions:
   contents: write

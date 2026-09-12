@@ -1,0 +1,926 @@
+import { cx } from '@emotion/css';
+import {
+  Column,
+  ColumnDef,
+  ColumnPinningState,
+  ExpandedState,
+  flexRender,
+  getCoreRowModel,
+  getExpandedRowModel,
+  getFacetedRowModel,
+  getFacetedUniqueValues,
+  getFilteredRowModel,
+  getGroupedRowModel,
+  getPaginationRowModel,
+  getSortedRowModel,
+  Table as TableInstance,
+  useReactTable,
+} from '@tanstack/react-table';
+import { useVirtualizer } from '@tanstack/react-virtual';
+import { get } from 'lodash';
+import React, { CSSProperties, RefObject, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+
+import { DataFrame, EventBus, GrafanaTheme2, InterpolateFunction } from '@grafana/data';
+import { Button, ConfirmModal, Drawer, Icon, useStyles2, useTheme2 } from '@grafana/ui';
+import { ButtonSelect } from 'app/plugins/panel/volkovlabs-table-panel/components';
+import {
+  PAGE_SIZE_OPTIONS,
+  ROW_HIGHLIGHT_STATE_KEY,
+  TEST_IDS,
+} from 'app/plugins/panel/volkovlabs-table-panel/constants';
+import {
+  AdvancedSettings,
+  ColumnConfig,
+  ColumnHeaderFontSize,
+  ColumnPinDirection,
+  Pagination as PaginationOptions,
+  RowHighlightConfig,
+  ScrollToRowPosition,
+  TableConfig,
+  TablePreferenceColumn,
+  UserPreferences,
+} from 'app/plugins/panel/volkovlabs-table-panel/types';
+import {
+  getDefaultFilters,
+  getFirstHighlightedRowIndex,
+  getSavedFilters,
+  getSavedSorting,
+} from 'app/plugins/panel/volkovlabs-table-panel/utils';
+
+import { getStyles } from './Table.styles';
+import { DrawerColumnManager, TableHeaderCell, TableRow } from './components';
+import { useAddData, useDeleteData, useEditableData, useSortState, useSyncedColumnFilters } from './hooks';
+
+/**
+ * Default Column Sizing
+ */
+const defaultColumnSizing = {
+  size: 50,
+  minSize: 20,
+  maxSize: Number.MAX_SAFE_INTEGER,
+};
+
+/**
+ * Properties
+ */
+interface Props<TData> {
+  /**
+   * Data
+   */
+  data: TData[];
+
+  /**
+   * Table's columns definition. Must be memoized.
+   */
+  columns: Array<ColumnDef<TData>>;
+
+  /**
+   * Table Ref
+   */
+  tableRef?: React.RefObject<HTMLTableElement | null>;
+
+  /**
+   * Table Header Ref
+   */
+  tableHeaderRef: React.RefObject<HTMLTableSectionElement | null>;
+
+  /**
+   * Table Footer ref
+   */
+  tableFooterRef: RefObject<HTMLTableSectionElement | null>;
+
+  /**
+   * Top Offset
+   *
+   * @type {number}
+   */
+  topOffset?: number;
+
+  /**
+   * Table Header Ref
+   */
+  paginationRef: RefObject<HTMLDivElement | null>;
+
+  /**
+   * Bottom Offset
+   *
+   * @type {number}
+   */
+  bottomOffset?: number;
+
+  /**
+   * Table scroll Padding End
+   *
+   * @type {number}
+   */
+  scrollPaddingEnd?: number;
+
+  /**
+   * Scrollable Container Ref
+   */
+  scrollableContainerRef: RefObject<HTMLDivElement | null>;
+
+  /**
+   * Event Bus
+   *
+   * @type {EventBus}
+   */
+  eventBus: EventBus;
+
+  /**
+   * Update Row
+   */
+  onUpdateRow: (row: TData) => Promise<void>;
+
+  /**
+   * Width
+   *
+   * @type {number}
+   */
+  width: number;
+
+  /**
+   * Pagination
+   *
+   * @type {PaginationOptions}
+   */
+  pagination: PaginationOptions;
+
+  /**
+   * Table Instance
+   *
+   * @type {RefObject<TableInstance<TData>>}
+   */
+  tableInstance: RefObject<TableInstance<TData>>;
+
+  /**
+   * Expanded By default
+   *
+   * @type {boolean}
+   */
+  expandedByDefault: boolean;
+
+  /**
+   * Show Header
+   *
+   * @type {boolean}
+   */
+  showHeader: boolean;
+
+  /**
+   * Striped Rows
+   *
+   * @type {boolean}
+   */
+  stripedRows: boolean;
+
+  /**
+   * Add Row
+   */
+  onAddRow: (row: TData) => Promise<void>;
+
+  /**
+   * Is Add Row Enabled
+   *
+   * @type {boolean}
+   */
+  isAddRowEnabled: boolean;
+
+  /**
+   * Delete Row
+   */
+  onDeleteRow: (row: TData) => Promise<void>;
+
+  /**
+   * Is Add Row Enabled
+   *
+   * @type {boolean}
+   */
+  isDeleteRowEnabled: boolean;
+
+  /**
+   * Row Highlight Config
+   *
+   * @type {RowHighlightConfig}
+   */
+  rowHighlightConfig?: RowHighlightConfig;
+
+  /**
+   * Is Panel Focused
+   */
+  isFocused: RefObject<boolean>;
+
+  /**
+   * Should scroll
+   */
+  shouldScroll: RefObject<boolean>;
+
+  /**
+   * Function to call after auto scroll
+   */
+  onAfterScroll: () => void;
+
+  /**
+   * Scroll behavior
+   */
+  scrollBehavior: 'auto' | 'smooth';
+
+  /**
+   * Drawer Open
+   */
+  isDrawerOpen: boolean;
+
+  /**
+   * Table Name
+   */
+  currentTableName?: string;
+
+  /**
+   * Mixed Columns for drawer
+   */
+  drawerColumns?: ColumnConfig[];
+
+  /**
+   * User Preferences
+   */
+  userPreferences: UserPreferences;
+
+  /**
+   * Open drawer set state
+   */
+  setDrawerOpen: React.Dispatch<React.SetStateAction<boolean>>;
+
+  /**
+   * Advanced options
+   */
+  advancedSettings: AdvancedSettings;
+
+  /**
+   * Update Tables Preferences
+   */
+  updateTablesPreferences: (tableName: string, updatedColumns: TablePreferenceColumn[]) => void;
+
+  /**
+   * Clear Preferences
+   */
+  clearPreferences: () => void;
+
+  /**
+   * Replace Variables
+   *
+   * @type {InterpolateFunction}
+   */
+  replaceVariables: InterpolateFunction;
+
+  /**
+   * Panel Data
+   *
+   * @type {DataFrame[]}
+   */
+  panelData: DataFrame[];
+
+  /**
+   * Highlight Rows On Hover
+   *
+   * @type {boolean}
+   */
+  highlightRowsOnHover?: boolean;
+
+  /**
+   * Current Table
+   *
+   * @type { TableConfig | undefined}
+   */
+  currentTable: TableConfig | undefined;
+}
+
+/**
+ * Get Pinned Header Column Style
+ */
+const getPinnedHeaderColumnStyle = <TData,>(theme: GrafanaTheme2, column: Column<TData>): CSSProperties => {
+  const pinnedPosition = column.getIsPinned();
+  if (!pinnedPosition) {
+    return {};
+  }
+
+  const isFirstRightPinnedColumn = pinnedPosition === 'right' && column.getIsFirstColumn('right');
+
+  return {
+    boxShadow: isFirstRightPinnedColumn ? `-1px 0 ${theme.colors.border.weak}` : undefined,
+    left: pinnedPosition === 'left' ? `${column.getStart('left')}px` : undefined,
+    right: pinnedPosition === 'right' ? `${column.getAfter('right')}px` : undefined,
+    position: 'sticky',
+    zIndex: 1,
+  };
+};
+
+/**
+ * Get Pinned Footer Column Style
+ */
+const getPinnedFooterColumnStyle = <TData,>(theme: GrafanaTheme2, column: Column<TData>): CSSProperties => {
+  const pinnedPosition = column.getIsPinned();
+  if (!pinnedPosition) {
+    return {};
+  }
+
+  const isFirstRightPinnedColumn = pinnedPosition === 'right' && column.getIsFirstColumn('right');
+
+  return {
+    boxShadow: isFirstRightPinnedColumn ? `-1px 0 ${theme.colors.border.weak}` : undefined,
+    left: pinnedPosition === 'left' ? `${column.getStart('left')}px` : undefined,
+    right: pinnedPosition === 'right' ? `${column.getAfter('right')}px` : undefined,
+    position: 'sticky',
+    zIndex: 1,
+    backgroundColor: theme.colors.background.canvas,
+  };
+};
+
+/**
+ * Test Ids
+ */
+export const testIds = TEST_IDS.table;
+
+/**
+ * Table
+ */
+export const Table = <TData,>({
+  data,
+  columns,
+  scrollableContainerRef,
+  tableHeaderRef,
+  tableFooterRef,
+  tableRef,
+  topOffset,
+  scrollPaddingEnd,
+  eventBus,
+  onUpdateRow,
+  bottomOffset,
+  paginationRef,
+  width,
+  pagination,
+  tableInstance,
+  expandedByDefault,
+  showHeader,
+  onAddRow,
+  isAddRowEnabled,
+  isDeleteRowEnabled,
+  onDeleteRow,
+  rowHighlightConfig,
+  shouldScroll,
+  isFocused,
+  onAfterScroll,
+  scrollBehavior,
+  isDrawerOpen,
+  currentTableName = '',
+  setDrawerOpen,
+  drawerColumns,
+  userPreferences,
+  clearPreferences,
+  updateTablesPreferences,
+  advancedSettings,
+  replaceVariables,
+  stripedRows,
+  panelData,
+  highlightRowsOnHover,
+  currentTable,
+}: Props<TData>) => {
+  /**
+   * Styles and Theme
+   */
+  const theme = useTheme2();
+  const styles = useStyles2(getStyles);
+
+  /**
+   * Grouping
+   */
+  const grouping = useMemo(() => {
+    return columns.filter((column) => column.enableGrouping).map((columnWithGrouping) => columnWithGrouping.id || '');
+  }, [columns]);
+
+  /**
+   * Column Pinning
+   */
+  const columnPinning = useMemo((): ColumnPinningState => {
+    const pinnedColumn = columns.filter((column) => column.enablePinning);
+    return pinnedColumn.reduce(
+      (acc, column) => {
+        if (column.meta?.config.pin === ColumnPinDirection.LEFT) {
+          acc.left?.push(column.id || '');
+        } else {
+          acc.right?.push(column.id || '');
+        }
+
+        return acc;
+      },
+      { left: [], right: [] } as ColumnPinningState
+    );
+  }, [columns]);
+
+  /**
+   * Is Edit Row Enabled
+   */
+  const isEditRowEnabled = useMemo((): boolean => {
+    return columns.some((column) => column.meta?.editable);
+  }, [columns]);
+
+  /**
+   * Expanded
+   */
+  const [expanded, setExpanded] = useState<ExpandedState>(expandedByDefault ? true : {});
+
+  /**
+   * User filtering preferences
+   */
+  const userFilterPreference = useMemo(
+    () => getSavedFilters(userPreferences, currentTableName),
+    [currentTableName, userPreferences]
+  );
+
+  /**
+   * Default filters
+   */
+  const defaultFilters = useMemo(() => getDefaultFilters(columns), [columns]);
+
+  /**
+   * User sorting preferences
+   */
+  const userSortingPreference = useMemo(
+    () => getSavedSorting(userPreferences, currentTableName),
+    [currentTableName, userPreferences]
+  );
+
+  /**
+   * Filtering
+   */
+  const [columnFilters, setColumnFilters] = useSyncedColumnFilters({
+    columns,
+    eventBus,
+    userFilterPreference,
+    defaultFilters,
+  });
+
+  /**
+   * Sorting
+   */
+  const { sorting, onChangeSort } = useSortState({ columns, userSortingPreference });
+
+  /**
+   * React Table
+   */
+  const table = useReactTable({
+    state: {
+      grouping,
+      expanded,
+      columnFilters,
+      sorting,
+      pagination: pagination.value,
+      columnPinning,
+    },
+
+    /**
+     * Basic
+     */
+    data,
+    columns,
+    getCoreRowModel: getCoreRowModel(),
+
+    /**
+     * Grouping
+     */
+    getGroupedRowModel: getGroupedRowModel(),
+    getExpandedRowModel: getExpandedRowModel(),
+    enableExpanding: true,
+    enableGrouping: true,
+    onExpandedChange: setExpanded,
+    autoResetExpanded: false,
+
+    /**
+     * Filtering
+     */
+    getFilteredRowModel: getFilteredRowModel(),
+    onColumnFiltersChange: setColumnFilters,
+    getFacetedRowModel: getFacetedRowModel(),
+    getFacetedUniqueValues: getFacetedUniqueValues(),
+
+    /**
+     * Sorting
+     */
+    getSortedRowModel: getSortedRowModel(),
+    onSortingChange: onChangeSort,
+    enableSorting: true,
+
+    /**
+     * Pagination
+     */
+    getPaginationRowModel: getPaginationRowModel(),
+    onPaginationChange: pagination.onChange,
+    manualPagination: pagination.isManual,
+    pageCount: pagination.isManual ? Math.max(1, Math.ceil(pagination.total / pagination.value.pageSize)) : undefined,
+
+    /**
+     * Debug
+     */
+    debugTable: false,
+    debugColumns: false,
+
+    /**
+     * Defaults
+     */
+    defaultColumn: defaultColumnSizing,
+  });
+
+  /**
+   * Rows
+   */
+  const { rows } = table.getRowModel();
+
+  /**
+   * Render all rows when the loaded page contains fewer rows than the selected page size.
+   * Otherwise the virtualizer can leave a visible spacer inside the fixed-height tbody.
+   */
+  const shouldRenderAllRows = pagination.isEnabled && rows.length < pagination.value.pageSize;
+
+  /**
+   * Row Virtualizer
+   * Options description - https://tanstack.com/virtual/v3/docs/api/virtualizer
+   */
+  const tableWrapperRef = useRef<HTMLDivElement>(null);
+
+  const rowVirtualizer = useVirtualizer({
+    getScrollElement: useCallback(
+      () => tableWrapperRef.current ?? scrollableContainerRef.current,
+      [scrollableContainerRef]
+    ),
+    count: rows.length,
+    getItemKey: useCallback((index: number) => rows[index].id, [rows]),
+    estimateSize: useCallback(() => 37, []),
+    measureElement: useCallback((el: HTMLElement | HTMLTableRowElement) => el.offsetHeight, []),
+    overscan: shouldRenderAllRows ? rows.length : 10,
+    scrollPaddingEnd: scrollPaddingEnd,
+  });
+
+  /**
+   * Virtualized instance options
+   */
+  const virtualRows = rowVirtualizer.getVirtualItems();
+
+  /**
+   * Pagination pages
+   */
+  const numberOfPages = useMemo(() => {
+    const pageCount = pagination.isManual
+      ? Math.ceil(pagination.total / pagination.value.pageSize)
+      : table.getPageCount();
+
+    return Math.max(1, pageCount);
+  }, [pagination.isManual, pagination.total, pagination.value.pageSize, table]);
+
+  /**
+   * Clamp the current page index so the label and navigation buttons never go past the last page
+   * when the page count shrinks (for example, after increasing the page size).
+   */
+  const clampedPageIndex = Math.max(0, Math.min(pagination.value.pageIndex, numberOfPages - 1));
+
+  /**
+   * Keep pagination state in sync when the clamped index drifts from the raw page index.
+   */
+  const paginationValue = pagination.value;
+  const onPaginationChange = pagination.onChange;
+
+  useEffect(() => {
+    if (paginationValue.pageIndex !== clampedPageIndex) {
+      onPaginationChange({
+        ...paginationValue,
+        pageIndex: clampedPageIndex,
+      });
+    }
+  }, [clampedPageIndex, onPaginationChange, paginationValue]);
+
+  /**
+   * Is Footer Visible
+   */
+  const isFooterVisible = useMemo(() => {
+    return columns.some((column) => !!column.meta?.footerEnabled);
+  }, [columns]);
+
+  /**
+   * Add Data
+   */
+  const addData = useAddData({ table, onAddRow });
+
+  /**
+   * Editable Data
+   */
+  const editableData = useEditableData({ table, onUpdateRow });
+
+  /**
+   * Delete Data
+   */
+  const deleteData = useDeleteData({ onDeleteRow });
+
+  /**
+   * Set table instance
+   */
+  useEffect(() => {
+    tableInstance.current = table;
+  }, [table, tableInstance]);
+
+  /**
+   * Get first visible highlighted row index from only visible rows
+   */
+  const firstHighlightedRowIndex = useMemo(() => getFirstHighlightedRowIndex(rows), [rows]);
+
+  /**
+   * Scroll To Highlighted Row
+   */
+  const scrollTo = rowHighlightConfig?.enabled ? rowHighlightConfig.scrollTo : ScrollToRowPosition.NONE;
+
+  /**
+   * Auto scroll
+   * https://tanstack.com/virtual/v3/docs/api/virtualizer#scrolltoindex
+   */
+  useEffect(() => {
+    if (
+      scrollTo !== ScrollToRowPosition.NONE &&
+      data &&
+      (!isFocused.current || shouldScroll.current) &&
+      firstHighlightedRowIndex >= 0
+    ) {
+      rowVirtualizer.scrollToIndex(firstHighlightedRowIndex, {
+        align: scrollTo,
+        behavior: scrollBehavior,
+      });
+      onAfterScroll();
+    }
+  }, [
+    scrollTo,
+    firstHighlightedRowIndex,
+    data,
+    rowVirtualizer,
+    rows,
+    isFocused,
+    shouldScroll,
+    onAfterScroll,
+    scrollBehavior,
+  ]);
+
+  return (
+    <div className={styles.root}>
+      <div ref={tableWrapperRef} className={styles.tableWrapper}>
+        <table
+          className={styles.table}
+          ref={tableRef}
+          style={{
+            width: table.getCenterTotalSize(),
+          }}
+          {...testIds.root.apply()}
+        >
+          {showHeader && (
+            <thead className={styles.header} ref={tableHeaderRef} style={{ top: topOffset }}>
+              {table.getHeaderGroups().map((headerGroup) => (
+                <tr key={headerGroup.id} className={styles.headerRow} {...testIds.headerRow.apply(headerGroup.id)}>
+                  {headerGroup.headers.map((header) => {
+                    const bgColor = header.column.columnDef.meta?.config.appearance.header.backgroundColor;
+                    const fontSize =
+                      header.column.columnDef.meta?.config.appearance.header.fontSize || ColumnHeaderFontSize.MD;
+                    return (
+                      <th
+                        key={header.id}
+                        className={cx(styles.headerCell, {
+                          [styles.sizeLg]: fontSize === ColumnHeaderFontSize.LG,
+                          [styles.sizeMd]: fontSize === ColumnHeaderFontSize.MD,
+                          [styles.sizeSm]: fontSize === ColumnHeaderFontSize.SM,
+                          [styles.sizeXs]: fontSize === ColumnHeaderFontSize.XS,
+                        })}
+                        style={{
+                          maxWidth: header.column.columnDef.maxSize,
+                          minWidth: header.column.columnDef.minSize,
+                          background: bgColor,
+                          width: header.getSize(),
+                          textAlign: header.column.columnDef.meta?.config.appearance.alignment,
+                          justifyContent: header.column.columnDef.meta?.config.appearance.alignment,
+                          ...getPinnedHeaderColumnStyle(theme, header.column),
+                        }}
+                        {...testIds.headerCell.apply(header.id)}
+                      >
+                        <TableHeaderCell
+                          advancedSettings={advancedSettings}
+                          setDrawerOpen={setDrawerOpen}
+                          header={header}
+                          size={fontSize}
+                          isAddRowEnabled={isAddRowEnabled}
+                          onAddRow={addData.onStart}
+                          updateTablesPreferences={updateTablesPreferences}
+                          userPreferences={userPreferences}
+                          currentTableName={currentTableName}
+                          sorting={sorting}
+                          drawerColumns={drawerColumns}
+                        />
+                      </th>
+                    );
+                  })}
+                </tr>
+              ))}
+            </thead>
+          )}
+          {!!addData.row && (
+            <tbody {...testIds.newRowContainer.apply()}>
+              <TableRow
+                row={addData.row}
+                editingRow={addData.row}
+                onStartEdit={addData.onStart}
+                onCancelEdit={addData.onCancel}
+                onChange={addData.onChange}
+                onSave={addData.onSave}
+                isSaving={addData.isSaving}
+                isNewRow={true}
+                onDelete={deleteData.onStart}
+                isHighlighted={false}
+                panelData={panelData}
+              />
+            </tbody>
+          )}
+          <tbody
+            style={{
+              height: `${rowVirtualizer.getTotalSize()}px`, //tells scrollbar how big the table is
+            }}
+            className={styles.body}
+            {...testIds.body.apply()}
+          >
+            {virtualRows.map((virtualRow, index) => {
+              const row = rows[virtualRow.index];
+              const isHighlighted =
+                rowHighlightConfig?.enabled === true && get(row.original, ROW_HIGHLIGHT_STATE_KEY) === true;
+
+              const stripedRow = stripedRows && index % 2 !== 0;
+
+              return (
+                <TableRow
+                  key={row.id}
+                  row={row}
+                  virtualRow={virtualRow}
+                  rowVirtualizer={rowVirtualizer}
+                  editingRow={editableData.row?.id === row.id ? editableData.row : null}
+                  onStartEdit={editableData.onStartEdit}
+                  onCancelEdit={editableData.onCancelEdit}
+                  onChange={editableData.onChange}
+                  stripedRow={stripedRow}
+                  onSave={editableData.onSave}
+                  isSaving={editableData.isSaving}
+                  isEditRowEnabled={isEditRowEnabled}
+                  isDeleteRowEnabled={isDeleteRowEnabled}
+                  onDelete={deleteData.onStart}
+                  rowHighlightConfig={rowHighlightConfig}
+                  isHighlighted={editableData.row?.id !== row.id && isHighlighted}
+                  highlightRowsOnHover={highlightRowsOnHover}
+                  panelData={panelData}
+                />
+              );
+            })}
+          </tbody>
+          {isFooterVisible && (
+            <tfoot
+              ref={tableFooterRef}
+              className={styles.footer}
+              style={{ maxHeight: rowVirtualizer.getTotalSize(), bottom: bottomOffset }}
+            >
+              {table.getFooterGroups().map((footerGroup) => (
+                <tr key={footerGroup.id} className={styles.footerRow}>
+                  {footerGroup.headers.map((header) => (
+                    <th
+                      key={header.id}
+                      className={styles.footerCell}
+                      style={{
+                        maxWidth: header.column.columnDef.maxSize,
+                        minWidth: header.column.columnDef.minSize,
+                        width: header.getSize(),
+                        textAlign: header.column.columnDef.meta?.config.appearance.alignment,
+                        justifyContent: header.column.columnDef.meta?.config.appearance.alignment,
+                        ...getPinnedFooterColumnStyle(theme, header.column),
+                      }}
+                      {...testIds.footerCell.apply(header.id)}
+                    >
+                      {flexRender(header.column.columnDef.footer, header.getContext())}
+                    </th>
+                  ))}
+                </tr>
+              ))}
+            </tfoot>
+          )}
+        </table>
+      </div>
+      {pagination.isEnabled && (
+        <nav
+          className={styles.paginationRow}
+          ref={paginationRef}
+          aria-label="Pagination"
+          {...testIds.pagination.apply()}
+        >
+          <div className={styles.paginationControl}>
+            <div className={styles.paginationPageSizeSection}>
+              <ButtonSelect
+                className={styles.paginationPageSize}
+                options={PAGE_SIZE_OPTIONS}
+                value={{ value: pagination.value.pageSize }}
+                valueIcon="arrows-v"
+                onChange={(event) => {
+                  pagination.onChange({
+                    pageIndex: 0,
+                    pageSize: event.value!,
+                  });
+                }}
+                {...testIds.fieldPageSize.apply()}
+              />
+            </div>
+            <div className={styles.paginationDivider} />
+            <div className={styles.paginationNavigation}>
+              <button
+                type="button"
+                aria-label="Previous page"
+                className={styles.paginationButton}
+                disabled={clampedPageIndex === 0}
+                onClick={() => {
+                  pagination.onChange({
+                    ...pagination.value,
+                    pageIndex: Math.max(0, clampedPageIndex - 1),
+                  });
+                }}
+                {...testIds.fieldPageNumber.apply()}
+              >
+                <Icon name="angle-left" size="md" />
+              </button>
+              <span className={styles.paginationPageLabel}>
+                {clampedPageIndex + 1} / {numberOfPages}
+              </span>
+              <button
+                type="button"
+                aria-label="Next page"
+                className={styles.paginationButton}
+                disabled={clampedPageIndex >= numberOfPages - 1}
+                onClick={() => {
+                  pagination.onChange({
+                    ...pagination.value,
+                    pageIndex: Math.min(numberOfPages - 1, clampedPageIndex + 1),
+                  });
+                }}
+              >
+                <Icon name="angle-right" size="md" />
+              </button>
+            </div>
+          </div>
+        </nav>
+      )}
+      {!!deleteData.row && (
+        <ConfirmModal
+          isOpen={true}
+          title={
+            currentTable?.deleteRow.messages?.confirmationTitle
+              ? replaceVariables(currentTable?.deleteRow.messages?.confirmationTitle)
+              : 'Delete Row'
+          }
+          body={
+            currentTable?.deleteRow.messages?.confirmationMessage
+              ? replaceVariables(currentTable?.deleteRow.messages?.confirmationMessage)
+              : 'Please confirm to delete row'
+          }
+          confirmText="Confirm"
+          onConfirm={deleteData.onSave}
+          onDismiss={deleteData.onCancel}
+          disabled={deleteData.isSaving}
+        />
+      )}
+      {isDrawerOpen && (
+        <Drawer
+          title={
+            <div className={styles.drawerTitle}>
+              {`${replaceVariables(currentTableName)} Table`}
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={() => {
+                  clearPreferences();
+                  setColumnFilters([]);
+                  setDrawerOpen(false);
+                }}
+                {...testIds.buttonClearAllPreferences.apply()}
+              >
+                Clear All
+              </Button>
+            </div>
+          }
+          onClose={() => setDrawerOpen(false)}
+        >
+          <DrawerColumnManager
+            sorting={sorting}
+            currentTableName={currentTableName}
+            drawerColumns={drawerColumns}
+            userPreferences={userPreferences}
+            headers={table.getHeaderGroups()}
+            updateTablesPreferences={updateTablesPreferences}
+            advancedSettings={advancedSettings}
+          />
+        </Drawer>
+      )}
+    </div>
+  );
+};

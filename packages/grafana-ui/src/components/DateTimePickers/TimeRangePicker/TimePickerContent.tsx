@@ -4,7 +4,7 @@ import { memo, useMemo, useState } from 'react';
 import { GrafanaTheme2, isDateTime, rangeUtil, RawTimeRange, TimeOption, TimeRange, TimeZone } from '@grafana/data';
 import { selectors } from '@grafana/e2e-selectors';
 
-import { useStyles2, useTheme2 } from '../../../themes';
+import { stylesFactory, useStyles2, useTheme2 } from '../../../themes';
 import { getFocusStyles } from '../../../themes/mixins';
 import { t, Trans } from '../../../utils/i18n';
 import { FilterInput } from '../../FilterInput/FilterInput';
@@ -123,15 +123,11 @@ export const TimePickerContent = (props: Props) => {
 };
 
 const NarrowScreenForm = (props: FormProps) => {
-  const { value, hideQuickRanges, onChange, timeZone, historyOptions = [], showHistory, onError, weekStart } = props;
+  const { value, hideQuickRanges, onChange, timeZone, onError, weekStart } = props;
   const styles = useStyles2(getNarrowScreenStyles);
   const isAbsolute = isDateTime(value.raw.from) || isDateTime(value.raw.to);
   const [collapsedFlag, setCollapsedFlag] = useState(!isAbsolute);
   const collapsed = hideQuickRanges ? false : collapsedFlag;
-
-  const onChangeTimeOption = (timeOption: TimeOption) => {
-    return onChange(mapOptionToTimeRange(timeOption, timeZone));
-  };
 
   return (
     <fieldset>
@@ -166,14 +162,6 @@ const NarrowScreenForm = (props: FormProps) => {
               weekStart={weekStart}
             />
           </div>
-          {showHistory && (
-            <TimeRangeList
-              title={t('time-picker.absolute.recent-title', 'Recently used absolute ranges')}
-              options={historyOptions}
-              onChange={onChangeTimeOption}
-              placeholderEmpty={null}
-            />
-          )}
         </div>
       )}
     </fieldset>
@@ -181,15 +169,18 @@ const NarrowScreenForm = (props: FormProps) => {
 };
 
 const FullScreenForm = (props: FormProps) => {
-  const { onChange, value, timeZone, fiscalYearStartMonth, isReversed, historyOptions, onError, weekStart } = props;
+  const { onChange, value, timeZone, fiscalYearStartMonth, isReversed, onError, weekStart } = props;
   const styles = useStyles2(getFullScreenStyles, props.hideQuickRanges);
-  const onChangeTimeOption = (timeOption: TimeOption) => {
-    return onChange(mapOptionToTimeRange(timeOption, timeZone));
-  };
 
   return (
     <>
-      <div className={styles.container}>
+      <div
+        className={styles.container}
+        style={{
+          height: '100%',
+          padding: '25px',
+        }}
+      >
         <div className={styles.title} data-testid={selectors.components.TimePicker.absoluteTimeRangeTitle}>
           <TimePickerTitle>
             <Trans i18nKey="time-picker.absolute.title">Absolute time range</Trans>
@@ -206,16 +197,6 @@ const FullScreenForm = (props: FormProps) => {
           weekStart={weekStart}
         />
       </div>
-      {props.showHistory && (
-        <div className={styles.recent}>
-          <TimeRangeList
-            title={t('time-picker.absolute.recent-title', 'Recently used absolute ranges')}
-            options={historyOptions || []}
-            onChange={onChangeTimeOption}
-            placeholderEmpty={<EmptyRecentList />}
-          />
-        </div>
-      )}
     </>
   );
 };
@@ -269,54 +250,56 @@ const useTimeOption = (raw: RawTimeRange, quickOptions: TimeOption[]): TimeOptio
   }, [raw, quickOptions]);
 };
 
-const getStyles = (
-  theme: GrafanaTheme2,
-  isReversed?: boolean,
-  hideQuickRanges?: boolean,
-  isContainerTall?: boolean,
-  isFullscreen?: boolean
-) => ({
-  container: css({
-    background: theme.colors.background.primary,
-    boxShadow: theme.shadows.z3,
-    width: `${isFullscreen ? '546px' : '262px'}`,
-    borderRadius: theme.shape.radius.default,
-    border: `1px solid ${theme.colors.border.weak}`,
-    [`${isReversed ? 'left' : 'right'}`]: 0,
-    display: 'flex',
-    flexDirection: 'column',
-  }),
-  body: css({
-    display: 'flex',
-    flexDirection: 'row-reverse',
-    height: `${isContainerTall ? '381px' : '217px'}`,
-    maxHeight: '100vh',
-  }),
-  leftSide: css({
-    display: 'flex',
-    flexDirection: 'column',
-    borderRight: `${isReversed ? 'none' : `1px solid ${theme.colors.border.weak}`}`,
-    width: `${!hideQuickRanges ? '60%' : '100%'}`,
-    overflow: 'auto',
-    scrollbarWidth: 'thin',
-    order: isReversed ? 1 : 0,
-  }),
-  rightSide: css({
-    width: `${isFullscreen ? '40%' : '100%'}; !important`,
-    borderRight: isReversed ? `1px solid ${theme.colors.border.weak}` : 'none',
-    display: 'flex',
-    flexDirection: 'column',
-  }),
-  timeRangeFilter: css({
-    padding: theme.spacing(1),
-  }),
-  spacing: css({
-    marginTop: '16px',
-  }),
-  scrollContent: css({
-    overflowY: 'auto',
-    scrollbarWidth: 'thin',
-  }),
+const getStyles = stylesFactory((theme: GrafanaTheme2, isReversed, hideQuickRanges, isContainerTall, isFullscreen) => {
+  return {
+    // Carrot UI popover surface: soft 12px radius, hairline border and layered
+    // elevation so the panel floats above the dashboard rather than boxing it in.
+    // NOTE: no `overflow: hidden` here — the time zone / fiscal year selects render
+    // their menus inline (menuShouldPortal={false}), so clipping the container would
+    // crop the open dropdown list. Corner bleed is handled by the footer's own radius.
+    container: css({
+      background: theme.colors.background.primary,
+      boxShadow: theme.shadows.z3,
+      width: `${isFullscreen ? '546px' : '262px'}`,
+      borderRadius: theme.shape.borderRadius(3),
+      border: `1px solid ${theme.colors.border.weak}`,
+      [`${isReversed ? 'left' : 'right'}`]: 0,
+    }),
+    body: css({
+      display: 'flex',
+      flexDirection: 'row-reverse',
+      height: `${isContainerTall ? '281px' : '217px'}`,
+      maxHeight: '100vh',
+      '& button': {
+        borderRadius: '6px',
+      },
+    }),
+    leftSide: css({
+      display: 'flex',
+      flexDirection: 'column',
+      borderRight: `${isReversed ? 'none' : `1px solid ${theme.colors.border.weak}`}`,
+      width: `${!hideQuickRanges ? '60%' : '100%'}`,
+      overflow: 'hidden',
+      order: isReversed ? 1 : 0,
+    }),
+    rightSide: css({
+      width: `${isFullscreen ? '40%' : '100%'}; !important`,
+      borderRight: isReversed ? `1px solid ${theme.colors.border.weak}` : 'none',
+      display: 'flex',
+      flexDirection: 'column',
+    }),
+    timeRangeFilter: css({
+      padding: theme.spacing(1.5),
+      borderBottom: `1px solid ${theme.colors.border.weak}`,
+    }),
+    spacing: css({
+      marginTop: '16px',
+    }),
+    scrollContent: css({
+      overflowY: 'auto',
+      scrollbarWidth: 'thin',
+    }),
+  };
 });
 
 const getNarrowScreenStyles = (theme: GrafanaTheme2) => ({
@@ -346,12 +329,11 @@ const getNarrowScreenStyles = (theme: GrafanaTheme2) => ({
 
 const getFullScreenStyles = (theme: GrafanaTheme2, hideQuickRanges?: boolean) => ({
   container: css({
-    paddingTop: '9px',
-    paddingLeft: '11px',
-    paddingRight: !hideQuickRanges ? '20%' : '11px',
+    padding: theme.spacing(1.5),
+    paddingRight: !hideQuickRanges ? '20%' : theme.spacing(1.5),
   }),
   title: css({
-    marginBottom: '11px',
+    marginBottom: theme.spacing(1.5),
   }),
   recent: css({
     flexGrow: 1,

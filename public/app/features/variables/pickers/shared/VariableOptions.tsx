@@ -20,6 +20,12 @@ export interface Props extends React.HTMLProps<HTMLUListElement>, Themeable2 {
    * Used for aria-controls
    */
   id: string;
+  /**
+   * Optional search input rendered at the top of the dropdown panel. When
+   * provided the dropdown gets a sticky search header (carrot-ui Filter style)
+   * instead of relying on a sibling input above the panel.
+   */
+  searchInput?: React.ReactNode;
 }
 
 class VariableOptions extends PureComponent<Props> {
@@ -41,11 +47,22 @@ class VariableOptions extends PureComponent<Props> {
 
   render() {
     // Don't want to pass faulty rest props to the div
-    const { multi, values, highlightIndex, selectedValues, onToggle, onToggleAll, theme, ...restProps } = this.props;
+    const {
+      multi,
+      values,
+      highlightIndex,
+      selectedValues,
+      onToggle,
+      onToggleAll,
+      theme,
+      searchInput,
+      ...restProps
+    } = this.props;
     const styles = getStyles(theme);
 
     return (
       <div className={styles.variableValueDropdown}>
+        {searchInput && <div className={styles.searchHeader}>{searchInput}</div>}
         <div className={styles.variableOptionsWrapper}>
           <ul
             className={styles.variableOptionsColumn}
@@ -137,8 +154,6 @@ class VariableOptions extends PureComponent<Props> {
 }
 
 const getStyles = stylesFactory((theme: GrafanaTheme2) => {
-  const checkboxImageUrl = theme.isDark ? 'public/img/checkbox.png' : 'public/img/checkbox_white.png';
-
   return {
     hideVariableOptionIcon: css({
       display: 'none',
@@ -151,11 +166,21 @@ const getStyles = stylesFactory((theme: GrafanaTheme2) => {
       textAlign: 'left',
     }),
     variableOption: css({
-      display: 'block',
-      padding: '2px 27px 0 8px',
+      alignItems: 'center',
+      borderRadius: theme.shape.radius.default,
+      color: theme.colors.text.primary,
+      display: 'flex',
+      minHeight: theme.spacing(3.5),
+      gap: theme.spacing(1),
+      padding: theme.spacing(0.5, 1),
       position: 'relative',
       whiteSpace: 'nowrap',
       minWidth: '115px',
+      [theme.transitions.handleMotion('no-preference')]: {
+        transition: theme.transitions.create(['background', 'color'], {
+          duration: theme.transitions.duration.short,
+        }),
+      },
       ['&:hover']: {
         backgroundColor: theme.colors.action.hover,
       },
@@ -167,40 +192,68 @@ const getStyles = stylesFactory((theme: GrafanaTheme2) => {
     }),
     variableOptionIcon: css({
       display: 'inline-block',
-      width: '24px',
-      height: '18px',
+      width: '14px',
+      height: '14px',
       position: 'relative',
-      top: '4px',
-      background: `url(${checkboxImageUrl}) left top no-repeat`,
+      border: `1px solid ${theme.colors.border.medium}`,
+      borderRadius: theme.shape.borderRadius(0.75),
+      backgroundColor: 'transparent',
+      flexShrink: 0,
     }),
     variableOptionIconManySelected: css({
-      background: `url(${checkboxImageUrl}) 0px -36px no-repeat`,
+      '&::after': {
+        content: '""',
+        position: 'absolute',
+        top: '50%',
+        left: '2px',
+        right: '2px',
+        height: '2px',
+        transform: 'translateY(-50%)',
+        backgroundColor: theme.colors.text.primary,
+      },
     }),
     variableOptionIconSelected: css({
-      background: `url(${checkboxImageUrl}) 0px -18px no-repeat`,
+      backgroundColor: theme.colors.primary.main,
+      borderColor: theme.colors.primary.main,
+
+      '&::after': {
+        content: '""',
+        position: 'absolute',
+        left: '3px',
+        top: '0px',
+        width: '5px',
+        height: '9px',
+        border: `solid ${theme.colors.getContrastText(theme.colors.primary.main)}`,
+        borderWidth: '0 2px 2px 0',
+        transform: 'rotate(45deg)',
+      },
     }),
     variableValueDropdown: css({
-      backgroundColor: theme.colors.background.primary,
+      backgroundColor: theme.colors.background.secondary,
       border: `1px solid ${theme.colors.border.weak}`,
-      borderRadius: theme.shape.borderRadius(2),
+      borderRadius: theme.shape.radius.default,
       boxShadow: theme.shadows.z2,
       position: 'absolute',
-      top: theme.spacing(theme.components.height.md),
+      top: `calc(${theme.spacing(theme.components.height.md)} + ${theme.spacing(0.5)})`,
       maxHeight: '400px',
       minHeight: '150px',
-      minWidth: '150px',
+      width: '240px',
+      maxWidth: '240px',
       overflowY: 'auto',
       overflowX: 'hidden',
+      padding: theme.spacing(0.5),
       zIndex: theme.zIndex.typeahead,
     }),
     variableOptionsColumn: css({
       maxHeight: '350px',
-      display: 'table-cell',
-      lineHeight: '26px',
+      display: 'flex',
+      flexDirection: 'column',
+      gap: theme.spacing(0.25),
+      lineHeight: theme.typography.body.lineHeight,
       listStyleType: 'none',
     }),
     variableOptionsWrapper: css({
-      display: 'table',
+      display: 'block',
       width: '100%',
     }),
     variableAllOption: css({
@@ -210,6 +263,15 @@ const getStyles = stylesFactory((theme: GrafanaTheme2) => {
 
     noPaddingBotton: css({
       paddingBottom: 0,
+    }),
+    searchHeader: css({
+      position: 'sticky',
+      top: 0,
+      zIndex: 1,
+      backgroundColor: theme.colors.background.secondary,
+      padding: theme.spacing(0.5, 0.5, 1, 0.5),
+      borderBottom: `1px solid ${theme.colors.border.weak}`,
+      marginBottom: theme.spacing(0.5),
     }),
   };
 });

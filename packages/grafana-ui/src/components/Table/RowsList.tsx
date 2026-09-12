@@ -53,6 +53,7 @@ interface RowsListProps {
   initialRowIndex?: number;
   headerGroups: HeaderGroup[];
   longestField?: Field;
+  onClickRow?: (row: Record<string, string | number>) => void;
 }
 
 export const RowsList = (props: RowsListProps) => {
@@ -78,6 +79,7 @@ export const RowsList = (props: RowsListProps) => {
     initialRowIndex = undefined,
     headerGroups,
     longestField,
+    onClickRow,
   } = props;
 
   const [rowHighlightIndex, setRowHighlightIndex] = useState<number | undefined>(initialRowIndex);
@@ -303,6 +305,21 @@ export const RowsList = (props: RowsListProps) => {
       }
       const { key, ...rowProps } = row.getRowProps({ style, ...additionalProps });
 
+      const mapRowValues = () => {
+        const rowValues: Record<string, string | number> = {};
+        for (const [key, val] of Object.entries(row.values)) {
+          const k = (row.cells[Number(key)].column as unknown as { field?: { name: string | undefined } })?.field?.name;
+          if (k === undefined) {
+            continue;
+          }
+          const camelCaseKey = k
+            .replace(/(?:^\w|[A-Z]|\b\w)/g, (word, index) => (index === 0 ? word.toLowerCase() : word.toUpperCase()))
+            .replace(/\s+/g, '');
+          rowValues[camelCaseKey] = val;
+        }
+        return rowValues;
+      };
+
       return (
         <div
           key={key}
@@ -310,6 +327,22 @@ export const RowsList = (props: RowsListProps) => {
           className={cx(tableStyles.row, expandedRowStyle)}
           onMouseEnter={() => onRowHover(index, data)}
           onMouseLeave={onRowLeave}
+          onClick={() => {
+            if (onClickRow) {
+              onClickRow(mapRowValues());
+            }
+          }}
+          role={onClickRow ? 'button' : undefined}
+          tabIndex={onClickRow ? 0 : undefined}
+          onKeyDown={
+            onClickRow
+              ? (e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                  }
+                }
+              : undefined
+          }
         >
           {/*add the nested data to the DOM first to prevent a 1px border CSS issue on the last cell of the row*/}
           {rowExpanded && (
@@ -343,6 +376,7 @@ export const RowsList = (props: RowsListProps) => {
       );
     },
     [
+      onClickRow,
       cellHeight,
       data,
       nestedDataField,

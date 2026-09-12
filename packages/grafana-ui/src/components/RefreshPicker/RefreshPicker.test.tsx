@@ -1,6 +1,14 @@
-import { intervalsToOptions } from './RefreshPicker';
+import { RefreshPicker, intervalsToOptions } from './RefreshPicker';
 
 describe('RefreshPicker', () => {
+  it('exposes refresh interval helpers from the public component export', () => {
+    expect(RefreshPicker.offOption.value).toBe('');
+    expect(RefreshPicker.liveOption.value).toBe('LIVE');
+    expect(RefreshPicker.autoOption.value).toBe('auto');
+    expect(RefreshPicker.isLive(RefreshPicker.liveOption.value)).toBe(true);
+    expect(RefreshPicker.isLive(RefreshPicker.offOption.value)).toBe(false);
+  });
+
   describe('intervalsToOptions', () => {
     describe('when called without intervals', () => {
       it('then default options should be used', () => {

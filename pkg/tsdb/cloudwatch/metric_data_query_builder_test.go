@@ -264,6 +264,51 @@ func TestMetricDataQueryBuilder(t *testing.T) {
 			assert.Equal(t, "${LABEL}|&|${PROP('Dim.InstanceId')}|&|${PROP('Dim.LoadBalancer')}", *mdq.Label)
 		})
 
+		t.Run("Query has multiple dimensions and an account Id", func(t *testing.T) {
+			query := &models.CloudWatchQuery{
+				Namespace:  "AWS/EC2",
+				MetricName: "CPUUtilization",
+				Dimensions: map[string][]string{
+					"LoadBalancer": {"lb1", "lb2", "lb3"},
+					"InstanceId":   {"i-123", "*", "i-789"},
+				},
+				Period:           300,
+				Expression:       "",
+				MatchExact:       matchExact,
+				Statistic:        "Average",
+				MetricQueryType:  models.MetricQueryTypeSearch,
+				MetricEditorMode: models.MetricEditorModeBuilder,
+			}
+
+			mdq, err := executor.buildMetricDataQuery(contextWithFeaturesEnabled(features.FlagCloudWatchNewLabelParsing), query)
+			require.NoError(t, err)
+			assert.Equal(t, `REMOVE_EMPTY(SEARCH('{"AWS/EC2","InstanceId","LoadBalancer"} MetricName="CPUUtilization" "LoadBalancer"=("lb1" OR "lb2" OR "lb3")', 'Average', 300))`, *mdq.Expression)
+			assert.Equal(t, "${LABEL}|&|${PROP('Dim.InstanceId')}|&|${PROP('Dim.LoadBalancer')}", *mdq.Label)
+		})
+
+		t.Run("Query has multiple dimensions and an account Id", func(t *testing.T) {
+			query := &models.CloudWatchQuery{
+				Namespace:  "AWS/EC2",
+				MetricName: "CPUUtilization",
+				Dimensions: map[string][]string{
+					"LoadBalancer": {"lb1", "lb2", "lb3"},
+					"InstanceId":   {"i-123", "*", "i-789"},
+				},
+				Period:           300,
+				Expression:       "",
+				MatchExact:       matchExact,
+				AccountId:        aws.String("some account id"),
+				Statistic:        "Average",
+				MetricQueryType:  models.MetricQueryTypeSearch,
+				MetricEditorMode: models.MetricEditorModeBuilder,
+			}
+
+			mdq, err := executor.buildMetricDataQuery(contextWithFeaturesEnabled(features.FlagCloudWatchNewLabelParsing), query)
+			require.NoError(t, err)
+			assert.Equal(t, `REMOVE_EMPTY(SEARCH('{"AWS/EC2","InstanceId","LoadBalancer"} MetricName="CPUUtilization" "LoadBalancer"=("lb1" OR "lb2" OR "lb3") :aws.AccountId="some account id"', 'Average', 300))`, *mdq.Expression)
+			assert.Equal(t, "${LABEL}|&|${PROP('Dim.InstanceId')}|&|${PROP('Dim.LoadBalancer')}", *mdq.Label)
+		})
+
 		t.Run("Query has a dimension key with a space", func(t *testing.T) {
 			query := &models.CloudWatchQuery{
 				Namespace:  "AWS/Kafka",
@@ -399,6 +444,74 @@ func TestMetricDataQueryBuilder(t *testing.T) {
 		})
 
 		t.Run("query has three dimension values for two given dimension keys, and one value is a star", func(t *testing.T) {
+			query := &models.CloudWatchQuery{
+				Namespace:  "AWS/EC2",
+				MetricName: "CPUUtilization",
+				Dimensions: map[string][]string{
+					"LoadBalancer": {"lb1", "lb2", "lb3"},
+					"InstanceId":   {"i-123", "*", "i-789"},
+				},
+				Period:           300,
+				Expression:       "",
+				MatchExact:       matchExact,
+				Statistic:        "Average",
+				MetricQueryType:  models.MetricQueryTypeSearch,
+				MetricEditorMode: models.MetricEditorModeBuilder,
+			}
+
+			mdq, err := executor.buildMetricDataQuery(contextWithFeaturesEnabled(features.FlagCloudWatchNewLabelParsing), query)
+			require.NoError(t, err)
+			assert.Equal(t, `REMOVE_EMPTY(SEARCH('Namespace="AWS/EC2" MetricName="CPUUtilization" "LoadBalancer"=("lb1" OR "lb2" OR "lb3") "InstanceId"', 'Average', 300))`, *mdq.Expression)
+			assert.Equal(t, "${LABEL}|&|${PROP('Dim.InstanceId')}|&|${PROP('Dim.LoadBalancer')}", *mdq.Label)
+		})
+
+		t.Run("query has multiple dimensions and an account Id", func(t *testing.T) {
+			query := &models.CloudWatchQuery{
+				Namespace:  "AWS/EC2",
+				MetricName: "CPUUtilization",
+				Dimensions: map[string][]string{
+					"LoadBalancer": {"lb1", "lb2", "lb3"},
+					"InstanceId":   {"i-123", "*", "i-789"},
+				},
+				Period:           300,
+				Expression:       "",
+				MatchExact:       matchExact,
+				AccountId:        aws.String("some account id"),
+				Statistic:        "Average",
+				MetricQueryType:  models.MetricQueryTypeSearch,
+				MetricEditorMode: models.MetricEditorModeBuilder,
+			}
+
+			mdq, err := executor.buildMetricDataQuery(contextWithFeaturesEnabled(features.FlagCloudWatchNewLabelParsing), query)
+			require.NoError(t, err)
+			assert.Equal(t, `REMOVE_EMPTY(SEARCH('Namespace="AWS/EC2" MetricName="CPUUtilization" "LoadBalancer"=("lb1" OR "lb2" OR "lb3") "InstanceId" :aws.AccountId="some account id"', 'Average', 300))`, *mdq.Expression)
+			assert.Equal(t, "${LABEL}|&|${PROP('Dim.InstanceId')}|&|${PROP('Dim.LoadBalancer')}", *mdq.Label)
+		})
+
+		t.Run("Query has a custom label", func(t *testing.T) {
+			query := &models.CloudWatchQuery{
+				Namespace:  "AWS/EC2",
+				MetricName: "CPUUtilization",
+				Dimensions: map[string][]string{
+					"LoadBalancer": {"lb1"},
+					"InstanceId":   {"i-123", "*", "i-789"},
+				},
+				Period:           300,
+				Expression:       "",
+				MatchExact:       matchExact,
+				Statistic:        "Average",
+				Label:            "LB: ${PROP('Dim.LoadBalancer')",
+				MetricQueryType:  models.MetricQueryTypeSearch,
+				MetricEditorMode: models.MetricEditorModeBuilder,
+			}
+
+			mdq, err := executor.buildMetricDataQuery(contextWithFeaturesEnabled(features.FlagCloudWatchNewLabelParsing), query)
+			require.NoError(t, err)
+			assert.Equal(t, `REMOVE_EMPTY(SEARCH('Namespace="AWS/EC2" MetricName="CPUUtilization" "LoadBalancer"="lb1" "InstanceId"', 'Average', 300))`, *mdq.Expression)
+			assert.Equal(t, "LB: ${PROP('Dim.LoadBalancer')|&|${PROP('Dim.InstanceId')}", *mdq.Label)
+		})
+
+		t.Run("query has multiple dimensions and an account Id", func(t *testing.T) {
 			query := &models.CloudWatchQuery{
 				Namespace:  "AWS/EC2",
 				MetricName: "CPUUtilization",

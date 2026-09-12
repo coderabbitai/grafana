@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { GrafanaTheme2, TypedVariableModel, VariableHide } from '@grafana/data';
 import { selectors } from '@grafana/e2e-selectors';
 import { useStyles2 } from '@grafana/ui';
+import { useSelector } from 'app/types';
 
 import { PickerRenderer } from '../../../variables/pickers/PickerRenderer';
 
@@ -14,11 +15,15 @@ interface Props {
 
 export const SubMenuItems = ({ variables, readOnly }: Props) => {
   const [visibleVariables, setVisibleVariables] = useState<TypedVariableModel[]>([]);
+
+  const hiddenVariables = useSelector((state) => state.fnGlobalState.hiddenVariables);
   const styles = useStyles2(getStyles);
 
   useEffect(() => {
-    setVisibleVariables(variables.filter((state) => state.hide !== VariableHide.hideVariable));
-  }, [variables]);
+    setVisibleVariables(
+      variables.filter((state) => state.hide !== VariableHide.hideVariable && !hiddenVariables?.includes(state.id))
+    );
+  }, [variables, hiddenVariables]);
 
   if (visibleVariables.length === 0) {
     return null;
@@ -26,22 +31,27 @@ export const SubMenuItems = ({ variables, readOnly }: Props) => {
 
   return (
     <>
-      {visibleVariables.map((variable) => (
-        <div
-          key={variable.id}
-          className={styles.submenuItem}
-          data-testid={selectors.pages.Dashboard.SubMenu.submenuItem}
-        >
-          <PickerRenderer variable={variable} readOnly={readOnly} />
-        </div>
-      ))}
+      {visibleVariables.map((variable) => {
+        return (
+          <div
+            key={variable.id}
+            className={styles.submenuItem}
+            data-testid={selectors.pages.Dashboard.SubMenu.submenuItem}
+          >
+            <PickerRenderer variable={variable} readOnly={readOnly} />
+          </div>
+        );
+      })}
     </>
   );
 };
 
+// Use the same submenu-item styles regardless of FN/non-FN mode so the top
+// filter row renders identically in both contexts.
 const getStyles = (theme: GrafanaTheme2) => ({
   submenuItem: css({
-    display: 'inline-block',
+    display: 'inline-flex',
+    alignItems: 'center',
 
     '.fa-caret-down': {
       fontSize: '75%',

@@ -2,12 +2,19 @@ import { css, cx } from '@emotion/css';
 
 import { GrafanaTheme2 } from '@grafana/data';
 
-import { getFocusStyles } from '../../themes/mixins';
 import { ComponentSize } from '../../types/size';
 
+// Use a neutral gray border instead of the default (blue/info) focus ring on
+// every input/textarea-style control across Grafana. The full focus ring is
+// still kept available via getFocusStyles() for non-input elements (buttons,
+// links, etc.) that need a visible focus indicator for accessibility.
 export const getFocusStyle = (theme: GrafanaTheme2) =>
   css({
-    '&:focus': getFocusStyles(theme),
+    '&:focus, &:focus-visible': {
+      outline: 'none',
+      boxShadow: 'none',
+      borderColor: theme.colors.border.strong,
+    },
   });
 
 export const sharedInputStyle = (theme: GrafanaTheme2, invalid = false) => {
@@ -43,7 +50,10 @@ export const sharedInputStyle = (theme: GrafanaTheme2, invalid = false) => {
       },
 
       '&:hover': {
-        borderColor: borderColorHover,
+        // Use a neutral hover border instead of the brand-blue hover color so
+        // inputs stay visually consistent with the rest of the Carrot-aligned
+        // theme. Invalid inputs still surface the error-shade color.
+        borderColor: invalid ? borderColorHover : theme.colors.border.strong,
       },
 
       '&:focus': {

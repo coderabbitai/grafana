@@ -5,12 +5,14 @@ import { TestProvider } from 'test/helpers/TestProvider';
 import { locationService, setAngularLoader, setDataSourceSrv } from '@grafana/runtime';
 import { mockDataSource, MockDataSourceSrv } from 'app/features/alerting/unified/mocks';
 
+import { configureStore } from '../../../../store/configureStore';
 import { DashboardModel } from '../../state/DashboardModel';
 import { createDashboardModelFixture } from '../../state/__fixtures__/dashboardFixtures';
 
 import { AnnotationsSettings } from './AnnotationsSettings';
 
 function setup(dashboard: DashboardModel, editIndex?: number) {
+  const store = configureStore();
   const sectionNav = {
     main: { text: 'Dashboard' },
     node: {
@@ -19,7 +21,7 @@ function setup(dashboard: DashboardModel, editIndex?: number) {
   };
 
   return render(
-    <TestProvider>
+    <TestProvider store={store}>
       <AnnotationsSettings sectionNav={sectionNav} dashboard={dashboard} editIndex={editIndex} />
     </TestProvider>
   );

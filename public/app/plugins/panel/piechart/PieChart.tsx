@@ -3,7 +3,7 @@ import { localPoint } from '@visx/event';
 import { RadialGradient } from '@visx/gradient';
 import { Group } from '@visx/group';
 import Pie, { PieArcDatum, ProvidedProps } from '@visx/shape/lib/shapes/Pie';
-import { useTooltip, useTooltipInPortal } from '@visx/tooltip';
+import { useTooltip } from '@visx/tooltip';
 import { UseTooltipParams } from '@visx/tooltip/lib/hooks/useTooltip';
 import { useCallback } from 'react';
 import * as React from 'react';
@@ -60,10 +60,6 @@ export const PieChart = ({
   const componentInstanceId = useComponentInstanceId('PieChart');
   const styles = useStyles2(getStyles);
   const tooltip = useTooltip<SeriesTableRowProps[]>();
-  const { containerRef, TooltipInPortal } = useTooltipInPortal({
-    detectBounds: true,
-    scroll: true,
-  });
 
   const filteredFieldDisplayValues = fieldDisplayValues.filter(filterDisplayItems);
 
@@ -85,7 +81,7 @@ export const PieChart = ({
 
   return (
     <div className={styles.container}>
-      <svg width={layout.size} height={layout.size} ref={containerRef} style={{ overflow: 'visible' }}>
+      <svg width={layout.size} height={layout.size} style={{ overflow: 'visible' }}>
         <Group top={layout.position} left={layout.position}>
           {colors.map((color) => {
             return (
@@ -169,16 +165,14 @@ export const PieChart = ({
         </Group>
       </svg>
       {showTooltip ? (
-        <TooltipInPortal
+        <div
           key={Math.random()}
-          top={tooltip.tooltipTop}
+          style={{ position: 'absolute', top: layout.position,
+            left: layout.position, zIndex: 9999 }}
           className={styles.tooltipPortal}
-          left={tooltip.tooltipLeft}
-          unstyled={true}
-          applyPositionStyle={true}
         >
           <SeriesTable series={tooltip.tooltipData!} />
-        </TooltipInPortal>
+        </div>
       ) : null}
     </div>
   );

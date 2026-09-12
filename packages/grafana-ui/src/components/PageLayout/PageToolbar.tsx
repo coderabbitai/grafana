@@ -159,7 +159,7 @@ const getStyles = (theme: GrafanaTheme2) => {
   const { spacing, typography } = theme;
 
   const focusStyle = getFocusStyles(theme);
-
+  // ${theme.colors.background.canvas};
   return {
     pre: css({
       whiteSpace: 'pre',

@@ -67,7 +67,7 @@ $spacers: (
 $grid-breakpoints: (
   xs: 0px,
   sm: 544px,
-  md: 769px,
+  md: 768px,
   lg: 992px,
   xl: 1200px,
 ) !default;
@@ -77,10 +77,10 @@ $grid-breakpoints: (
 // Define the maximum width of `.container` for different screen sizes.
 
 $container-max-widths: (
-  sm: 576px,
-  md: 720px,
-  lg: 940px,
-  xl: 1080px,
+  sm: 640px,
+  md: 768px,
+  lg: 1024px,
+  xl: 1536px,
 ) !default;
 
 // Grid columns
@@ -99,9 +99,9 @@ $height-lg: 48;
 // Typography
 // -------------------------
 /* stylelint-disable-next-line string-quotes */
-$font-family-sans-serif: "Inter", "Helvetica", "Arial", sans-serif;
+$font-family-sans-serif: "Geist Variable", ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
 /* stylelint-disable-next-line string-quotes */
-$font-family-monospace: 'Roboto Mono', monospace;
+$font-family-monospace: "Hack", ui-monospace, "SFMono-Regular", "Menlo", "Monaco", "Consolas", "Liberation Mono", "Courier New", monospace;
 
 $font-file-path: '../fonts' !default;
 
@@ -117,12 +117,12 @@ $line-height-base: 1.5714285714285714 !default;
 $font-weight-regular: 400 !default;
 $font-weight-semi-bold: 500 !default;
 
-$font-size-h1: 2rem !default;
-$font-size-h2: 1.7142857142857142rem !default;
-$font-size-h3: 1.5714285714285714rem !default;
-$font-size-h4: 1.2857142857142858rem !default;
-$font-size-h5: 1.1428571428571428rem !default;
-$font-size-h6: 1rem !default;
+$font-size-h1: 1.75rem !default;
+$font-size-h2: 1.5rem !default;
+$font-size-h3: 1.375rem !default;
+$font-size-h4: 1.125rem !default;
+$font-size-h5: 1rem !default;
+$font-size-h6: 0.875rem !default;
 
 $headings-line-height: 1.5 !default;
 
@@ -132,9 +132,9 @@ $headings-line-height: 1.5 !default;
 
 $border-width: 1px !default;
 
-$border-radius: 2px !default;
-$border-radius-lg: 6px !default;
-$border-radius-sm: 2px !default;
+$border-radius: 0.375rem !default;
+$border-radius-lg: 12px !default;
+$border-radius-sm: 0.375rem !default;
 
 // Page
 

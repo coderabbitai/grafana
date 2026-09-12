@@ -80,6 +80,15 @@ func (hs *HTTPServer) QueryMetricsV2(c *contextmodel.ReqContext) response.Respon
 	if err != nil {
 		return hs.handleQueryMetricsError(err)
 	}
+	// When running as the CodeRabbit microfrontend, scrub the
+	// executed-query text the upstream datasource stamps on each frame.
+	// We masked the same text out of the dashboard JSON on the way out
+	// (see maskDashboardQueriesForMFE), and the resolved query — fully
+	// interpolated with template variables — must not leak back through
+	// the /api/ds/query response that powers the Query Inspector.
+	if isCodeRabbitMFE() {
+		maskExecutedQueriesForMFE(resp)
+	}
 	return hs.toJsonStreamingResponse(c.Req.Context(), resp)
 }
 

@@ -1,1 +1,84 @@
 # See https://aquasecurity.github.io/trivy/v0.48/docs/configuration/filtering/#trivyignore
+
+# VULN-279 / CVE-2026-42151, CVE-2026-42154 — github.com/prometheus/prometheus
+#
+# Both advisories are fixed from Prometheus 3.5.3 (Go module v0.305.3) on the
+# 3.5 LTS branch and from 3.11.3 (v0.311.3) on the current branch. Those are
+# the minimum patched releases per branch, not the newest available.
+# Grafana pins Prometheus 2.52.0 (v0.52.0) via a replace
+# directive, and moving to the 3.x line is a breaking major upgrade: it forces
+# an incompatible k8s.io/* bump (kube-aggregator, apiserver), a
+# grpc_health_v1.HealthServer signature change and the labels.Labels type
+# change, none of which are in scope for a security patch.
+#
+# Neither vulnerable code path is reachable in the Grafana binary:
+#  - CVE-2026-42151 leaks the Azure AD remote-write client_secret through the
+#    Prometheus /-/config API. Grafana does not serve /-/config and never
+#    builds a RemoteWriteConfig; storage/remote/azuread is linked only as a
+#    side effect of importing prometheus/config from the ngalert sender.
+#  - CVE-2026-42154 is a DoS on the Prometheus remote read endpoint
+#    (/api/v1/read) in prometheus/web/api, which is not linked into the
+#    Grafana binary at all.
+#
+# Revisit when Grafana upstream moves its Prometheus pin to the 3.x line.
+#
+# SCOPE CAVEAT: .trivyignore is global. Trivy matches by vulnerability ID only,
+# with no package or image qualifier, and the .drone.yml steps scan four images
+# (grafana/grafana:{latest,main,latest-ubuntu,main-ubuntu}) without passing
+# --ignorefile, so any .trivyignore in the working directory applies to all of
+# them. These two IDs are specific to github.com/prometheus/prometheus, which is
+# the same Go dependency in every Grafana image, so the wider scope does not
+# suppress an unrelated finding today. Trivy 0.21.0 has no per-image ignore
+# policy; scoping would need a newer Trivy with .trivyignore.yaml or separate
+# per-image ignore files. Re-scope if these IDs ever appear in another package.
+#
+# REVIEW BY 2027-03-08. Trivy's self-expiring 'exp:' suffix is deliberately not
+# used here: .drone.yml pins aquasec/trivy:0.21.0, whose ignorefile parser
+# (getIgnoredIDs in pkg/result/result.go) appends the entire line as the ID, so
+# 'CVE-... exp:...' would match nothing and silently stop suppressing. 'exp:'
+# only became available in Trivy v0.31.0. Re-add it once the scanner is
+# upgraded.
+CVE-2026-42151
+CVE-2026-42154
+
+# VULN-278 / CVE-2026-21728, CVE-2026-28377 — github.com/grafana/tempo
+#
+# Both advisories are Tempo *server* issues. Grafana pins Tempo at
+# v1.5.1-0.20240604192202-01f4bc8ac2d1 and imports exactly one package tree
+# from it: pkg/tempopb, the generated protobuf types used by the Tempo
+# datasource to talk to a remote Tempo. No Tempo server, query-frontend or
+# tempodb storage code is linked into the Grafana binary.
+#
+# Neither vulnerable code path is reachable:
+#  - CVE-2026-21728 is unbounded memory allocation on large Tempo query
+#    limits, mitigated server-side via max_result_limit. Grafana has no such
+#    config and does not run the Tempo query path.
+#  - CVE-2026-28377 leaks the S3 SSE-C encryption key via Tempo's
+#    /status/config endpoint. Grafana does not serve /status/config and never
+#    constructs Tempo S3 storage config.
+#
+# Upgrading is also not viable in isolation: Tempo stopped publishing tagged
+# Go module versions after v1.5.0, and the 2.10.3 fix commit requires
+# go 1.25.7 and drags a ~250-line transitive upgrade wave into go.mod that
+# breaks grafana-plugin-sdk-go against the newer tablewriter API.
+#
+# Revisit when upstream Grafana moves its own Tempo pin.
+#
+# SCOPE CAVEAT: .trivyignore is global. Trivy matches by vulnerability ID only,
+# with no package or image qualifier, and the .drone.yml steps scan four images
+# (grafana/grafana:{latest,main,latest-ubuntu,main-ubuntu}) without passing
+# --ignorefile, so any .trivyignore in the working directory applies to all of
+# them. These two IDs are specific to github.com/grafana/tempo, which is the
+# same Go dependency in every Grafana image, so the wider scope does not
+# suppress an unrelated finding today. Trivy 0.21.0 has no per-image ignore
+# policy; scoping would need a newer Trivy with .trivyignore.yaml or separate
+# per-image ignore files. Re-scope if these IDs ever appear in another package.
+#
+# REVIEW BY 2027-03-08. Trivy's self-expiring 'exp:' suffix is deliberately not
+# used here: .drone.yml pins aquasec/trivy:0.21.0, whose ignorefile parser
+# (getIgnoredIDs in pkg/result/result.go) appends the entire line as the ID, so
+# 'CVE-... exp:...' would match nothing and silently stop suppressing. 'exp:'
+# only became available in Trivy v0.31.0. Re-add it once the scanner is
+# upgraded.
+CVE-2026-21728
+CVE-2026-28377

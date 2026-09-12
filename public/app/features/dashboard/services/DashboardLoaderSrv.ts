@@ -7,12 +7,10 @@ import { getBackendSrv, locationService } from '@grafana/runtime';
 import { backendSrv } from 'app/core/services/backend_srv';
 import impressionSrv from 'app/core/services/impression_srv';
 import kbn from 'app/core/utils/kbn';
-import { getDashboardScenePageStateManager } from 'app/features/dashboard-scene/pages/DashboardScenePageStateManager';
 import { getDatasourceSrv } from 'app/features/plugins/datasource_srv';
 import { DashboardDTO } from 'app/types';
 
 import { appEvents } from '../../../core/core';
-import { getDashboardAPI } from '../api/dashboard_api';
 
 import { getDashboardSrv } from './DashboardSrv';
 import { getDashboardSnapshotSrv } from './SnapshotSrv';
@@ -35,8 +33,7 @@ export class DashboardLoaderSrv {
     };
   }
 
-  loadDashboard(type: UrlQueryValue, slug: string | undefined, uid: string | undefined): Promise<DashboardDTO> {
-    const stateManager = getDashboardScenePageStateManager();
+  loadDashboard(type: UrlQueryValue, slug: any, uid: any, version?: any) {
     let promise;
 
     if (type === 'script' && slug) {
@@ -76,15 +73,23 @@ export class DashboardLoaderSrv {
             },
           };
         });
-    } else if (uid) {
-      const cachedDashboard = stateManager.getDashboardFromCache(uid);
-      if (cachedDashboard) {
-        return Promise.resolve(cachedDashboard);
-      }
-
-      promise = getDashboardAPI()
-        .getDashboardDTO(uid)
-        .then((result) => {
+    } else if (version !== undefined) {
+      promise = backendSrv
+        .getDashboardByUidVersion(uid, version)
+        .then((result: any) => {
+          if (result.meta.isFolder) {
+            appEvents.emit(AppEvents.alertError, ['Dashboard with version not found']);
+            throw new Error('Dashboard with version not found');
+          }
+          return result;
+        })
+        .catch(() => {
+          return this._dashboardLoadFailed('Not found', true);
+        });
+    } else {
+      promise = backendSrv
+        .getDashboardByUid(uid)
+        .then((result: any) => {
           if (result.meta.isFolder) {
             appEvents.emit(AppEvents.alertError, ['Dashboard not found']);
             throw new Error('Dashboard not found');
@@ -96,8 +101,6 @@ export class DashboardLoaderSrv {
           dash.dashboard.uid = uid;
           return dash;
         });
-    } else {
-      throw new Error('Dashboard uid or slug required');
     }
 
     promise.then((result: DashboardDTO) => {

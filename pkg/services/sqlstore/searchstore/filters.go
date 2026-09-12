@@ -219,3 +219,16 @@ func (f DeletedFilter) Where() (string, []any) {
 
 	return "dashboard.deleted IS NULL", nil
 }
+
+// WorkspaceFilter restricts results to dashboards owned by a single CodeRabbit
+// product workspace. Applied only when a workspace id is supplied, so stock
+// Grafana search behaviour is unchanged for every other caller.
+type WorkspaceFilter struct {
+	WorkspaceID string
+}
+
+var _ model.FilterWhere = WorkspaceFilter{}
+
+func (f WorkspaceFilter) Where() (string, []any) {
+	return "dashboard.workspace_id = ?", []any{f.WorkspaceID}
+}

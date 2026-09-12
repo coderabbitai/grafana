@@ -7,6 +7,9 @@ import (
 	"errors"
 	"fmt"
 	"net"
+	"net/http"
+	"net/url"
+	"os"
 	"regexp"
 	"runtime/debug"
 	"strconv"
@@ -14,15 +17,24 @@ import (
 	"sync"
 	"time"
 
+	"github.com/golang-jwt/jwt/v4"
 	"github.com/grafana/grafana-plugin-sdk-go/backend"
 	"github.com/grafana/grafana-plugin-sdk-go/backend/gtime"
 	"github.com/grafana/grafana-plugin-sdk-go/backend/log"
 	"github.com/grafana/grafana-plugin-sdk-go/data"
 	"github.com/grafana/grafana-plugin-sdk-go/data/sqlutil"
+	"github.com/grafana/grafana/pkg/services/contexthandler"
 )
 
 // MetaKeyExecutedQueryString is the key where the executed query should get stored
-const MetaKeyExecutedQueryString = "executedQueryString"
+const (
+	MetaKeyExecutedQueryString        = "executedQueryString"
+	headerCodeRabbitOrg               = "X-CodeRabbit-Org-Id"
+	headerCodeRabbitSelfHostedId      = "X-CodeRabbit-Self-Hosted-Instance-Id"
+	headerCodeRabbitRenderContext     = "X-CodeRabbit-Render-Context-Token"
+	queryCodeRabbitRenderContextToken = "cr_render_context_token"
+	CR_POSTGRES_URL                   = "GF_CR_POSTGRES_URL"
+)
 
 // SQLMacroEngine interpolates macros into sql. It takes in the Query to have access to query context and
 // timeRange to be able to generate queries that use from and to.
@@ -76,6 +88,7 @@ type DataPluginConfiguration struct {
 	TimeColumnNames   []string
 	MetricColumnTypes []string
 	RowLimit          int64
+	RendererAuthToken string
 }
 
 type DataSourceHandler struct {
@@ -88,6 +101,7 @@ type DataSourceHandler struct {
 	dsInfo                 DataSourceInfo
 	rowLimit               int64
 	userError              string
+	rendererAuthToken      string
 }
 
 type QueryJson struct {
@@ -123,6 +137,7 @@ func NewQueryDataHandler(userFacingDefaultError string, db *sql.DB, config DataP
 		dsInfo:                 config.DSInfo,
 		rowLimit:               config.RowLimit,
 		userError:              userFacingDefaultError,
+		rendererAuthToken:      config.RendererAuthToken,
 	}
 
 	if len(config.TimeColumnNames) > 0 {
@@ -144,6 +159,11 @@ type DBDataResponse struct {
 
 func (e *DataSourceHandler) Dispose() {
 	e.log.Debug("Disposing DB...")
+	crPostgres := os.Getenv(CR_POSTGRES_URL)
+	if crPostgres != "" {
+		e.log.Info("CR Postgres detected, skipping DB dispose")
+		return
+	}
 	if e.db != nil {
 		if err := e.db.Close(); err != nil {
 			e.log.Error("Failed to dispose db", "error", err)
@@ -197,6 +217,142 @@ func (e *DataSourceHandler) QueryData(ctx context.Context, req *backend.QueryDat
 	return result, nil
 }
 
+type codeRabbitRenderContextClaims struct {
+	OrgID                     string `json:"orgId,omitempty"`
+	OrgIDSnake                string `json:"org_id,omitempty"`
+	SelfHostedInstanceID      string `json:"selfHostedInstanceId,omitempty"`
+	SelfHostedInstanceIDSnake string `json:"self_hosted_instance_id,omitempty"`
+	jwt.RegisteredClaims
+}
+
+type codeRabbitRenderContext struct {
+	orgID                string
+	selfHostedInstanceID string
+}
+
+func (e *DataSourceHandler) findCodeRabbitIdentifiers(ctx context.Context) codeRabbitRenderContext {
+	reqCtx := contexthandler.FromContext(ctx)
+	if reqCtx != nil && reqCtx.Req != nil {
+		return e.findCodeRabbitIdentifiersFromRequest(reqCtx.Req)
+	}
+
+	e.log.Warn("Request context or request is nil, cannot extract CodeRabbit identifiers from context")
+	return codeRabbitRenderContext{}
+}
+
+func (e *DataSourceHandler) findCodeRabbitIdentifiersFromRequest(req *http.Request) codeRabbitRenderContext {
+	codeRabbitOrgID := req.Header.Get(headerCodeRabbitOrg)
+	codeRabbitSelfHostedID := req.Header.Get(headerCodeRabbitSelfHostedId)
+	if codeRabbitOrgID != "" || codeRabbitSelfHostedID != "" {
+		return codeRabbitRenderContext{
+			orgID:                codeRabbitOrgID,
+			selfHostedInstanceID: codeRabbitSelfHostedID,
+		}
+	}
+
+	renderContextToken := findCodeRabbitRenderContextToken(req)
+	if renderContextToken == "" {
+		urlStr := ""
+		if req.URL != nil {
+			urlStr = req.URL.String()
+		}
+		e.log.Info("No CodeRabbit render context token found",
+			"url", urlStr,
+			"referer", req.Header.Get("Referer"),
+			"has_cr_header", req.Header.Get(headerCodeRabbitRenderContext) != "",
+		)
+		return codeRabbitRenderContext{}
+	}
+
+	renderContext, err := decodeCodeRabbitRenderContextToken(renderContextToken, e.rendererAuthToken)
+	if err != nil {
+		e.log.Warn("Failed to decode CodeRabbit render context token",
+			"err", err,
+			"rendererAuthTokenEmpty", e.rendererAuthToken == "",
+		)
+		return codeRabbitRenderContext{}
+	}
+
+	e.log.Info("Decoded CodeRabbit render context token", "orgID", renderContext.orgID)
+	return renderContext
+}
+
+func findCodeRabbitRenderContextToken(req *http.Request) string {
+	if req == nil {
+		return ""
+	}
+
+	if renderContextToken := req.Header.Get(headerCodeRabbitRenderContext); renderContextToken != "" {
+		return renderContextToken
+	}
+
+	if req.URL != nil {
+		if renderContextToken := req.URL.Query().Get(queryCodeRabbitRenderContextToken); renderContextToken != "" {
+			return renderContextToken
+		}
+	}
+
+	referer := req.Referer()
+	if referer == "" {
+		return ""
+	}
+
+	refererURL, err := url.Parse(referer)
+	if err != nil {
+		return ""
+	}
+
+	return refererURL.Query().Get(queryCodeRabbitRenderContextToken)
+}
+
+func decodeCodeRabbitRenderContextToken(renderContextToken string, rendererAuthToken string) (codeRabbitRenderContext, error) {
+	if rendererAuthToken == "" {
+		return codeRabbitRenderContext{}, errors.New("renderer auth token is not configured")
+	}
+
+	claims := new(codeRabbitRenderContextClaims)
+	token, err := jwt.ParseWithClaims(renderContextToken, claims, func(_ *jwt.Token) (any, error) {
+		return []byte(rendererAuthToken), nil
+	}, jwt.WithValidMethods([]string{jwt.SigningMethodHS512.Alg()}))
+	if err != nil {
+		return codeRabbitRenderContext{}, err
+	}
+
+	if token == nil || !token.Valid {
+		return codeRabbitRenderContext{}, errors.New("invalid render context token")
+	}
+
+	if claims.ExpiresAt == nil {
+		return codeRabbitRenderContext{}, errors.New("render context token must include an expiration")
+	}
+
+	codeRabbitOrgID := strings.TrimSpace(firstNonEmpty(claims.OrgID, claims.OrgIDSnake))
+	codeRabbitSelfHostedID := strings.TrimSpace(firstNonEmpty(claims.SelfHostedInstanceID, claims.SelfHostedInstanceIDSnake))
+
+	if codeRabbitOrgID == "" && codeRabbitSelfHostedID == "" {
+		return codeRabbitRenderContext{}, errors.New("render context token must include an orgId or selfHostedInstanceId")
+	}
+
+	if codeRabbitOrgID != "" && codeRabbitSelfHostedID != "" {
+		return codeRabbitRenderContext{}, errors.New("render context token cannot include both orgId and selfHostedInstanceId")
+	}
+
+	return codeRabbitRenderContext{
+		orgID:                codeRabbitOrgID,
+		selfHostedInstanceID: codeRabbitSelfHostedID,
+	}, nil
+}
+
+func firstNonEmpty(values ...string) string {
+	for _, value := range values {
+		if value != "" {
+			return value
+		}
+	}
+
+	return ""
+}
+
 func (e *DataSourceHandler) executeQuery(query backend.DataQuery, wg *sync.WaitGroup, queryContext context.Context,
 	ch chan DBDataResponse, queryJson QueryJson) {
 	defer wg.Done()
@@ -247,14 +403,74 @@ func (e *DataSourceHandler) executeQuery(query backend.DataQuery, wg *sync.WaitG
 		return
 	}
 
-	rows, err := e.db.QueryContext(queryContext, interpolatedQuery)
-	if err != nil {
-		errAppendDebug("db query error", e.TransformQueryError(logger, err), interpolatedQuery)
-		return
+	codeRabbitContext := e.findCodeRabbitIdentifiers(queryContext)
+	codeRabbitOrgId := codeRabbitContext.orgID
+	codeRabbitSelfHostedId := codeRabbitContext.selfHostedInstanceID
+	queryDB := e.db
+
+	var (
+		rows      *sql.Rows
+		tx        *sql.Tx
+		committed bool
+	)
+
+	if codeRabbitOrgId != "" || codeRabbitSelfHostedId != "" {
+		const orgSessionVar = "app.current_org_id"
+		const selfHostedSessionVar = "app.current_self_hosted_id"
+
+		sessionVarName := orgSessionVar
+		identifier := strings.ReplaceAll(codeRabbitOrgId, "'", "''")
+		escapedSelfHostedId := strings.ReplaceAll(codeRabbitSelfHostedId, "'", "''")
+
+		if identifier != "" && escapedSelfHostedId == "" {
+			logger.Info(fmt.Sprintf("Executing query for Org ID: %s", identifier))
+		}
+
+		if escapedSelfHostedId != "" {
+			logger.Info(fmt.Sprintf("Executing query for Self-Hosted Instance ID: %s", escapedSelfHostedId))
+			sessionVarName = selfHostedSessionVar
+			identifier = escapedSelfHostedId
+		}
+
+		// Use a read-only transaction with SET LOCAL to scope the identifier to this request only.
+		// SET LOCAL automatically resets when the transaction ends, preventing cross-request pollution.
+		// Read-only transactions work even on read-only replicas.
+		tx, err = queryDB.BeginTx(queryContext, &sql.TxOptions{ReadOnly: true})
+		if err != nil {
+			errAppendDebug("failed to begin read-only transaction", e.TransformQueryError(logger, err), interpolatedQuery)
+			return
+		}
+
+		setVarQuery := fmt.Sprintf("SET LOCAL %s = '%s'", sessionVarName, identifier)
+		logger.Info(fmt.Sprintf("Setting session variable for query: %s", setVarQuery))
+		if _, err := tx.ExecContext(queryContext, setVarQuery); err != nil {
+			errAppendDebug(fmt.Sprintf("failed to set %s", sessionVarName), e.TransformQueryError(logger, err), interpolatedQuery)
+			return
+		}
+
+		rows, err = tx.QueryContext(queryContext, interpolatedQuery)
+		logger.Info(fmt.Sprintf("Executed query for %s: %s", sessionVarName, identifier))
+		if err != nil {
+			errAppendDebug("db query error", e.TransformQueryError(logger, err), interpolatedQuery)
+			return
+		}
+	} else {
+		logger.Info("Executing query without Org ID/ Self-Hosted Instance ID set")
+		rows, err = queryDB.QueryContext(queryContext, interpolatedQuery)
+		if err != nil {
+			errAppendDebug("db query error", e.TransformQueryError(logger, err), interpolatedQuery)
+			return
+		}
 	}
+
 	defer func() {
-		if err := rows.Close(); err != nil {
-			logger.Warn("Failed to close rows", "err", err)
+		if rows != nil {
+			if err := rows.Close(); err != nil {
+				logger.Warn("Failed to close rows", "err", err)
+			}
+		}
+		if tx != nil && !committed {
+			_ = tx.Rollback()
 		}
 	}()
 
@@ -270,6 +486,16 @@ func (e *DataSourceHandler) executeQuery(query backend.DataQuery, wg *sync.WaitG
 	if err != nil {
 		errAppendDebug("convert frame from rows error", err, interpolatedQuery)
 		return
+	}
+
+	// If we used a tx, commit now that we've read everything. Any failure here
+	// will roll back in the deferred cleanup.
+	if tx != nil {
+		if err := tx.Commit(); err != nil {
+			errAppendDebug("failed to commit read-only transaction", e.TransformQueryError(logger, err), interpolatedQuery)
+			return
+		}
+		committed = true
 	}
 
 	if frame.Meta == nil {

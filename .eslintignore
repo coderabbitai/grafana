@@ -25,3 +25,6 @@ playwright-report
 
 # Auto-generated icon file
 /packages/grafana-ui/src/components/Icon/iconBundle.ts
+
+# Sankey chart module.js
+public/app/plugins/panel/sankey-panel-0.5.0/module.js

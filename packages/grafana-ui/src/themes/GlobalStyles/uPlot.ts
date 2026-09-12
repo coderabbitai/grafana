@@ -1,9 +1,9 @@
-import { css } from '@emotion/react';
+import { CSSObject } from '@emotion/react';
 
 import { GrafanaTheme2 } from '@grafana/data';
 
-export function getUplotStyles(theme: GrafanaTheme2) {
-  return css({
+export function getUplotStyles(theme: GrafanaTheme2): CSSObject {
+  return {
     '.uplot': {
       fontFamily: 'inherit',
     },
@@ -23,5 +23,5 @@ export function getUplotStyles(theme: GrafanaTheme2) {
     '.shared-crosshair:not(.plot-active) .u-cursor-pt': {
       display: 'none !important',
     },
-  });
+  };
 }

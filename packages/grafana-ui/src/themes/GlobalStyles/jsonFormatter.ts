@@ -1,9 +1,9 @@
-import { css } from '@emotion/react';
+import { CSSObject } from '@emotion/react';
 
 import { GrafanaTheme2 } from '@grafana/data';
 
-export function getJsonFormatterStyles(theme: GrafanaTheme2) {
-  return css({
+export function getJsonFormatterStyles(theme: GrafanaTheme2): CSSObject {
+  return {
     '.json-formatter-row': {
       fontFamily: 'monospace',
 
@@ -121,5 +121,5 @@ export function getJsonFormatterStyles(theme: GrafanaTheme2) {
         },
       },
     },
-  });
+  };
 }

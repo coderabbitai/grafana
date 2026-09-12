@@ -57,3 +57,12 @@ func TestFolderUIDFilter(t *testing.T) {
 		})
 	}
 }
+
+func TestWorkspaceFilter(t *testing.T) {
+	f := searchstore.WorkspaceFilter{WorkspaceID: "ws-123"}
+
+	sql, params := f.Where()
+
+	assert.Equal(t, "dashboard.workspace_id = ?", sql)
+	assert.Equal(t, []any{"ws-123"}, params)
+}

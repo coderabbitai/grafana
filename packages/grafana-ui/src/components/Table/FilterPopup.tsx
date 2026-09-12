@@ -5,7 +5,7 @@ import * as React from 'react';
 import { Field, GrafanaTheme2, SelectableValue } from '@grafana/data';
 
 import { Button, ClickOutsideWrapper, IconButton, Label, Stack } from '..';
-import { useStyles2, useTheme2 } from '../../themes';
+import { useStyles2 } from '../../themes';
 
 import { FilterList } from './FilterList';
 import { TableStyles } from './styles';
@@ -31,7 +31,6 @@ export const FilterPopup = ({
   operator,
   setOperator,
 }: Props) => {
-  const theme = useTheme2();
   const uniqueValues = useMemo(() => calculateUniqueFieldValues(preFilteredRows, field), [preFilteredRows, field]);
   const options = useMemo(() => valuesToOptions(uniqueValues), [uniqueValues]);
   const filteredOptions = useMemo(() => getFilteredOptions(options, filterValue), [options, filterValue]);
@@ -66,50 +65,51 @@ export const FilterPopup = ({
       {/* This is just blocking click events from bubbeling and should not have a keyboard interaction. */}
       {/* eslint-disable-next-line jsx-a11y/no-static-element-interactions, jsx-a11y/click-events-have-key-events */}
       <div className={cx(styles.filterContainer)} onClick={stopPropagation}>
-        <Stack direction="column" gap={3}>
-          <Stack direction="column" gap={0.5}>
-            <Stack justifyContent="space-between" alignItems="center">
-              <Label className={styles.label}>Filter by values:</Label>
-              <IconButton
-                name="text-fields"
-                tooltip="Match case"
-                style={{ color: matchCase ? theme.colors.text.link : theme.colors.text.disabled }}
-                onClick={() => {
-                  setMatchCase((s) => !s);
-                }}
-              />
-            </Stack>
-            <div className={cx(styles.listDivider)} />
-            <FilterList
-              onChange={setValues}
-              values={values}
-              options={options}
-              caseSensitive={matchCase}
-              showOperators={true}
-              searchFilter={searchFilter}
-              setSearchFilter={setSearchFilter}
-              operator={operator}
-              setOperator={setOperator}
-            />
+        <div className={styles.header}>
+          <Label className={styles.title}>Filter by values</Label>
+          <IconButton
+            name="text-fields"
+            tooltip="Match case"
+            className={cx(styles.matchCase, matchCase && styles.matchCaseActive)}
+            onClick={() => {
+              setMatchCase((s) => !s);
+            }}
+          />
+        </div>
+
+        <div className={styles.divider} />
+
+        <div className={styles.body}>
+          <FilterList
+            onChange={setValues}
+            values={values}
+            options={options}
+            caseSensitive={matchCase}
+            showOperators={true}
+            searchFilter={searchFilter}
+            setSearchFilter={setSearchFilter}
+            operator={operator}
+            setOperator={setOperator}
+          />
+        </div>
+
+        <div className={styles.divider} />
+
+        <div className={styles.footer}>
+          <Stack direction="row" gap={1} alignItems="center">
+            <Button size="sm" onClick={onFilter}>
+              Apply
+            </Button>
+            <Button size="sm" variant="secondary" onClick={onCancel}>
+              Cancel
+            </Button>
           </Stack>
-          <Stack gap={3}>
-            <Stack>
-              <Button size="sm" onClick={onFilter}>
-                Ok
-              </Button>
-              <Button size="sm" variant="secondary" onClick={onCancel}>
-                Cancel
-              </Button>
-            </Stack>
-            {clearFilterVisible && (
-              <Stack>
-                <Button fill="text" size="sm" onClick={onClearFilter}>
-                  Clear filter
-                </Button>
-              </Stack>
-            )}
-          </Stack>
-        </Stack>
+          {clearFilterVisible && (
+            <Button fill="text" size="sm" onClick={onClearFilter}>
+              Clear filter
+            </Button>
+          )}
+        </div>
       </div>
     </ClickOutsideWrapper>
   );
@@ -118,24 +118,57 @@ export const FilterPopup = ({
 const getStyles = (theme: GrafanaTheme2) => ({
   filterContainer: css({
     label: 'filterContainer',
-    width: '100%',
-    minWidth: '250px',
-    height: '100%',
-    maxHeight: '400px',
+    width: 280,
     backgroundColor: theme.colors.background.primary,
     border: `1px solid ${theme.colors.border.weak}`,
-    padding: theme.spacing(2),
     boxShadow: theme.shadows.z3,
     borderRadius: theme.shape.radius.default,
+    display: 'flex',
+    flexDirection: 'column',
   }),
-  listDivider: css({
-    label: 'listDivider',
-    width: '100%',
-    borderTop: `1px solid ${theme.colors.border.medium}`,
-    padding: theme.spacing(0.5, 2),
+  header: css({
+    label: 'filterHeader',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: theme.spacing(1.5, 2),
   }),
-  label: css({
-    marginBottom: 0,
+  title: css({
+    margin: 0,
+    fontSize: theme.typography.body.fontSize,
+    fontWeight: theme.typography.fontWeightMedium,
+    color: theme.colors.text.primary,
+  }),
+  matchCase: css({
+    label: 'matchCaseToggle',
+    color: theme.colors.text.disabled,
+    margin: 0,
+    '&:hover': {
+      color: theme.colors.text.secondary,
+    },
+  }),
+  matchCaseActive: css({
+    color: theme.colors.text.link,
+    '&:hover': {
+      color: theme.colors.text.link,
+    },
+  }),
+  divider: css({
+    label: 'filterDivider',
+    height: 1,
+    backgroundColor: theme.colors.border.weak,
+  }),
+  body: css({
+    label: 'filterBody',
+    padding: theme.spacing(1.5, 2),
+  }),
+  footer: css({
+    label: 'filterFooter',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: theme.spacing(1),
+    padding: theme.spacing(1.5, 2),
   }),
 });
 

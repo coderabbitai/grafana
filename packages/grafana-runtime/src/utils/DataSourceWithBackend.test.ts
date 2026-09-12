@@ -47,6 +47,8 @@ const backendSrv = {
   },
 } as unknown as BackendSrv;
 
+const mockTemplateVariables: Array<{ name: string; current: { value: unknown } }> = [];
+
 jest.mock('../services', () => ({
   ...jest.requireActual('../services'),
   getBackendSrv: () => backendSrv,
@@ -58,6 +60,9 @@ jest.mock('../services', () => ({
       }),
     };
   },
+  getTemplateSrv: () => ({
+    getVariables: () => mockTemplateVariables,
+  }),
 }));
 jest.mock('./publicDashboardQueryHandler');
 
@@ -495,6 +500,263 @@ describe('DataSourceWithBackend', () => {
       expect(isExpressionReference({ type: '-100' })).toBeTruthy();
       expect(isExpressionReference(null)).toBeFalsy();
       expect(isExpressionReference(undefined)).toBeFalsy();
+    });
+  });
+
+  describe('FNDashboard (microfrontend) body rewriting', () => {
+    afterEach(() => {
+      delete (window as { __FNDashboard__?: boolean }).__FNDashboard__;
+      delete (window as { __FNDashboardRenderingUID__?: string })
+        .__FNDashboardRenderingUID__;
+      mockTemplateVariables.length = 0;
+    });
+
+    test('does not change the body when FNDashboard flag is not set', () => {
+      const { mock, ds } = createMockDatasource();
+      ds.query({
+        maxDataPoints: 10,
+        intervalMs: 5000,
+        targets: [{ refId: 'A' }],
+        dashboardUID: 'dashA',
+        panelId: 123,
+        range: getDefaultTimeRange(),
+      } as DataQueryRequest);
+
+      const body = mock.calls[0][0].data;
+      expect(body).toHaveProperty('queries');
+      expect(body).not.toHaveProperty('mfeContext');
+    });
+
+    test('attaches mfeContext to the body when FNDashboard flag is set', () => {
+      window.__FNDashboard__ = true;
+      mockTemplateVariables.push(
+        { name: 'org_id', current: { value: 'org-uuid' } },
+        { name: 'repo_name', current: { value: ['a', 'b'] } },
+      );
+
+      const { mock, ds } = createMockDatasource();
+      ds.query({
+        maxDataPoints: 10,
+        intervalMs: 5000,
+        targets: [{ refId: 'A', rawSql: '[MFE_REDACTED:p:123:A]' }],
+        dashboardUID: 'dashA',
+        panelId: 123,
+        scopedVars: {
+          __interval: { text: '1m', value: '1m' },
+        },
+        filters: [{ key: 'team', operator: '=', value: 'sre' }],
+        range: getDefaultTimeRange(),
+      } as unknown as DataQueryRequest);
+
+      const body = mock.calls[0][0].data;
+      // Body retains the legacy { queries, from, to } shape so unknown
+      // upstream code paths (including non-FN proxies) keep working.
+      expect(body).toHaveProperty('queries');
+      expect(body).toHaveProperty('mfeContext');
+      expect(body.mfeContext).toEqual({
+        variables: {
+          org_id: 'org-uuid',
+          repo_name: ['a', 'b'],
+          __interval: '1m',
+        },
+        filters: [{ key: 'team', operator: '=', value: 'sre' }],
+        dashboardUID: 'dashA',
+      });
+    });
+
+    test('falls back to window.__FNDashboardRenderingUID__ when request.dashboardUID is missing', () => {
+      window.__FNDashboard__ = true;
+      window.__FNDashboardRenderingUID__ = 'dashB';
+      mockTemplateVariables.push({ name: 'org_id', current: { value: 'org-uuid' } });
+
+      const { mock, ds } = createMockDatasource();
+      ds.query({
+        maxDataPoints: 10,
+        intervalMs: 5000,
+        // No dashboardUID / panelId — this is how Grafana's variable runner
+        // dispatches templating-variable queries.
+        targets: [{ refId: 'A', rawSql: '[MFE_REDACTED:v:org_name]' }],
+        range: getDefaultTimeRange(),
+      } as unknown as DataQueryRequest);
+
+      const body = mock.calls[0][0].data;
+      expect(body.mfeContext.dashboardUID).toBe('dashB');
+      expect(body.mfeContext.variables).toEqual({ org_id: 'org-uuid' });
+    });
+
+    test('falls back to dashboard UID parsed from location.pathname', () => {
+      // Regression: in the Qiankun-sandboxed MFE, the
+      // `__FNDashboardRenderingUID__` window mirror may not be set yet when
+      // VariableQueryRunner fires its initial dropdown-population queries,
+      // and request.dashboardUID is also unset for those queries. The proxy
+      // then can't resolve the redacted SQL. Pull the UID out of the URL
+      // (which is always `/dashboard/<uid>` or `/d/<uid>/<slug>`) as a
+      // last-resort fallback.
+      window.__FNDashboard__ = true;
+      const originalPath = window.location.pathname;
+      const setPath = (p: string) =>
+        window.history.replaceState({}, '', p + window.location.search);
+      setPath('/dashboard/summary');
+      try {
+        const { mock, ds } = createMockDatasource();
+        ds.query({
+          maxDataPoints: 10,
+          intervalMs: 5000,
+          targets: [{ refId: 'A', rawSql: '[MFE_REDACTED:v:org_name]' }],
+          range: getDefaultTimeRange(),
+        } as unknown as DataQueryRequest);
+
+        const body = mock.calls[0][0].data;
+        expect(body.mfeContext.dashboardUID).toBe('summary');
+      } finally {
+        setPath(originalPath);
+      }
+    });
+
+    test('inlines [MFE_REDACTED:v:<name>] on empty rawSql when scopedVars.__mfeVariableName is set', () => {
+      // Regression: the SQL plugin's variable-refresh pipeline
+      // (`VariableQueryRunner.getRequest`) fires with `rawSql: ""` and a
+      // session-monotonic `refId: tempVar<N>`. Without the marker rewrite
+      // the proxy has to guess which variable a `tempVar<N>` refers to
+      // from its ordinal N — which breaks on dashboard switch (N counter
+      // is global). Stamping `[MFE_REDACTED:v:<name>]` on the outgoing
+      // body gives the proxy a stable identifier.
+      window.__FNDashboard__ = true;
+      const { mock, ds } = createMockDatasource();
+      ds.query({
+        maxDataPoints: 0,
+        intervalMs: 0,
+        targets: [{ refId: 'tempVar5', rawSql: '' }],
+        dashboardUID: 'qualityMetrics',
+        scopedVars: {
+          __mfeVariableName: { text: 'org_name', value: 'org_name' },
+        },
+        range: getDefaultTimeRange(),
+      } as unknown as DataQueryRequest);
+
+      const body = mock.calls[0][0].data;
+      expect(body.queries[0].rawSql).toBe('[MFE_REDACTED:v:org_name]');
+      // And because the marker is now present, `hasRedactedQueryField`
+      // triggers the mfeContext sidecar too — the resolver needs both to
+      // resolve the variable SQL correctly.
+      expect(body).toHaveProperty('mfeContext');
+    });
+
+    test('inlines the marker even before window.__FNDashboard__ mirror is set', () => {
+      // Variable refresh can fire on cold start BEFORE
+      // `updatePartialMfeStates` dispatches (which is what sets the
+      // `__FNDashboard__` window mirror). The marker inline path must
+      // NOT gate on the window flag — otherwise the very first variable
+      // batch after page load leaks through unresolvable.
+      delete (window as { __FNDashboard__?: boolean }).__FNDashboard__;
+      const { mock, ds } = createMockDatasource();
+      ds.query({
+        maxDataPoints: 0,
+        intervalMs: 0,
+        targets: [{ refId: 'tempVar1', rawSql: '' }],
+        dashboardUID: 'summary',
+        scopedVars: {
+          __mfeVariableName: { text: 'repo_name', value: 'repo_name' },
+        },
+        range: getDefaultTimeRange(),
+      } as unknown as DataQueryRequest);
+
+      const body = mock.calls[0][0].data;
+      expect(body.queries[0].rawSql).toBe('[MFE_REDACTED:v:repo_name]');
+    });
+
+    test('does NOT rewrite non-empty rawSql (already-resolved SQL survives)', () => {
+      // If the SQL plugin has already interpolated a variable's SQL by
+      // the time we see the body, leave it alone — the proxy will accept
+      // it verbatim. Only empty query-text fields get the marker.
+      window.__FNDashboard__ = true;
+      const { mock, ds } = createMockDatasource();
+      ds.query({
+        maxDataPoints: 0,
+        intervalMs: 0,
+        targets: [{ refId: 'tempVar2', rawSql: 'SELECT organization_name FROM organizations' }],
+        dashboardUID: 'summary',
+        scopedVars: {
+          __mfeVariableName: { text: 'org_name', value: 'org_name' },
+        },
+        range: getDefaultTimeRange(),
+      } as unknown as DataQueryRequest);
+
+      const body = mock.calls[0][0].data;
+      expect(body.queries[0].rawSql).toBe('SELECT organization_name FROM organizations');
+    });
+
+    test('is a no-op when scopedVars.__mfeVariableName is absent (panel path)', () => {
+      // Panel queries flow through the same DataSourceWithBackend.query
+      // codepath, and they must NOT be rewritten by the variable-inline
+      // logic — their rawSql is either resolved SQL or the panel
+      // redaction marker. Absent `__mfeVariableName`, the empty-rawSql
+      // path is left alone.
+      window.__FNDashboard__ = true;
+      const { mock, ds } = createMockDatasource();
+      ds.query({
+        maxDataPoints: 0,
+        intervalMs: 0,
+        targets: [{ refId: 'A', rawSql: '' }],
+        dashboardUID: 'summary',
+        scopedVars: {},
+        range: getDefaultTimeRange(),
+      } as unknown as DataQueryRequest);
+
+      const body = mock.calls[0][0].data;
+      expect(body.queries[0].rawSql).toBe('');
+    });
+
+    test('rewrites the SQL-plugin tempVar<N> refId to the variable name so cross-dashboard caching works', () => {
+      // The SQL plugin (bigquery) uses a session-monotonic counter for its
+      // metricFindQuery refIds: the same variable (`org_name`) becomes
+      // `tempVar1` on the first dashboard visit, `tempVar5` on the second,
+      // etc. That defeats the browser-side response cache in
+      // coderabbit-ui's intercept-request.ts, which keys off the request
+      // body (whose contents include the refId). Rewriting the refId to
+      // the variable NAME collapses those identical queries onto a single
+      // cache entry.
+      window.__FNDashboard__ = true;
+      const { mock, ds } = createMockDatasource();
+      ds.query({
+        maxDataPoints: 0,
+        intervalMs: 0,
+        targets: [{ refId: 'tempVar5', rawSql: '' }],
+        dashboardUID: 'qualityMetrics',
+        scopedVars: {
+          __mfeVariableName: { text: 'org_name', value: 'org_name' },
+        },
+        range: getDefaultTimeRange(),
+      } as unknown as DataQueryRequest);
+
+      const body = mock.calls[0][0].data;
+      expect(body.queries[0].refId).toBe('org_name');
+      // And the marker still gets inlined on the same target, so the
+      // proxy can resolve the SQL end-to-end.
+      expect(body.queries[0].rawSql).toBe('[MFE_REDACTED:v:org_name]');
+    });
+
+    test('does NOT rewrite non-tempVar refIds on panel targets', () => {
+      // Guard against overreach: the refId rewrite must only fire on the
+      // SQL-plugin's auto-generated `tempVar<N>` refIds, never on panel
+      // target refIds (typically single letters). Even if a panel target
+      // somehow got tagged with `__mfeVariableName` in the future, its
+      // refId (e.g. `A`) must survive.
+      window.__FNDashboard__ = true;
+      const { mock, ds } = createMockDatasource();
+      ds.query({
+        maxDataPoints: 0,
+        intervalMs: 0,
+        targets: [{ refId: 'A', rawSql: '' }],
+        dashboardUID: 'summary',
+        scopedVars: {
+          __mfeVariableName: { text: 'org_name', value: 'org_name' },
+        },
+        range: getDefaultTimeRange(),
+      } as unknown as DataQueryRequest);
+
+      const body = mock.calls[0][0].data;
+      expect(body.queries[0].refId).toBe('A');
     });
   });
 

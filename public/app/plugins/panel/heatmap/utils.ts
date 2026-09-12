@@ -601,6 +601,15 @@ export function heatmapPathsDense(opts: PathbuilderOpts) {
             let cx = cxs[~~(i / yBinQty)];
             let cy = cys[i % yBinQty];
 
+            if (
+              fills === undefined ||
+              fills[i] === undefined ||
+              fillPaths === undefined ||
+              fillPaths[fills[i]] === undefined
+            ) {
+              continue;
+            }
+
             let fillPath = fillPaths[fills[i]];
 
             rect(fillPath, cx, cy, xSize, ySize);

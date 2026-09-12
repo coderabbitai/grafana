@@ -24,6 +24,22 @@ import { NavigationKey, VariablePickerProps } from '../types';
 import { commitChangesToVariable, filterOrSearchOptions, navigateOptions, openOptions } from './actions';
 import { initialOptionPickerState, OptionsPickerState, toggleAllOptions, toggleOption } from './reducer';
 
+
+// Strip any leading "var-" prefix and convert separators (underscore, hyphen,
+// camelCase, spaces) into Title Case words for use as the dropdown search
+// placeholder, e.g. "var-org_name" -> "Org Name", "self_hosted_id" -> "Self Hosted Id".
+function toTitleCase(input: string): string {
+  return input
+    .replace(/^var-/, '')
+    .replace(/[_-]+/g, ' ')
+    .replace(/([a-z])([A-Z])/g, '$1 $2')
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean)
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+    .join(' ');
+}
+
 export const optionPickerFactory = <Model extends VariableWithOptions | VariableWithMultiSupport>(): ComponentType<
   VariablePickerProps<Model>
 > => {
@@ -53,8 +69,21 @@ export const optionPickerFactory = <Model extends VariableWithOptions | Variable
       };
     }
 
+    const p = getVariablesState(rootStateKey, state).optionsPicker;
+    const isMfeTeamFilter =
+      state.fnGlobalState.FNDashboard && state.fnGlobalState.metadata.teams.length && p.id === 'team';
+
+    const teamFilter = isMfeTeamFilter
+      ? state.fnGlobalState.metadata.teams.map((t) => ({
+          text: t,
+          value: t,
+          selected: false,
+        }))
+      : [];
+
     return {
-      picker: getVariablesState(rootStateKey, state).optionsPicker,
+      picker: { ...p, ...(teamFilter.length && { options: [...p.options, ...teamFilter] }) },
+      mfeState: state.fnGlobalState,
     };
   };
 
@@ -117,7 +146,8 @@ export const optionPickerFactory = <Model extends VariableWithOptions | Variable
 
       return (
         <div className={styles.variableLinkWrapper} data-testid={selectors.components.Variables.variableLinkWrapper}>
-          {showOptions ? this.renderOptions(picker) : this.renderLink(variable)}
+          {this.renderLink(variable)}
+          {showOptions && this.renderOptions(picker)}
         </div>
       );
     }
@@ -125,11 +155,13 @@ export const optionPickerFactory = <Model extends VariableWithOptions | Variable
     renderLink(variable: VariableWithOptions) {
       const linkText = formatVariableLabel(variable);
       const loading = variable.state === LoadingState.Loading;
+      const pillLabel = variable.label || variable.name;
 
       return (
         <VariableLink
           id={VARIABLE_PREFIX + variable.id}
           text={linkText}
+          label={pillLabel}
           onClick={this.onShowOptions}
           loading={loading}
           onCancel={this.onCancel}
@@ -144,16 +176,22 @@ export const optionPickerFactory = <Model extends VariableWithOptions | Variable
 
     renderOptions(picker: OptionsPickerState) {
       const { id } = this.props.variable;
+      const placeholder = toTitleCase(this.props.variable.label || this.props.variable.name || id);
+      const searchInput = (
+        <VariableInput
+          id={VARIABLE_PREFIX + id}
+          value={picker.queryValue}
+          onChange={(value) => {
+            this.onFilterOrSearchOptions(value);
+          }}
+          onNavigate={this.onNavigate}
+          placeholder={placeholder}
+          aria-expanded={true}
+          aria-controls={`options-${id}`}
+        />
+      );
       return (
         <ClickOutsideWrapper onClick={this.onHideOptions}>
-          <VariableInput
-            id={VARIABLE_PREFIX + id}
-            value={picker.queryValue}
-            onChange={this.onFilterOrSearchOptions}
-            onNavigate={this.onNavigate}
-            aria-expanded={true}
-            aria-controls={`options-${id}`}
-          />
           <VariableOptions
             values={picker.options}
             onToggle={this.onToggleOption}
@@ -162,6 +200,7 @@ export const optionPickerFactory = <Model extends VariableWithOptions | Variable
             multi={picker.multi}
             selectedValues={picker.selectedValues}
             id={`options-${id}`}
+            searchInput={searchInput}
           />
         </ClickOutsideWrapper>
       );

@@ -49,9 +49,9 @@
   width: 100%;
 }
 
-[ng\:cloak],
-[ng-cloak],
-.ng-cloak {
+[data-grafana-mf-root] [ng\:cloak],
+[data-grafana-mf-root] [ng-cloak],
+[data-grafana-mf-root] .ng-cloak {
   display: none !important;
 }
 
@@ -72,11 +72,11 @@
     /**/
   }
 }
-input:-webkit-autofill {
+[data-grafana-mf-root] input:-webkit-autofill {
   animation-name: onAutoFillStart;
   transition: transform 1ms;
 }
-input:not(:-webkit-autofill) {
+[data-grafana-mf-root] input:not(:-webkit-autofill) {
   animation-name: onAutoFillCancel;
 }
 

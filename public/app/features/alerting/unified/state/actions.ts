@@ -2,7 +2,6 @@ import { createAsyncThunk } from '@reduxjs/toolkit';
 import { isEmpty } from 'lodash';
 
 import { locationService } from '@grafana/runtime';
-import { logMeasurement } from '@grafana/runtime/src/utils/logging';
 import {
   AlertManagerCortexConfig,
   AlertmanagerGroup,
@@ -21,7 +20,12 @@ import {
 import { PromApplication, RulerRuleDTO, RulerRulesConfigDTO } from 'app/types/unified-alerting-dto';
 
 import { backendSrv } from '../../../../core/services/backend_srv';
-import { withPerformanceLogging, withPromRulesMetadataLogging, withRulerRulesMetadataLogging } from '../Analytics';
+import {
+  logMeasurement,
+  withPerformanceLogging,
+  withPromRulesMetadataLogging,
+  withRulerRulesMetadataLogging,
+} from '../Analytics';
 import {
   deleteAlertManagerConfig,
   fetchAlertGroups,

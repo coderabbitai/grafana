@@ -20,7 +20,7 @@ import { PanelQueryRunner } from '../../query/state/PanelQueryRunner';
 import { TemplateSrv } from '../../templating/template_srv';
 import { variableAdapters } from '../../variables/adapters';
 import { createQueryVariableAdapter } from '../../variables/query/adapter';
-import { TimeOverrideResult } from '../utils/panel';
+import type { TimeOverrideResult } from '../utils/panel';
 
 import { PanelModel } from './PanelModel';
 

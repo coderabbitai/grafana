@@ -1,9 +1,21 @@
 # syntax=docker/dockerfile:1
 
-ARG BASE_IMAGE=alpine:3.19.1
+# alpine:3.19.1 shipped openssl 3.1.4-r5, flagged CRITICAL for CVE-2024-5535
+# on the deployed grafana-internal image (VULN-233).
+#
+# Alpine 3.19 reached end of support on 2025-11-01 and is now "on request"
+# only, so it receives no routine security updates. It also has no fixed
+# openssl package for CVE-2026-31789 -- that fix landed upstream in 3.0.20 /
+# 3.3.7 / 3.4.5 / 3.5.6+, none of which are backported to the 3.19 branch.
+# Staying on 3.19 therefore cannot resolve VULN-233 in full.
+#
+# 3.23 is a supported branch (EOL 2027-11-01) carrying openssl 3.5.x, which is
+# past the CVE-2026-31789 fix. Pinning the branch tag rather than a patch tag
+# keeps this on the newest published 3.23.x.
+ARG BASE_IMAGE=alpine:3.23
 ARG JS_IMAGE=node:20-alpine
 ARG JS_PLATFORM=linux/amd64
-ARG GO_IMAGE=golang:1.25.0-alpine
+ARG GO_IMAGE=golang:1.25.14-alpine
 
 ARG GO_SRC=go-builder
 ARG JS_SRC=js-builder
@@ -25,8 +37,8 @@ COPY conf/defaults.ini ./conf/defaults.ini
 
 RUN apk add --no-cache make build-base python3
 
-# Browser tests run outside the production image; Alpine does not support the Cypress binary.
-RUN CYPRESS_INSTALL_BINARY=0 yarn install --immutable
+# Browser tests run outside the Alpine production image.
+RUN CYPRESS_INSTALL_BINARY=0 yarn install
 
 COPY tsconfig.json .eslintrc .editorconfig .browserslistrc .prettierrc.js ./
 COPY scripts scripts
@@ -41,8 +53,10 @@ ARG COMMIT_SHA=""
 ARG BUILD_BRANCH=""
 ARG GO_BUILD_TAGS="oss"
 ARG WIRE_TAGS="oss"
-# The image only needs build-go; do not install the optional lint/dev tool suite.
-# Pinned legacy tools (including golangci-lint) do not build with Go 1.25.
+# BINGO=false by default: the image build only runs `make build-go`, which needs
+# no .bingo-managed tool. Building them all pulled golangci-lint v1.60.1, whose
+# golang.org/x/tools v0.24.0 fails to compile on Go >= 1.25 (invalid array length
+# in internal/tokeninternal). Set BINGO=true only where those tools are needed.
 ARG BINGO="false"
 
 RUN if grep -i -q alpine /etc/issue; then \
@@ -58,7 +72,6 @@ WORKDIR /tmp/grafana
 
 COPY go.* ./
 COPY .bingo .bingo
-COPY hack/go.* hack/
 
 # Include vendored dependencies
 COPY pkg/util/xorm/go.* pkg/util/xorm/
@@ -129,7 +142,13 @@ ENV PATH="/usr/share/grafana/bin:$PATH" \
 WORKDIR $GF_PATHS_HOME
 
 # Install dependencies
+#
+# `apk upgrade` is deliberate: the published alpine:3.23 image lags its own
+# repository, so it still ships openssl 3.5.7-r0 while 3.23-main already has
+# 3.5.8-r0 (fixes CVE-2026-14456). Upgrading here picks up whatever the branch
+# has published at build time instead of pinning to the image snapshot.
 RUN if grep -i -q alpine /etc/issue; then \
+      apk upgrade --no-cache && \
       apk add --no-cache ca-certificates bash curl tzdata musl-utils && \
       apk info -vv | sort; \
     elif grep -i -q ubuntu /etc/issue; then \
