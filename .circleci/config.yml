@@ -3,7 +3,7 @@ version: 2.1
 executors:
   go-executor:
     docker:
-      - image: cimg/go:1.22.6
+      - image: cimg/go:1.25.0
     working_directory: ~/github.com/grafana
 
   node-executor:
@@ -25,8 +25,11 @@ jobs:
           name: Install Go dependencies
           command: go mod download
       - run:
-          name: Go mod tidy
-          command: go mod tidy
+          name: Build backend
+          command: make build-go
+      - run:
+          name: Test code generation and schema conversion
+          command: go test ./pkg/codegen/... ./scripts/openapi3/...
       - save_cache:
           paths:
             - ~/go/pkg/mod
