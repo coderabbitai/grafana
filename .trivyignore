@@ -1,5 +1,36 @@
 # See https://aquasecurity.github.io/trivy/v0.48/docs/configuration/filtering/#trivyignore
 
+# VULN-237 / CVE-2018-15727, CVE-2023-3128 — github.com/grafana/grafana
+#
+# These findings are false positives caused by the Grafana main module being
+# reported as "(devel)" in Go build metadata. The Docker build excludes .git,
+# while Grafana's actual 11.3.0-pre version is injected into main.version with
+# ldflags; module scanners therefore cannot compare the real version with the
+# advisory ranges.
+#
+# Both fixes are present in this fork:
+#  - CVE-2018-15727 was fixed in Grafana 4.6.4, well before this 11.3 fork.
+#  - CVE-2023-3128 was fixed by upstream commit 789ee2121ed. Azure AD users are
+#    keyed by the immutable oid claim in azuread_oauth.go, rather than by the
+#    mutable email claim involved in the spoofing issue.
+#
+# Do not replace this exception by exposing .git to the Docker build. The
+# nearest repository tag makes Go report a v1.9.2 pseudo-version, which is also
+# below the advisory's fixed range and leaves the false positive in place.
+# Revisit when the image-scanning path can consume Grafana's stamped version or
+# another package-scoped VEX assertion.
+#
+# SCOPE CAVEAT: .trivyignore is global. Trivy matches vulnerability IDs only,
+# with no package or image qualifier, and .drone.yml scans multiple Grafana
+# images using this file. These IDs currently apply to the Grafana main module
+# in all of those images. Re-scope if either ID appears in another package.
+#
+# REVIEW BY 2027-03-14. Do not add Trivy's 'exp:' suffix until .drone.yml moves
+# beyond Trivy 0.21.0; that version treats the suffix as part of the ID and
+# silently fails to suppress the finding.
+CVE-2018-15727
+CVE-2023-3128
+
 # VULN-279 / CVE-2026-42151, CVE-2026-42154 — github.com/prometheus/prometheus
 #
 # Both advisories are fixed from Prometheus 3.5.3 (Go module v0.305.3) on the
