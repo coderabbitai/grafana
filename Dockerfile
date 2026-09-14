@@ -30,13 +30,15 @@ COPY package.json project.json nx.json yarn.lock .yarnrc.yml ./
 COPY .yarn .yarn
 COPY packages packages
 COPY plugins-bundled plugins-bundled
+COPY e2e/test-plugins e2e/test-plugins
 COPY public public
 COPY LICENSE ./
 COPY conf/defaults.ini ./conf/defaults.ini
 
-RUN apk add --no-cache make build-base python3
+RUN apk add --no-cache make build-base python3 py3-setuptools
 
-RUN yarn install
+# Browser tests run outside the Alpine production image.
+RUN CYPRESS_INSTALL_BINARY=0 NX_DAEMON=false npm_config_nodedir=/usr/local yarn install --inline-builds
 
 COPY tsconfig.json .eslintrc .editorconfig .browserslistrc .prettierrc.js ./
 COPY scripts scripts
