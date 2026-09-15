@@ -25,6 +25,13 @@ export interface FnState {
    * owns the editing UI, so Grafana only surfaces the trigger.
    */
   enablePanelEdit: boolean;
+  /**
+   * When true, each panel header renders a delete affordance that reports the
+   * clicked panel back to the host through `metadata.eventListener` as a
+   * `panelDeleteClick` event. The host owns the confirmation UI and the
+   * mutation, so Grafana only surfaces the trigger.
+   */
+  enablePanelDelete: boolean;
   enablePanelLayoutEdit: boolean;
   metadata: {
     teams: string[];
@@ -50,6 +57,7 @@ export type FnPropMappedFromState = Extract<
   | 'controlsContainer'
   | 'dashboardAccessMode'
   | 'enablePanelEdit'
+  | 'enablePanelDelete'
   | 'enablePanelLayoutEdit'
   | 'panelOptionsUpdate'
   | 'portalContainerID'
@@ -62,6 +70,7 @@ export const fnStateProps: FnStateProp[] = [
   'controlsContainer',
   'dashboardAccessMode',
   'enablePanelEdit',
+  'enablePanelDelete',
   'enablePanelLayoutEdit',
   'hiddenVariables',
   'pageTitle',
@@ -88,6 +97,7 @@ export const INITIAL_FN_STATE: FnState = {
   queryParams: {},
   hiddenVariables: [],
   enablePanelEdit: false,
+  enablePanelDelete: false,
   enablePanelLayoutEdit: false,
   metadata: {
     teams: [],

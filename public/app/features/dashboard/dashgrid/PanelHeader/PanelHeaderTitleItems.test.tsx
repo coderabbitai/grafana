@@ -5,7 +5,11 @@ import { LoadingState, TimeRange } from '@grafana/data';
 
 import { AngularNotice, PanelHeaderTitleItems } from './PanelHeaderTitleItems';
 
-function renderComponent(angularNoticeOverride?: Partial<AngularNotice>, onEditPanel?: () => void) {
+function renderComponent(
+  angularNoticeOverride?: Partial<AngularNotice>,
+  onEditPanel?: () => void,
+  onDeletePanel?: () => void
+) {
   render(
     <PanelHeaderTitleItems
       data={{
@@ -15,6 +19,7 @@ function renderComponent(angularNoticeOverride?: Partial<AngularNotice>, onEditP
       }}
       panelId={1}
       onEditPanel={onEditPanel}
+      onDeletePanel={onDeletePanel}
       angularNotice={{
         ...{
           show: true,
@@ -92,5 +97,33 @@ describe('PanelHeaderTitleItems panel edit affordance', () => {
 
     await userEvent.click(editItem);
     expect(onEditPanel).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('PanelHeaderTitleItems panel delete affordance', () => {
+  const deleteSelector = 'fn-delete-panel';
+
+  it('does not render the delete item when the host has not opted in', () => {
+    renderComponent();
+    expect(screen.queryByTestId(deleteSelector)).not.toBeInTheDocument();
+  });
+
+  it('renders the delete item and reports clicks to the host', async () => {
+    const onDeletePanel = jest.fn();
+    renderComponent(undefined, undefined, onDeletePanel);
+
+    const deleteItem = screen.getByTestId(deleteSelector);
+    expect(deleteItem).toBeInTheDocument();
+    expect(deleteItem).toHaveAttribute('aria-label', 'Delete panel');
+
+    await userEvent.click(deleteItem);
+    expect(onDeletePanel).toHaveBeenCalledTimes(1);
+  });
+
+  it('renders edit and delete independently of each other', () => {
+    const onEditPanel = jest.fn();
+    renderComponent(undefined, onEditPanel);
+    expect(screen.getByTestId('fn-edit-panel')).toBeInTheDocument();
+    expect(screen.queryByTestId(deleteSelector)).not.toBeInTheDocument();
   });
 });
