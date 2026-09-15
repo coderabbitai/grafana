@@ -32,6 +32,14 @@ interface OwnProps {
 
 interface ConnectedProps {
   angularComponent?: AngularComponent;
+  /**
+   * Host opt-ins for the per-panel edit/delete affordances. Read from the same
+   * fn state as the React chrome so an Angular panel is not silently missing
+   * actions the host expects on every panel.
+   */
+  enablePanelEdit?: boolean;
+  enablePanelDelete?: boolean;
+  panelEditListener?: <T>(event: { type: string; data: T }) => void;
 }
 
 interface DispatchProps {
@@ -219,6 +227,9 @@ export class PanelChromeAngularUnconnected extends PureComponent<Props, State> {
 const mapStateToProps: MapStateToProps<ConnectedProps, OwnProps, StoreState> = (state, props) => {
   return {
     angularComponent: getPanelStateForModel(state, props.panel)?.angularComponent,
+    enablePanelEdit: state.fnGlobalState.enablePanelEdit,
+    enablePanelDelete: state.fnGlobalState.enablePanelDelete,
+    panelEditListener: state.fnGlobalState.metadata?.eventListener ?? undefined,
   };
 };
 

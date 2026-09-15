@@ -20,7 +20,9 @@ interface CommonProps {
   isEditing: boolean;
   /** Host opt-in for the per-panel edit affordance. */
   enablePanelEdit?: boolean;
-  /** Channel the host listens on for `panelEditClick`. */
+  /** Host opt-in for the per-panel delete affordance. */
+  enablePanelDelete?: boolean;
+  /** Channel the host listens on for `panelEditClick` / `panelDeleteClick`. */
   panelEditListener?: <T>(event: { type: string; data: T }) => void;
   isInView: boolean;
   isDraggable?: boolean;
@@ -103,12 +105,28 @@ export function getPanelChromeProps(props: CommonProps) {
         })
     : undefined;
 
+  /**
+   * Deletion is opted into separately from editing so a host can surface one
+   * affordance without the other. Grafana never mutates the dashboard here; it
+   * only reports the click and lets the host confirm and persist.
+   */
+  const panelDeleteListener = props.enablePanelDelete ? props.panelEditListener : undefined;
+
+  const onDeletePanel = panelDeleteListener
+    ? () =>
+        panelDeleteListener({
+          type: 'panelDeleteClick',
+          data: { panelId: props.panel.id, title: props.panel.title ?? '' },
+        })
+    : undefined;
+
   const showTitleItems =
     (props.panel.links && props.panel.links.length > 0 && onShowPanelLinks) ||
     (props.data.series.length > 0 && props.data.series.some((v) => (v.meta?.notices?.length ?? 0) > 0)) ||
     (props.data.request && props.data.request.timeInfo) ||
     showAngularNotice ||
     Boolean(onEditPanel) ||
+    Boolean(onDeletePanel) ||
     alertState;
 
   const titleItems = showTitleItems && (
@@ -117,6 +135,7 @@ export function getPanelChromeProps(props: CommonProps) {
       data={props.data}
       panelId={props.panel.id}
       onEditPanel={onEditPanel}
+      onDeletePanel={onDeletePanel}
       panelLinks={props.panel.links}
       angularNotice={{
         show: showAngularNotice,

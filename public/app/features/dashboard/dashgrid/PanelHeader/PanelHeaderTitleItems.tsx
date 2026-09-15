@@ -22,19 +22,24 @@ export interface Props {
    * affordance is driven entirely by this callback's presence.
    */
   onEditPanel?: () => void;
+  /**
+   * Set only when the embedding host has opted into panel deletion. Rendering
+   * the affordance is driven entirely by this callback's presence.
+   */
+  onDeletePanel?: () => void;
   onShowPanelLinks?: () => Array<LinkModel<PanelModel>>;
   panelLinks?: DataLink[];
   angularNotice?: AngularNotice;
 }
 
 export function PanelHeaderTitleItems(props: Props) {
-  const { alertState, data, panelId, onEditPanel, onShowPanelLinks, panelLinks, angularNotice } = props;
+  const { alertState, data, panelId, onEditPanel, onDeletePanel, onShowPanelLinks, panelLinks, angularNotice } = props;
   const styles = useStyles2(getStyles);
 
   const editItem = (
     <Tooltip content="Edit panel">
       <PanelChrome.TitleItem
-        className={styles.editPanel}
+        className={cx(styles.panelAction, styles.editPanel)}
         data-testid="fn-edit-panel"
         aria-label="Edit panel"
         onClick={(e) => {
@@ -45,6 +50,24 @@ export function PanelHeaderTitleItems(props: Props) {
         }}
       >
         <Icon name="pen" size="md" />
+      </PanelChrome.TitleItem>
+    </Tooltip>
+  );
+
+  const deleteItem = (
+    <Tooltip content="Delete panel">
+      <PanelChrome.TitleItem
+        className={cx(styles.panelAction, styles.deletePanel)}
+        data-testid="fn-delete-panel"
+        aria-label="Delete panel"
+        onClick={(e) => {
+          // The header doubles as the drag handle, so keep the click local.
+          e.preventDefault();
+          e.stopPropagation();
+          onDeletePanel?.();
+        }}
+      >
+        <Icon name="trash-alt" size="md" />
       </PanelChrome.TitleItem>
     </Tooltip>
   );
@@ -96,6 +119,7 @@ export function PanelHeaderTitleItems(props: Props) {
       {alertState && alertStateItem}
       {angularNotice?.show && angularNoticeTooltip}
       {onEditPanel && editItem}
+      {onDeletePanel && deleteItem}
     </>
   );
 }
@@ -142,7 +166,12 @@ const getStyles = (theme: GrafanaTheme2) => {
     angularNotice: css({
       color: theme.colors.warning.text,
     }),
-    editPanel: css({
+    /**
+     * Shared resting treatment for the host-driven panel actions. They sit in
+     * the panel header next to the title, so they stay dimmed until hovered to
+     * avoid competing with the panel's own content.
+     */
+    panelAction: css({
       cursor: 'pointer',
 
       [theme.transitions.handleMotion('no-preference', 'reduce')]: {
@@ -155,7 +184,8 @@ const getStyles = (theme: GrafanaTheme2) => {
         color: theme.colors.text.disabled,
         opacity: 0.72,
       },
-
+    }),
+    editPanel: css({
       '&&:hover': {
         color: theme.colors.text.secondary,
         opacity: 0.9,
@@ -163,6 +193,17 @@ const getStyles = (theme: GrafanaTheme2) => {
 
       '&&:focus-visible': {
         color: theme.colors.text.secondary,
+        opacity: 1,
+      },
+    }),
+    deletePanel: css({
+      '&&:hover': {
+        color: theme.colors.error.text,
+        opacity: 1,
+      },
+
+      '&&:focus-visible': {
+        color: theme.colors.error.text,
         opacity: 1,
       },
     }),

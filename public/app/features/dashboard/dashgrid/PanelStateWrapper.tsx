@@ -649,6 +649,7 @@ function mapStateToProps() {
      * dashboard this panel belongs to.
      */
     enablePanelEdit: state.fnGlobalState.enablePanelEdit,
+    enablePanelDelete: state.fnGlobalState.enablePanelDelete,
     panelEditListener: state.fnGlobalState.metadata?.eventListener ?? undefined,
   });
 }
