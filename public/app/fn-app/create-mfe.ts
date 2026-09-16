@@ -6,7 +6,7 @@ window.__grafana_public_path__ =
 
 import { isNull, merge, noop, pick } from 'lodash';
 import React, { ComponentType } from 'react';
-import { createRoot } from 'react-dom/client';
+import { createRoot, Root } from 'react-dom/client';
 
 import { createTheme, GrafanaThemeType } from '@grafana/data';
 import { createColors } from '@grafana/data/src/themes/createColors';
@@ -59,6 +59,7 @@ type DeepPartial<T> = {
 
 class createMfe {
   private static readonly containerSelector = '#grafanaRoot';
+  private static readonly roots = new WeakMap<Element, Root>();
   private static logger = FnLoggerService;
 
   mode: FNDashboardProps['mode'];
@@ -238,20 +239,24 @@ class createMfe {
   static unMountFnApp() {
     const lifeCycleFn: FrameworkLifeCycles['unmount'] = (props: FNDashboardProps) => {
       const container = createMfe.getContainer(props);
+      const root = container && createMfe.roots.get(container);
 
-      if (container) {
+      if (container && root) {
         createMfe.logger.info('Trying to unmount grafana...');
 
-        createRoot(container).unmount();
+        // Portals belong to the original React root, including those outside
+        // this container. A newly created root cannot clean them up.
+        root.unmount();
+        createMfe.roots.delete(container);
 
         createMfe.logger.info('Successfully unmounted grafana.');
       } else {
-        createMfe.logger.error('Failed to unmount grafana. Container does not exist.');
+        createMfe.logger.error('Failed to unmount grafana. Mounted root does not exist.');
       }
 
       backendSrv.cancelAllInFlightRequests();
 
-      return Promise.resolve(!!container);
+      return Promise.resolve(!!root);
     };
 
     return lifeCycleFn;
@@ -302,7 +307,11 @@ class createMfe {
       return;
     }
 
+    if (createMfe.roots.has(container)) {
+      throw new Error('Grafana root is already mounted');
+    }
     const root = createRoot(container);
+    createMfe.roots.set(container, root);
     root.render(React.createElement(createMfe.Component, props));
     createMfe.logger.info('Created mfe component.', { props, container });
     onSuccess();
