@@ -225,6 +225,26 @@ const getTestContextVariables = (dashboard: DashboardModel, customeVariables?: o
 };
 
 describe('when onTimeRangeUpdated is dispatched', () => {
+  it('refreshes panels only for the dashboard whose asynchronous variables completed', async () => {
+    const summary = createDashboardModelFixture({ schemaVersion: 9999, uid: 'key' });
+    const details = createDashboardModelFixture({ schemaVersion: 9999, uid: 'details' });
+    const summaryRefresh = jest.fn();
+    const detailsRefresh = jest.fn();
+    summary.startRefresh = summaryRefresh;
+    details.startRefresh = detailsRefresh;
+    const { key, preloadedState, range, dependencies } = getTestContext(summary);
+
+    await reduxTester<RootReducerType>({ preloadedState })
+      .givenRootReducer(getRootReducer())
+      .whenActionIsDispatched(toKeyedAction(key, variablesInitTransaction({ uid: key })))
+      .whenAsyncActionIsDispatched(onTimeRangeUpdated(key, range, dependencies));
+
+    expect(summaryRefresh).toHaveBeenCalledWith({ panelIds: [], refreshAll: true });
+    expect(detailsRefresh).not.toHaveBeenCalled();
+    summary.destroy();
+    details.destroy();
+  });
+
   describe('and options are changed by update', () => {
     it('then correct actions are dispatched and correct dependencies are called', async () => {
       const {

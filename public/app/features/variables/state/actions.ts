@@ -839,7 +839,7 @@ export const onTimeRangeUpdated =
 
     try {
       await Promise.all(promises);
-      dependencies.events.publish(new VariablesTimeRangeProcessDone({ variableIds }));
+      dependencies.events.publish(new VariablesTimeRangeProcessDone({ dashboardUid: key, variableIds }));
     } catch (error) {
       console.error(error);
       dispatch(notifyApp(createVariableErrorNotification('Template variable service failed', error)));

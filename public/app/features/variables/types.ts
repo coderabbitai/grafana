@@ -59,11 +59,19 @@ export class VariablesChanged extends BusEventWithPayload<VariablesChangedEvent>
 }
 
 export interface VariablesTimeRangeProcessDoneEvent {
+  dashboardUid?: string;
   variableIds: string[];
 }
 
 export class VariablesTimeRangeProcessDone extends BusEventWithPayload<VariablesTimeRangeProcessDoneEvent> {
   static type = 'variables-time-range-process-done';
+}
+
+export function isVariablesTimeRangeProcessDoneForDashboard(
+  event: VariablesTimeRangeProcessDone,
+  dashboardUid: string | null
+): boolean {
+  return !event.payload.dashboardUid || !dashboardUid || event.payload.dashboardUid === dashboardUid;
 }
 
 export class VariablesChangedInUrl extends BusEventWithPayload<VariablesChangedEvent> {

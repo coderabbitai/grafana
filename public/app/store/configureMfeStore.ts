@@ -9,7 +9,12 @@ import {
 import { WritableDraft } from 'immer';
 
 import { GrafanaThemeType } from '@grafana/data';
-import { FnState, INITIAL_FN_STATE, UpdateFNGlobalStateAction } from 'app/core/reducers/fn-slice';
+import {
+  FnState,
+  INITIAL_FN_STATE,
+  nextFnRefreshRevision,
+  UpdateFNGlobalStateAction,
+} from 'app/core/reducers/fn-slice';
 import { FnLoggerService } from 'app/fn_logger';
 import { StoreState } from 'app/types';
 
@@ -68,6 +73,7 @@ const reducers: SliceCaseReducers<MfeGlobalState> = {
       ...fnState,
       ...partialState,
       hiddenVariables: partialState.hiddenVariables ? [...partialState.hiddenVariables] : [...fnState.hiddenVariables],
+      refreshRevision: nextFnRefreshRevision(fnState.refreshRevision, partialState.refreshRevision),
       uid,
     };
   },
