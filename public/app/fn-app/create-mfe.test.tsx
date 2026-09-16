@@ -79,6 +79,26 @@ describe('MFE dashboard refresh updates', () => {
     ).rejects.toThrow('the owning model is not mounted');
 
     expect(details.timeRangeUpdated).not.toHaveBeenCalled();
+    expect(updatePartialMfeStates).not.toHaveBeenCalledWith(expect.objectContaining({ refreshRevision: 2 }));
+  });
+
+  it.each([Number.NaN, Number.POSITIVE_INFINITY, -1, 1.5])(
+    'rejects invalid refresh revision %s without consuming it',
+    async (refreshRevision) => {
+      await expect(
+        update({ ...INITIAL_FN_STATE, uid: 'summary', refreshRevision } as FNDashboardProps, window)
+      ).rejects.toThrow('refreshRevision must be a non-negative safe integer');
+
+      expect(updatePartialMfeStates).not.toHaveBeenCalled();
+    }
+  );
+
+  it('rejects a refresh revision without a dashboard uid', async () => {
+    await expect(
+      update({ ...INITIAL_FN_STATE, uid: '', refreshRevision: 1 } as FNDashboardProps, window)
+    ).rejects.toThrow('A dashboard uid is required when requesting a refresh');
+
+    expect(updatePartialMfeStates).not.toHaveBeenCalled();
   });
 
   it('restores the prior owner before awaiting the target variable refresh', async () => {

@@ -273,6 +273,16 @@ class createMfe {
     }: FNDashboardProps & {
       readonly renderingDashboardUid?: string;
     }) => {
+      const requestedRefreshRevision = other.refreshRevision;
+      if (requestedRefreshRevision !== undefined) {
+        if (!Number.isSafeInteger(requestedRefreshRevision) || requestedRefreshRevision < 0) {
+          throw new Error('refreshRevision must be a non-negative safe integer');
+        }
+        if (!other.uid) {
+          throw new Error('A dashboard uid is required when requesting a refresh');
+        }
+      }
+
       if (mode && mfeGetStoreState().fnGlobalReducer.mode !== mode) {
         mfeDispatch(updateMfeMode(mode));
 
@@ -281,12 +291,19 @@ class createMfe {
 
       if (other.uid) {
         const previousRefreshRevision = mfeGetStoreState().fnGlobalReducer.dashboards[other.uid]?.refreshRevision ?? 0;
+        const shouldRefresh = (requestedRefreshRevision ?? 0) > previousRefreshRevision;
         createMfe.logger.info('Trying to render dashboard using update: ', { updatedProps: other });
 
-        mfeDispatch(updatePartialMfeStates(other));
+        if (shouldRefresh) {
+          const { refreshRevision: _, ...updatedProps } = other;
+          mfeDispatch(updatePartialMfeStates(updatedProps));
+        } else {
+          mfeDispatch(updatePartialMfeStates(other));
+        }
 
-        if ((other.refreshRevision ?? 0) > previousRefreshRevision) {
+        if (shouldRefresh) {
           await createMfe.refreshDashboard(other.uid);
+          mfeDispatch(updatePartialMfeStates({ uid: other.uid, refreshRevision: requestedRefreshRevision }));
         }
       }
 

@@ -199,6 +199,7 @@ export class VariableQueryRunner {
 
     const request: DataQueryRequest = {
       app: CoreApp.Dashboard,
+      dashboardUID: variable.rootStateKey,
       requestId: uuidv4(),
       timezone: '',
       range,

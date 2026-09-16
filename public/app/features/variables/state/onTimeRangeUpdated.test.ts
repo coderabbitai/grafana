@@ -17,6 +17,7 @@ import { createIntervalVariableAdapter } from '../interval/adapter';
 import { createIntervalOptions } from '../interval/reducer';
 import { createQueryVariableAdapter } from '../query/adapter';
 import { constantBuilder, intervalBuilder, queryBuilder, datasourceBuilder } from '../shared/testing/builders';
+import { VariablesTimeRangeProcessDone } from '../types';
 import { toKeyedVariableIdentifier, toVariablePayload } from '../utils';
 
 import { onTimeRangeUpdated, OnTimeRangeUpdatedDependencies, setOptionAsCurrent } from './actions';
@@ -30,6 +31,21 @@ import {
   variableStateFetching,
 } from './sharedReducer';
 import { variablesInitTransaction } from './transactionReducer';
+
+// The shared local @grafana/scenes package predates these base exports. This
+// reducer test never instantiates scene objects, so lightweight bases keep its
+// unrelated transitive imports inert while DashboardModel remains real.
+jest.mock('@grafana/scenes', () => {
+  const actual = jest.requireActual('@grafana/scenes');
+  class SceneBase {}
+
+  return {
+    ...actual,
+    SceneDataLayerBase: actual.SceneDataLayerBase ?? SceneBase,
+    SceneDataLayerSetBase: actual.SceneDataLayerSetBase ?? SceneBase,
+    SceneObjectBase: actual.SceneObjectBase ?? SceneBase,
+  };
+});
 
 variableAdapters.setInit(() => [
   createIntervalVariableAdapter(),
@@ -47,8 +63,26 @@ const getDatasource = jest.fn().mockResolvedValue({ metricFindQuery });
 
 jest.mock('app/features/dashboard/services/TimeSrv', () => ({
   getTimeSrv: () => ({
+    isRefreshOutsideThreshold: jest.fn().mockReturnValue(false),
     timeRange: jest.fn().mockReturnValue(undefined),
   }),
+}));
+
+// These imports pull panel/scene registries that are unrelated to variable
+// refreshes and are not initialized by this reducer test harness.
+jest.mock('app/features/dashboard-scene/utils/getVariablesCompatibility', () => ({
+  getVariablesCompatibility: jest.fn().mockReturnValue([]),
+}));
+jest.mock('app/features/variables/inspect/utils', () => ({
+  getAllAffectedPanelIdsForVariableChange: jest.fn().mockReturnValue(new Set()),
+  getPanelVars: jest.fn().mockReturnValue({}),
+}));
+jest.mock('app/features/dashboard/state/PanelModel', () => ({
+  explicitlyControlledMigrationPanels: [],
+  PanelModel: jest.fn(),
+}));
+jest.mock('app/features/dashboard/state/DashboardMigrator', () => ({
+  DashboardMigrator: jest.fn().mockImplementation(() => ({ updateSchema: jest.fn() })),
 }));
 
 runtime.setDataSourceSrv({
@@ -226,23 +260,37 @@ const getTestContextVariables = (dashboard: DashboardModel, customeVariables?: o
 
 describe('when onTimeRangeUpdated is dispatched', () => {
   it('refreshes panels only for the dashboard whose asynchronous variables completed', async () => {
+    const completionHandler = jest.spyOn(
+      DashboardModel.prototype as unknown as { variablesTimeRangeProcessDoneHandler: () => void },
+      'variablesTimeRangeProcessDoneHandler'
+    );
     const summary = createDashboardModelFixture({ schemaVersion: 9999, uid: 'key' });
     const details = createDashboardModelFixture({ schemaVersion: 9999, uid: 'details' });
     const summaryRefresh = jest.fn();
     const detailsRefresh = jest.fn();
+    summary.processRepeats = jest.fn();
+    details.processRepeats = jest.fn();
+    const completion = jest.fn();
+    const completionSubscription = appEvents.subscribe(VariablesTimeRangeProcessDone, completion);
+    const { key, preloadedState, range, dependencies } = getTestContext(summary);
     summary.startRefresh = summaryRefresh;
     details.startRefresh = detailsRefresh;
-    const { key, preloadedState, range, dependencies } = getTestContext(summary);
 
     await reduxTester<RootReducerType>({ preloadedState })
       .givenRootReducer(getRootReducer())
       .whenActionIsDispatched(toKeyedAction(key, variablesInitTransaction({ uid: key })))
       .whenAsyncActionIsDispatched(onTimeRangeUpdated(key, range, dependencies));
 
+    expect(completion).toHaveBeenCalledWith(
+      expect.objectContaining({ payload: { dashboardUid: key, variableIds: ['interval-0'] } })
+    );
+    expect(completionHandler).toHaveBeenCalledTimes(2);
+    expect(summary.uid).toBe(key);
     expect(summaryRefresh).toHaveBeenCalledWith({ panelIds: [], refreshAll: true });
     expect(detailsRefresh).not.toHaveBeenCalled();
     summary.destroy();
     details.destroy();
+    completionSubscription.unsubscribe();
   });
 
   describe('and options are changed by update', () => {
