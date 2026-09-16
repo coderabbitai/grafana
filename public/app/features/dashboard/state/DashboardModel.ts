@@ -38,6 +38,7 @@ import {
   VariablesChangedEvent,
   VariablesChangedInUrl,
   VariablesTimeRangeProcessDone,
+  isVariablesTimeRangeProcessDoneForDashboard,
 } from '../../variables/types';
 import { isAllVariable } from '../../variables/utils';
 import { getTimeSrv } from '../services/TimeSrv';
@@ -368,11 +369,13 @@ export class DashboardModel implements TimeModel {
 
   timeRangeUpdated(timeRange: TimeRange) {
     this.events.publish(new TimeRangeUpdatedEvent(timeRange));
-    dispatch(onTimeRangeUpdated(this.uid, timeRange));
+    const variablesUpdated = dispatch(onTimeRangeUpdated(this.uid, timeRange));
 
     if (this.panelInEdit || this.panelInView) {
       this.timeRangeUpdatedDuringEditOrView = true;
     }
+
+    return variablesUpdated;
   }
 
   startRefresh(event: VariablesChangedEvent = { refreshAll: true, panelIds: [] }) {
@@ -1280,6 +1283,10 @@ export class DashboardModel implements TimeModel {
   }
 
   private variablesTimeRangeProcessDoneHandler(event: VariablesTimeRangeProcessDone) {
+    if (!isVariablesTimeRangeProcessDoneForDashboard(event, this.uid)) {
+      return;
+    }
+
     const processRepeats = event.payload.variableIds.length > 0;
     this.variablesChangedHandler(new VariablesChanged({ panelIds: [], refreshAll: true }), processRepeats);
   }

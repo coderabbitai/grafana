@@ -20,6 +20,25 @@ import { UpdateOptionsResults, VariableQueryRunner } from './VariableQueryRunner
 import { QueryRunner, QueryRunners } from './queryRunners';
 import { updateVariableOptions } from './reducer';
 
+// VariableQueryRunner receives these functions through its test dependencies;
+// avoid initializing the unrelated application store and dashboard scene tree.
+jest.mock('../../../store/store', () => ({ dispatch: jest.fn(), getState: jest.fn() }));
+jest.mock('../../dashboard/services/TimeSrv', () => ({ getTimeSrv: jest.fn() }));
+jest.mock('@grafana/scenes', () => {
+  const actual = jest.requireActual('@grafana/scenes');
+  class SceneBase {}
+
+  return {
+    ...actual,
+    SceneDataLayerBase: actual.SceneDataLayerBase ?? SceneBase,
+    SceneDataLayerSetBase: actual.SceneDataLayerSetBase ?? SceneBase,
+    SceneObjectBase: actual.SceneObjectBase ?? SceneBase,
+  };
+});
+jest.mock('app/features/dashboard/state/DashboardMigrator', () => ({
+  DashboardMigrator: jest.fn().mockImplementation(() => ({ updateSchema: jest.fn() })),
+}));
+
 function expectOnResults(args: {
   runner: VariableQueryRunner;
   identifier: KeyedVariableIdentifier;
@@ -125,6 +144,10 @@ describe('VariableQueryRunner', () => {
           expect(queryRunners.getRunnerForDatasource).toHaveBeenCalledTimes(1);
           expect(queryRunner.getTarget).toHaveBeenCalledTimes(1);
           expect(queryRunner.runRequest).toHaveBeenCalledTimes(1);
+          expect(queryRunner.runRequest).toHaveBeenCalledWith(
+            expect.anything(),
+            expect.objectContaining({ dashboardUID: key })
+          );
           expect(datasource.metricFindQuery).not.toHaveBeenCalled();
 
           // updateVariableOptions and validateVariableSelectionState

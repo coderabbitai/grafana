@@ -8,7 +8,7 @@ import { isNull, merge, noop, pick } from 'lodash';
 import React, { ComponentType } from 'react';
 import { createRoot, Root } from 'react-dom/client';
 
-import { createTheme, GrafanaThemeType } from '@grafana/data';
+import { createTheme, GrafanaThemeType, rangeUtil } from '@grafana/data';
 import { createColors } from '@grafana/data/src/themes/createColors';
 import { GrafanaTheme2 } from '@grafana/data/src/themes/types';
 import { ThemeChangedEvent } from '@grafana/runtime';
@@ -267,12 +267,22 @@ class createMfe {
   }
 
   static updateFnApp() {
-    const lifeCycleFn: FrameworkLifeCycles['update'] = ({
+    const lifeCycleFn: FrameworkLifeCycles['update'] = async ({
       mode,
       ...other
     }: FNDashboardProps & {
       readonly renderingDashboardUid?: string;
     }) => {
+      const requestedRefreshRevision = other.refreshRevision;
+      if (requestedRefreshRevision !== undefined) {
+        if (!Number.isSafeInteger(requestedRefreshRevision) || requestedRefreshRevision < 0) {
+          throw new Error('refreshRevision must be a non-negative safe integer');
+        }
+        if (!other.uid) {
+          throw new Error('A dashboard uid is required when requesting a refresh');
+        }
+      }
+
       if (mode && mfeGetStoreState().fnGlobalReducer.mode !== mode) {
         mfeDispatch(updateMfeMode(mode));
 
@@ -280,9 +290,21 @@ class createMfe {
       }
 
       if (other.uid) {
+        const previousRefreshRevision = mfeGetStoreState().fnGlobalReducer.dashboards[other.uid]?.refreshRevision ?? 0;
+        const shouldRefresh = (requestedRefreshRevision ?? 0) > previousRefreshRevision;
         createMfe.logger.info('Trying to render dashboard using update: ', { updatedProps: other });
 
-        mfeDispatch(updatePartialMfeStates(other));
+        if (shouldRefresh) {
+          const { refreshRevision: _, ...updatedProps } = other;
+          mfeDispatch(updatePartialMfeStates(updatedProps));
+        } else {
+          mfeDispatch(updatePartialMfeStates(other));
+        }
+
+        if (shouldRefresh) {
+          await createMfe.refreshDashboard(other.uid);
+          mfeDispatch(updatePartialMfeStates({ uid: other.uid, refreshRevision: requestedRefreshRevision }));
+        }
       }
 
       if (other.renderingDashboardUid) {
@@ -297,10 +319,35 @@ class createMfe {
         );
       }
 
-      return Promise.resolve(true);
+      return true;
     };
 
     return lifeCycleFn;
+  }
+
+  private static async refreshDashboard(uid: string) {
+    const mfeState = mfeGetStoreState().fnGlobalReducer;
+    const dashboard = mfeState.grafanaStores[uid]?.getState().dashboard.getModel();
+    if (!dashboard || dashboard.uid !== uid) {
+      throw new Error(`Cannot refresh dashboard ${uid}: the owning model is not mounted`);
+    }
+
+    const previousRenderingDashboardUid = mfeState.renderingDashboardUID;
+    let variablesUpdated: Promise<void> | undefined;
+    try {
+      // DashboardModel's existing refresh pipeline dispatches through the
+      // currently rendering MFE store. Select only this update's dashboard
+      // while the synchronous thunk is bound to its store. Redux supplies that
+      // store's dispatch/getState to the thunk before its first await, so the
+      // global owner can be restored immediately without an async race.
+      mfeDispatch(updateRenderingDashboardUID(uid));
+      variablesUpdated = dashboard.timeRangeUpdated(
+        rangeUtil.convertRawToRange(dashboard.time, dashboard.getTimezone(), dashboard.fiscalYearStartMonth)
+      );
+    } finally {
+      mfeDispatch(updateRenderingDashboardUID(previousRenderingDashboardUid));
+    }
+    await variablesUpdated;
   }
 
   static renderMfeComponent(props: FNDashboardProps, onSuccess = noop) {
