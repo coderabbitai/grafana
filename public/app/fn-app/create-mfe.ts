@@ -199,6 +199,10 @@ class createMfe {
     const lifeCycleFn: FrameworkLifeCycles['mount'] = (props: FNDashboardProps) => {
       return new Promise((res, rej) => {
         try {
+          const container = createMfe.getContainer(props);
+          if (container && createMfe.roots.has(container)) {
+            throw new Error('Grafana root is already mounted');
+          }
           createMfe.loadFnTheme(props.mode);
           createMfe.Component = Component;
 
@@ -307,9 +311,6 @@ class createMfe {
       return;
     }
 
-    if (createMfe.roots.has(container)) {
-      throw new Error('Grafana root is already mounted');
-    }
     const root = createRoot(container);
     createMfe.roots.set(container, root);
     root.render(React.createElement(createMfe.Component, props));

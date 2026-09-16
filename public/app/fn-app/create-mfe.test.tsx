@@ -5,6 +5,7 @@ import { createPortal } from 'react-dom';
 import { GrafanaThemeType } from '@grafana/data';
 import config from 'app/core/config';
 import { INITIAL_FN_STATE } from 'app/core/reducers/fn-slice';
+import { mfeDispatch } from 'app/store/configureMfeStore';
 
 import { createMfe } from './create-mfe';
 import { FNDashboardProps } from './types';
@@ -52,7 +53,11 @@ describe('MFE React root ownership', () => {
       });
       expect(dashboard.children).toHaveLength(1);
       expect(controls.children).toHaveLength(1);
+      const stylesheetCount = document.querySelectorAll('link[rel="stylesheet"]').length;
+      const dispatchCount = jest.mocked(mfeDispatch).mock.calls.length;
       await expect(mount(props, window)).rejects.toThrow('Grafana root is already mounted');
+      expect(document.querySelectorAll('link[rel="stylesheet"]')).toHaveLength(stylesheetCount);
+      expect(mfeDispatch).toHaveBeenCalledTimes(dispatchCount);
       expect(dashboard.children).toHaveLength(1);
       expect(controls.children).toHaveLength(1);
       await act(async () => {
