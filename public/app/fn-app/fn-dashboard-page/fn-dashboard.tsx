@@ -1,4 +1,4 @@
-import { FC, useEffect, useMemo } from 'react';
+import { FC, useEffect, useLayoutEffect, useMemo } from 'react';
 // eslint-disable-next-line no-restricted-imports
 import { Provider, shallowEqual, useSelector } from 'react-redux';
 
@@ -64,8 +64,11 @@ export const DashboardPortal: FC<FNDashboardComponentProps> = (p) => {
     };
   }, [globalFnProps, dashboards]);
 
-  return useMemo(() => {
-    return dashboards.map(([uid, props]) => {
+  const { nextRenderingDashboardUID, portals, portalUpdates, staleDashboards } = useMemo(() => {
+    let nextRenderingDashboardUID = '';
+    const portalUpdates: Array<{ props: FnState; store: MfeGlobalState['grafanaStores'][string] }> = [];
+    const staleDashboards: Array<{ portalContainerID: string; uid: string }> = [];
+    const portals = dashboards.map(([uid, props]) => {
       if (!uid.length) {
         return null;
       }
@@ -76,18 +79,14 @@ export const DashboardPortal: FC<FNDashboardComponentProps> = (p) => {
       }
 
       if (!document.getElementById(props.portalContainerID)) {
-        FnLoggerService.info("removing dashboard from MfeStore because portalContainerID doesn't exist", {
-          portalID: props.portalContainerID,
-          uid,
-        });
-        mfeStore.dispatch(removeGrafanaStoreAndDashboard(uid));
+        staleDashboards.push({ portalContainerID: props.portalContainerID, uid });
         return null;
       }
 
       const propsWithRuntimeUpdates = mergeRuntimeFnProps(props, runtimeProps);
 
-      mfeStore.dispatch(updateRenderingDashboardUID(uid));
-      store.dispatch(updatePartialFnStates(propsWithRuntimeUpdates));
+      nextRenderingDashboardUID = uid;
+      portalUpdates.push({ props: propsWithRuntimeUpdates, store });
 
       return (
         <RenderPortal ID={props.portalContainerID} key={uid}>
@@ -106,8 +105,34 @@ export const DashboardPortal: FC<FNDashboardComponentProps> = (p) => {
         </RenderPortal>
       );
     });
+
+    return { nextRenderingDashboardUID, portals, portalUpdates, staleDashboards };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [dashboards, p, globalFnProps.renderingDashboardUID]);
+  }, [dashboards, p]);
+
+  useLayoutEffect(() => {
+    for (const { portalContainerID, uid } of staleDashboards) {
+      FnLoggerService.info("removing dashboard from MfeStore because portalContainerID doesn't exist", {
+        portalID: portalContainerID,
+        uid,
+      });
+      mfeStore.dispatch(removeGrafanaStoreAndDashboard(uid));
+    }
+
+    for (const { props, store } of portalUpdates) {
+      store.dispatch(updatePartialFnStates(props));
+    }
+
+    // A render may contain more than one dashboard portal. Keep every store
+    // mutation out of render, then select the last renderable portal once the
+    // portal set has committed.
+    const currentRenderingDashboardUID = mfeStore.getState().fnGlobalReducer.renderingDashboardUID;
+    if (nextRenderingDashboardUID !== currentRenderingDashboardUID) {
+      mfeStore.dispatch(updateRenderingDashboardUID(nextRenderingDashboardUID));
+    }
+  }, [nextRenderingDashboardUID, portalUpdates, staleDashboards]);
+
+  return portals;
 };
 
 /**

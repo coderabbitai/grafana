@@ -29,12 +29,20 @@ interface MfeState {
   mode: GrafanaThemeType.Light | GrafanaThemeType.Dark;
 }
 
-function setGrafanaStore(state: WritableDraft<MfeGlobalState>, uid: string) {
+function setGrafanaStore(state: WritableDraft<MfeGlobalState>, uid: string, initialState: Partial<FnState>) {
   const grafanaStore = state.grafanaStores[uid];
   if (!grafanaStore) {
     state.grafanaStores = {
       ...state.grafanaStores,
-      [uid]: configureStore(),
+      [uid]: configureStore({
+        fnGlobalState: {
+          ...INITIAL_FN_STATE,
+          ...initialState,
+          FNDashboard: true,
+          mode: state.mode,
+          uid,
+        },
+      }),
     };
   }
 }
@@ -42,7 +50,7 @@ function setGrafanaStore(state: WritableDraft<MfeGlobalState>, uid: string) {
 const reducers: SliceCaseReducers<MfeGlobalState> = {
   updatePartialMfeStates: (state, action: UpdateFNGlobalStateAction) => {
     const { uid, ...partialState } = action.payload;
-    setGrafanaStore(state, uid);
+    setGrafanaStore(state, uid, partialState);
     const fnState = state.dashboards[uid];
     state.FNDashboard = true;
     // Expose the FNDashboard flag on `window` so that non-React code in
