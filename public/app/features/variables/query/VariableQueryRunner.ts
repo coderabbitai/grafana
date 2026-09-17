@@ -148,7 +148,7 @@ export class VariableQueryRunner {
               filter((args) => {
                 let cancelRequest = false;
 
-                if (args.identifier.id === identifier.id) {
+                if (args.identifier.rootStateKey === identifier.rootStateKey && args.identifier.id === identifier.id) {
                   cancelRequest = true;
                   this.updateOptionsResults.next({ identifier, state: LoadingState.Loading, cancelled: cancelRequest });
                 }
