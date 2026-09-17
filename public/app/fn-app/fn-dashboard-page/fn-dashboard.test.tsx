@@ -21,11 +21,23 @@ jest.mock('app/store/configureStore', () => {
   };
 });
 jest.mock('../fn-app-provider', () => ({
-  FnAppProvider: ({ children }: PropsWithChildren) => children,
+  FnAppProvider: ({ children, store }: PropsWithChildren<{ store: unknown }>) => {
+    const { Provider } = jest.requireActual('react-redux');
+    return <Provider store={store}>{children}</Provider>;
+  },
 }));
-jest.mock('./render-fn-dashboard', () => ({
-  RenderFNDashboard: ({ uid }: { uid: string }) => <div data-testid={`dashboard-${uid}`} />,
-}));
+jest.mock('./render-fn-dashboard', () => {
+  const { useSelector } = jest.requireActual('react-redux');
+  return {
+    RenderFNDashboard: ({ uid }: { uid: string }) => {
+      // Subscribe to the dashboard-local store like the real DashboardPage.
+      // This makes React report any store update dispatched while its parent
+      // DashboardPortal is still rendering another portal.
+      useSelector((state: { fnGlobalState: { uid: string } }) => state.fnGlobalState);
+      return <div data-testid={`dashboard-${uid}`} />;
+    },
+  };
+});
 jest.mock('app/fn_logger', () => ({ FnLoggerService: { info: jest.fn(), error: jest.fn() } }));
 
 describe('FNDashboard', () => {
@@ -45,9 +57,11 @@ describe('FNDashboard', () => {
       }
       mfeDispatch(updateRenderingDashboardUID(''));
     });
+    jest.restoreAllMocks();
   });
 
   it('renders two dashboard portals without repeatedly changing their global owner', () => {
+    const consoleError = jest.spyOn(console, 'error').mockImplementation();
     render(
       <FNDashboard
         name="dashboard"
@@ -68,6 +82,7 @@ describe('FNDashboard', () => {
     expect(dispatch.mock.calls.filter(([action]) => action.type.endsWith('/updateRenderingDashboardUID'))).toHaveLength(
       1
     );
+    expect(consoleError.mock.calls.flat().join(' ')).not.toContain('Cannot update a component');
   });
 
   function mountDashboard(uid: string) {
