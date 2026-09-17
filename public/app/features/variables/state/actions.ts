@@ -41,6 +41,7 @@ import { cleanEditorState } from '../editor/reducer';
 import { hasCurrent, hasLegacyVariableSupport, hasOptions, hasStandardVariableSupport, isMulti } from '../guard';
 import { getAllAffectedPanelIdsForVariableChange, getPanelVars } from '../inspect/utils';
 import { cleanPickerState } from '../pickers/OptionsPicker/reducer';
+import { getVariableQueryRunner } from '../query/VariableQueryRunner';
 import { alignCurrentWithMulti } from '../shared/multiOptions';
 import {
   initialVariableModelState,
@@ -1042,8 +1043,17 @@ export const cleanUpVariables =
 type CancelVariablesDependencies = { getBackendSrv: typeof getBackendSrv };
 export const cancelVariables =
   (key: string, dependencies: CancelVariablesDependencies = { getBackendSrv: getBackendSrv }): ThunkResult<void> =>
-  (dispatch) => {
-    dependencies.getBackendSrv().cancelAllInFlightRequests();
+  (dispatch, getState) => {
+    const state = getState();
+    if (state.fnGlobalState?.FNDashboard) {
+      // Embedded dashboards share BackendSrv. Closing one portal must not
+      // abort another dashboard's refresh; panel runners own their teardown.
+      for (const variable of getVariablesByKey(key, state)) {
+        getVariableQueryRunner().cancelRequest(toKeyedVariableIdentifier(variable));
+      }
+    } else {
+      dependencies.getBackendSrv().cancelAllInFlightRequests();
+    }
     dispatch(cleanUpVariables(key));
   };
 
