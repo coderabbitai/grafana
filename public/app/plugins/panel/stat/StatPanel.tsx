@@ -1,5 +1,5 @@
 import { isNumber } from 'lodash';
-import { PureComponent } from 'react';
+import { ComponentProps, PureComponent } from 'react';
 
 import {
   DisplayValueAlignmentFactors,
@@ -15,9 +15,30 @@ import { BigValueTextMode, BigValueGraphMode } from '@grafana/schema';
 import { BigValue, DataLinksContextMenu, VizRepeater, VizRepeaterRenderValueProps } from '@grafana/ui';
 import { DataLinksContextMenuApi } from '@grafana/ui/src/components/DataLinks/DataLinksContextMenu';
 import { config } from 'app/core/config';
-import { mfeGetStoreState } from 'app/store/configureMfeStore';
+import { useSelector } from 'app/types';
 
 import { Options } from './panelcfg.gen';
+
+function DashboardStatValue(props: ComponentProps<typeof BigValue>) {
+  // The active MFE dashboard can be a drill-down while this parent panel
+  // renders. Keep click ownership with this panel's dashboard-local store.
+  const eventListener = useSelector((state) =>
+    state.fnGlobalState.FNDashboard ? state.fnGlobalState.metadata?.eventListener : undefined
+  );
+
+  return (
+    <BigValue
+      {...props}
+      onClick={(event) => {
+        eventListener?.({
+          type: 'statsPanelClick',
+          data: { title: props.value.title, text: props.value.text },
+        });
+        props.onClick?.(event);
+      }}
+    />
+  );
+}
 
 export class StatPanel extends PureComponent<PanelProps<Options>> {
   renderComponent = (
@@ -27,8 +48,6 @@ export class StatPanel extends PureComponent<PanelProps<Options>> {
     const { timeRange, options } = this.props;
     const { value, alignmentFactors, width, height, count } = valueProps;
     const { openMenu, targetClassName } = menuProps;
-    const { dashboards, renderingDashboardUID, FNDashboard } = mfeGetStoreState().fnGlobalReducer;
-    const eventListener = FNDashboard ? dashboards[renderingDashboardUID].metadata?.eventListener : undefined;
 
     let sparkline = value.sparkline;
     if (sparkline) {
@@ -36,7 +55,7 @@ export class StatPanel extends PureComponent<PanelProps<Options>> {
     }
 
     return (
-      <BigValue
+      <DashboardStatValue
         value={value.display}
         count={count}
         sparkline={sparkline}
@@ -49,20 +68,7 @@ export class StatPanel extends PureComponent<PanelProps<Options>> {
         width={width}
         height={height}
         theme={config.theme2}
-        onClick={(e) => {
-          if (eventListener) {
-            eventListener({
-              type: 'statsPanelClick',
-              data: {
-                title: value.display.title,
-                text: value.display.text,
-              },
-            });
-          }
-          if (openMenu) {
-            openMenu(e);
-          }
-        }}
+        onClick={openMenu}
         className={targetClassName}
         disableWideLayout={!options.wideLayout}
         percentChangeColorMode={options.percentChangeColorMode}
