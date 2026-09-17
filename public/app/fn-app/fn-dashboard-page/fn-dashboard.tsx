@@ -1,4 +1,4 @@
-import { FC, useEffect, useMemo } from 'react';
+import { FC, useEffect, useLayoutEffect, useMemo } from 'react';
 // eslint-disable-next-line no-restricted-imports
 import { Provider, shallowEqual, useSelector } from 'react-redux';
 
@@ -64,8 +64,9 @@ export const DashboardPortal: FC<FNDashboardComponentProps> = (p) => {
     };
   }, [globalFnProps, dashboards]);
 
-  return useMemo(() => {
-    return dashboards.map(([uid, props]) => {
+  const { nextRenderingDashboardUID, portals } = useMemo(() => {
+    let nextRenderingDashboardUID = '';
+    const portals = dashboards.map(([uid, props]) => {
       if (!uid.length) {
         return null;
       }
@@ -86,7 +87,7 @@ export const DashboardPortal: FC<FNDashboardComponentProps> = (p) => {
 
       const propsWithRuntimeUpdates = mergeRuntimeFnProps(props, runtimeProps);
 
-      mfeStore.dispatch(updateRenderingDashboardUID(uid));
+      nextRenderingDashboardUID = uid;
       store.dispatch(updatePartialFnStates(propsWithRuntimeUpdates));
 
       return (
@@ -106,8 +107,23 @@ export const DashboardPortal: FC<FNDashboardComponentProps> = (p) => {
         </RenderPortal>
       );
     });
+
+    return { nextRenderingDashboardUID, portals };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [dashboards, p, globalFnProps.renderingDashboardUID]);
+  }, [dashboards, p]);
+
+  useLayoutEffect(() => {
+    // A render may contain more than one dashboard portal. Dispatching the
+    // global owner during render once per portal toggles it between dashboard
+    // UIDs and feeds each update back into this subscribed component. Select
+    // the last renderable portal once, after React commits the portal set.
+    const currentRenderingDashboardUID = mfeStore.getState().fnGlobalReducer.renderingDashboardUID;
+    if (nextRenderingDashboardUID !== currentRenderingDashboardUID) {
+      mfeStore.dispatch(updateRenderingDashboardUID(nextRenderingDashboardUID));
+    }
+  }, [nextRenderingDashboardUID]);
+
+  return portals;
 };
 
 /**
