@@ -2,7 +2,7 @@ import { act, cleanup, fireEvent, render, within } from '@testing-library/react'
 // eslint-disable-next-line no-restricted-imports
 import { Provider } from 'react-redux';
 
-import { FieldType, PanelProps, toDataFrame } from '@grafana/data';
+import { FieldType, GrafanaThemeType, PanelProps, toDataFrame } from '@grafana/data';
 import { BigValueGraphMode } from '@grafana/schema';
 import { FnGlobalState, INITIAL_FN_STATE } from 'app/core/reducers/fn-slice';
 import { createMfe } from 'app/fn-app/create-mfe';
@@ -14,6 +14,7 @@ import {
   updatePartialMfeStates,
   updateRenderingDashboardUID,
 } from 'app/store/configureMfeStore';
+import { configureStore } from 'app/store/configureStore';
 
 import { StatPanel } from './StatPanel';
 import { defaultOptions, Options } from './panelcfg.gen';
@@ -45,6 +46,35 @@ describe('StatPanel dashboard click ownership', () => {
     }
     mfeDispatch(updateRenderingDashboardUID(''));
     jest.restoreAllMocks();
+  });
+
+  it('keeps the Grafana data-link menu working without emitting host events outside MFE mode', () => {
+    const eventListener = jest.fn();
+    const openMenu = jest.fn();
+    const store = configureStore({
+      fnGlobalState: {
+        ...INITIAL_FN_STATE,
+        FNDashboard: false,
+        mode: GrafanaThemeType.Light,
+        metadata: { teams: [], eventListener },
+      },
+    });
+    const panel = new StatPanel({
+      options: defaultOptions,
+      fieldConfig: { defaults: {}, overrides: [] },
+    } as unknown as PanelProps<Options>);
+    const valueProps = {
+      value: { display: { title: 'Ordinary stat', text: '42', numeric: 42 } },
+      width: 300,
+      height: 150,
+      count: 1,
+    } as Parameters<StatPanel['renderComponent']>[0];
+    const view = render(<Provider store={store}>{panel.renderComponent(valueProps, { openMenu })}</Provider>);
+
+    fireEvent.click(view.getByText('Ordinary stat'));
+
+    expect(openMenu).toHaveBeenCalledTimes(1);
+    expect(eventListener).not.toHaveBeenCalled();
   });
 
   it.each([
