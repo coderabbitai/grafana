@@ -18,6 +18,7 @@ export type AnyObject<K extends string | number | symbol = string, V = any> = {
 };
 export interface FNDashboardProps extends FnState {
   name: string;
+  refreshCompletionMode?: 'event';
   fnError?: ReactNode;
   isLoading: (isLoading: boolean) => void;
   setErrors: (errors?: { [K: number | string]: string }) => void;

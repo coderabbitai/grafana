@@ -57,9 +57,15 @@ type DeepPartial<T> = {
   [P in keyof T]?: DeepPartial<T[P]>;
 };
 
+interface PendingDashboardRefresh {
+  readonly generation: number;
+}
+
 class createMfe {
   private static readonly containerSelector = '#grafanaRoot';
   private static readonly roots = new WeakMap<Element, Root>();
+  private static readonly pendingDashboardRefreshes = new Map<string, Map<number, PendingDashboardRefresh>>();
+  private static refreshGeneration = 0;
   private static logger = FnLoggerService;
 
   mode: FNDashboardProps['mode'];
@@ -203,6 +209,7 @@ class createMfe {
           if (container && createMfe.roots.has(container)) {
             throw new Error('Grafana root is already mounted');
           }
+          createMfe.resetDashboardRefreshes();
           createMfe.loadFnTheme(props.mode);
           createMfe.Component = Component;
 
@@ -242,6 +249,7 @@ class createMfe {
 
   static unMountFnApp() {
     const lifeCycleFn: FrameworkLifeCycles['unmount'] = (props: FNDashboardProps) => {
+      createMfe.resetDashboardRefreshes();
       const container = createMfe.getContainer(props);
       const root = container && createMfe.roots.get(container);
 
@@ -269,6 +277,7 @@ class createMfe {
   static updateFnApp() {
     const lifeCycleFn: FrameworkLifeCycles['update'] = async ({
       mode,
+      refreshCompletionMode,
       ...other
     }: FNDashboardProps & {
       readonly renderingDashboardUid?: string;
@@ -301,7 +310,13 @@ class createMfe {
           mfeDispatch(updatePartialMfeStates(other));
         }
 
-        if (shouldRefresh) {
+        if (shouldRefresh && refreshCompletionMode === 'event') {
+          createMfe.scheduleDashboardRefresh(
+            other.uid,
+            requestedRefreshRevision!,
+            other.metadata?.eventListener ?? null
+          );
+        } else if (shouldRefresh) {
           await createMfe.refreshDashboard(other.uid);
           mfeDispatch(updatePartialMfeStates({ uid: other.uid, refreshRevision: requestedRefreshRevision }));
         }
@@ -323,6 +338,93 @@ class createMfe {
     };
 
     return lifeCycleFn;
+  }
+
+  private static scheduleDashboardRefresh(
+    uid: string,
+    refreshRevision: number,
+    eventListener: FnState['metadata']['eventListener']
+  ) {
+    let dashboardRefreshes = createMfe.pendingDashboardRefreshes.get(uid);
+    if (!dashboardRefreshes) {
+      dashboardRefreshes = new Map();
+      createMfe.pendingDashboardRefreshes.set(uid, dashboardRefreshes);
+    }
+    if (dashboardRefreshes.has(refreshRevision)) {
+      return;
+    }
+
+    const pendingRefresh = { generation: createMfe.refreshGeneration };
+    dashboardRefreshes.set(refreshRevision, pendingRefresh);
+
+    void createMfe
+      .refreshDashboard(uid)
+      .then(() => {
+        if (!createMfe.isPendingDashboardRefresh(uid, refreshRevision, pendingRefresh)) {
+          return;
+        }
+
+        const completedRevision =
+          mfeGetStoreState().fnGlobalReducer.dashboards[uid]?.refreshRevision ?? INITIAL_FN_STATE.refreshRevision ?? 0;
+        if (refreshRevision > completedRevision) {
+          mfeDispatch(updatePartialMfeStates({ uid, refreshRevision }));
+        }
+        createMfe.emitDashboardRefreshCompleted(eventListener, uid, refreshRevision, true);
+      })
+      .catch(() => {
+        if (!createMfe.isPendingDashboardRefresh(uid, refreshRevision, pendingRefresh)) {
+          return;
+        }
+
+        createMfe.logger.error('Failed to refresh dashboard.', { uid, refreshRevision });
+        createMfe.emitDashboardRefreshCompleted(eventListener, uid, refreshRevision, false);
+      })
+      .finally(() => {
+        if (!createMfe.isPendingDashboardRefresh(uid, refreshRevision, pendingRefresh)) {
+          return;
+        }
+
+        dashboardRefreshes.delete(refreshRevision);
+        if (dashboardRefreshes.size === 0) {
+          createMfe.pendingDashboardRefreshes.delete(uid);
+        }
+      });
+  }
+
+  private static isPendingDashboardRefresh(
+    uid: string,
+    refreshRevision: number,
+    pendingRefresh: PendingDashboardRefresh
+  ) {
+    return (
+      pendingRefresh.generation === createMfe.refreshGeneration &&
+      createMfe.pendingDashboardRefreshes.get(uid)?.get(refreshRevision) === pendingRefresh
+    );
+  }
+
+  private static emitDashboardRefreshCompleted(
+    eventListener: FnState['metadata']['eventListener'],
+    uid: string,
+    refreshRevision: number,
+    success: boolean
+  ) {
+    if (!eventListener) {
+      return;
+    }
+
+    try {
+      eventListener({
+        type: 'dashboardRefreshCompleted',
+        data: { uid, refreshRevision, success },
+      });
+    } catch {
+      createMfe.logger.error('Dashboard refresh completion listener failed.', { uid, refreshRevision });
+    }
+  }
+
+  private static resetDashboardRefreshes() {
+    createMfe.refreshGeneration += 1;
+    createMfe.pendingDashboardRefreshes.clear();
   }
 
   private static async refreshDashboard(uid: string) {
