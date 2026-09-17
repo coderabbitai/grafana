@@ -163,6 +163,7 @@ export class UnthemedDashboardPage extends PureComponent<Props, State> {
   }
 
   componentDidMount() {
+    this.props.isLoading?.(!this.props.dashboard);
     this.initDashboard();
     const { FNDashboard } = this.props;
 
@@ -205,6 +206,10 @@ export class UnthemedDashboardPage extends PureComponent<Props, State> {
 
   componentDidUpdate(prevProps: Props, prevState: State) {
     const { dashboard, match, templateVarsChangedInUrl, FNDashboard } = this.props;
+
+    if (Boolean(prevProps.dashboard) !== Boolean(dashboard) || prevProps.isLoading !== this.props.isLoading) {
+      this.props.isLoading?.(!dashboard);
+    }
 
     if (!dashboard) {
       return;
@@ -453,11 +458,9 @@ export class UnthemedDashboardPage extends PureComponent<Props, State> {
     const kioskMode = getKioskMode(this.props.queryParams);
 
     if (!dashboard) {
-      this.props?.isLoading?.(true);
       return FNDashboard ? <FnLoader /> : <DashboardLoading initPhase={this.props.initPhase} />;
     }
 
-    this.props?.isLoading?.(false);
     const inspectPanel = this.getInspectPanel();
     const showSubMenu = !editPanel && !kioskMode && !this.props.queryParams.editview;
 

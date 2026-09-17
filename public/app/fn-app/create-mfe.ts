@@ -327,11 +327,7 @@ class createMfe {
           renderingDashboardUid: other.renderingDashboardUid,
         });
 
-        mfeDispatch(
-          updateRenderingDashboardUID({
-            renderingDashboardUid: other.renderingDashboardUid,
-          })
-        );
+        mfeDispatch(updateRenderingDashboardUID(other.renderingDashboardUid));
       }
 
       return true;

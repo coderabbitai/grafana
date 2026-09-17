@@ -34,6 +34,12 @@ describe('MFE dashboard refresh updates', () => {
     jest.clearAllMocks();
   });
 
+  it('restores the parent dashboard owner as a string when the host closes a drill-down', async () => {
+    await update({ renderingDashboardUid: 'qualityMetrics' } as unknown as FNDashboardProps, window);
+
+    expect(updateRenderingDashboardUID).toHaveBeenCalledWith('qualityMetrics');
+  });
+
   it('refreshes only the owning dashboard for a higher revision', async () => {
     const summary = dashboardFixture('summary');
     const details = dashboardFixture('details');
