@@ -13,7 +13,11 @@ import { templateVarsChangedInUrl } from '../../variables/state/actions';
 
 import { UnthemedDashboardPage, Props } from './DashboardPage';
 
-jest.unmock('@grafana/runtime');
+jest.mock('@grafana/runtime', () => {
+  const runtime = jest.requireActual<typeof import('@grafana/runtime')>('@grafana/runtime');
+  const { createBrowserHistory } = jest.requireActual<typeof import('history')>('history');
+  return { ...runtime, locationService: new runtime.HistoryWrapper(createBrowserHistory()) };
+});
 jest.unmock('@grafana/data');
 jest.unmock('@grafana/ui');
 
@@ -145,6 +149,13 @@ describe('MFE loading callback lifecycle', () => {
         'var-offset_comments': { value: '10' },
         'var-page_index_comments': { value: '1' },
       });
+      // Loading/result callbacks rerender the host with a fresh object before
+      // it has echoed the child's locally changed pagination into its props.
+      await act(async () => {
+        await update({ ...props('commentDrillDown', 1), queryParams: { ...childQuery } }, window);
+      });
+      expect(templateVarsChangedInUrl).toHaveBeenCalledTimes(1);
+      expect(mfeLocationService.getSearchObject()['var-offset_comments']).toBe('10');
       act(() => {
         mfeLocationService.partial({ 'var-page_index_comments': 2, 'var-offset_comments': 20 }, true);
       });
@@ -185,6 +196,7 @@ describe('MFE loading callback lifecycle', () => {
               ...childQuery,
               'var-offset_comments': '0',
               'var-severity': 'major',
+              'var-org': 'trusted-new-scope',
             },
           },
           window
@@ -194,8 +206,14 @@ describe('MFE loading callback lifecycle', () => {
         'commentDrillDown',
         expect.objectContaining({
           'var-offset_comments': expect.objectContaining({ value: '0' }),
+          'var-org': expect.objectContaining({ value: 'trusted-new-scope' }),
         })
       );
+      await act(async () => {
+        await update({ ...props('commentDrillDown', 1), queryParams: { ...childQuery } }, window);
+      });
+      expect(mfeLocationService.getSearchObject()['var-offset_comments']).toBe('0');
+      expect(mfeLocationService.getSearchObject()['var-org']).toBe('trusted-child');
       view.unmount();
       expect(unsubscribes.length).toBeGreaterThanOrEqual(2);
       for (const unsubscribe of unsubscribes) {
