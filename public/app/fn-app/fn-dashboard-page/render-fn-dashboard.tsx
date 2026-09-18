@@ -1,4 +1,4 @@
-import { merge, isFunction } from 'lodash';
+import { merge, isFunction, isEqual } from 'lodash';
 import { useEffect, FC, useMemo, useState } from 'react';
 
 import { urlUtil } from '@grafana/data';
@@ -35,11 +35,15 @@ export const RenderFNDashboard: FC<FNDashboardProps> = (props) => {
     source: typeof queryParams;
     queryParams: typeof queryParams;
   }>();
-  const effectiveQueryParams = historyUpdate?.source === queryParams ? historyUpdate.queryParams : queryParams;
+  // Host loading callbacks can recreate unchanged props before echoing local
+  // navigation. Only a semantic host change supersedes the local update.
+  const effectiveQueryParams =
+    historyUpdate && isEqual(historyUpdate.source, queryParams) ? historyUpdate.queryParams : queryParams;
 
   useEffect(() => {
-    mfeLocationService.fnPathnameChange(window.location.pathname, queryParams);
-  }, [queryParams]);
+    mfeLocationService.fnPathnameChange(window.location.pathname, effectiveQueryParams);
+    setHistoryUpdate((previous) => (previous && !isEqual(previous.source, queryParams) ? undefined : previous));
+  }, [effectiveQueryParams, queryParams]);
 
   useEffect(() => {
     let previousSearch = mfeLocationService.getSearchObject();
@@ -51,7 +55,7 @@ export const RenderFNDashboard: FC<FNDashboardProps> = (props) => {
         return;
       }
       setHistoryUpdate((previous) => {
-        const next = { ...(previous?.source === queryParams ? previous.queryParams : queryParams) };
+        const next = { ...(previous && isEqual(previous.source, queryParams) ? previous.queryParams : queryParams) };
         // Apply only this navigation's variable delta. The shared URL also
         // contains other portals' state; host routing/scope props stay intact.
         for (const [key, change] of Object.entries(changes)) {
