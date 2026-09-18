@@ -3,6 +3,8 @@ import { FC, useEffect, useLayoutEffect, useMemo } from 'react';
 import { Provider, shallowEqual, useSelector } from 'react-redux';
 
 import { FnPropMappedFromState, FnState, fnStateProps, updatePartialFnStates } from 'app/core/reducers/fn-slice';
+import { getDashboardSrv } from 'app/features/dashboard/services/DashboardSrv';
+import { getTimeSrv } from 'app/features/dashboard/services/TimeSrv';
 import { FnLoggerService } from 'app/fn_logger';
 import {
   MfeGlobalState,
@@ -129,6 +131,25 @@ export const DashboardPortal: FC<FNDashboardComponentProps> = (p) => {
     const currentRenderingDashboardUID = mfeStore.getState().fnGlobalReducer.renderingDashboardUID;
     if (nextRenderingDashboardUID !== currentRenderingDashboardUID) {
       mfeStore.dispatch(updateRenderingDashboardUID(nextRenderingDashboardUID));
+    }
+
+    // Closing a drawer destroys its model, but the parent's mounted controls
+    // still use Grafana's singleton services. Restore their surviving owner
+    // after child cleanup, without remounting or refreshing the dashboard.
+    const dashboard = mfeStore
+      .getState()
+      .fnGlobalReducer.grafanaStores[nextRenderingDashboardUID]?.getState()
+      .dashboard.getModel();
+    if (dashboard) {
+      const timeSrv = getTimeSrv();
+      if (timeSrv.timeModel !== dashboard) {
+        // The shared app URL remains authoritative for the current range.
+        timeSrv.init(dashboard);
+      }
+      const dashboardSrv = getDashboardSrv();
+      if (dashboardSrv.getCurrent() !== dashboard) {
+        dashboardSrv.setCurrent(dashboard);
+      }
     }
   }, [nextRenderingDashboardUID, portalUpdates, staleDashboards]);
 

@@ -67,7 +67,10 @@ jest.mock('../components/Inspector/PanelInspector', () => ({ PanelInspector: () 
 jest.mock('../components/PanelEditor/PanelEditor', () => ({ PanelEditor: () => null }));
 jest.mock('../components/SubMenu/SubMenu', () => ({ SubMenu: () => null }));
 jest.mock('../dashgrid/DashboardGrid', () => ({ DashboardGrid: () => null }));
-jest.mock('../services/TimeSrv', () => ({ getTimeSrv: jest.fn() }));
+jest.mock('../services/TimeSrv', () => ({ getTimeSrv: () => ({ init: jest.fn() }) }));
+jest.mock('../services/DashboardSrv', () => ({
+  getDashboardSrv: () => ({ getCurrent: () => undefined, setCurrent: jest.fn() }),
+}));
 jest.mock('../utils/panel', () => ({ calculateNewPanelGridPos: jest.fn() }));
 jest.mock('app/core/components/Page/Page', () => ({
   Page: ({ children }: { children: React.ReactNode }) => <>{children}</>,
