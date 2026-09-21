@@ -52,6 +52,27 @@ describe('TimePickerWithHistory', () => {
     expect(screen.getByText(/It looks like you haven't used this time picker before/i)).toBeInTheDocument();
   });
 
+  it('keeps the MFE time zone in the open picker instead of the toolbar button', async () => {
+    const initialWindowWidthDescriptor = Object.getOwnPropertyDescriptor(window, 'innerWidth');
+    if (!initialWindowWidthDescriptor) {
+      throw new Error('Expected window.innerWidth to have a property descriptor');
+    }
+    Object.defineProperty(window, 'innerWidth', { configurable: true, value: 1400 });
+    const timeRange = getDefaultTimeRange();
+    try {
+      render(<TimePickerWithHistory value={timeRange} {...props} isFnDashboard />);
+
+      const openButton = screen.getByLabelText(/Time range selected/);
+      expect(openButton).not.toHaveTextContent('UTC');
+
+      await userEvent.click(openButton);
+
+      expect(screen.getByRole('region', { name: 'Time zone selection' })).toHaveTextContent('UTC+00:00');
+    } finally {
+      Object.defineProperty(window, 'innerWidth', initialWindowWidthDescriptor);
+    }
+  });
+
   it('Should load with old TimeRange history', async () => {
     window.localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(OLD_LOCAL_STORAGE));
 
