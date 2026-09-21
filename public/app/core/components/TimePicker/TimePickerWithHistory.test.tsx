@@ -53,7 +53,10 @@ describe('TimePickerWithHistory', () => {
   });
 
   it('keeps the MFE time zone in the open picker instead of the toolbar button', async () => {
-    const initialWindowWidth = window.innerWidth;
+    const initialWindowWidthDescriptor = Object.getOwnPropertyDescriptor(window, 'innerWidth');
+    if (!initialWindowWidthDescriptor) {
+      throw new Error('Expected window.innerWidth to have a property descriptor');
+    }
     Object.defineProperty(window, 'innerWidth', { configurable: true, value: 1400 });
     const timeRange = getDefaultTimeRange();
     try {
@@ -66,7 +69,7 @@ describe('TimePickerWithHistory', () => {
 
       expect(screen.getByRole('region', { name: 'Time zone selection' })).toHaveTextContent('UTC+00:00');
     } finally {
-      Object.defineProperty(window, 'innerWidth', { configurable: true, value: initialWindowWidth });
+      Object.defineProperty(window, 'innerWidth', initialWindowWidthDescriptor);
     }
   });
 
