@@ -277,9 +277,9 @@ export const TimePickerTooltip = ({ timeRange, timeZone }: { timeRange: TimeRang
   );
 };
 
-type LabelProps = Pick<TimeRangePickerProps, 'hideText' | 'value' | 'timeZone'>;
+type LabelProps = Pick<TimeRangePickerProps, 'hideText' | 'isFnDashboard' | 'value' | 'timeZone'>;
 
-export const TimePickerButtonLabel = memo<LabelProps>(({ hideText, value, timeZone }) => {
+export const TimePickerButtonLabel = memo<LabelProps>(({ hideText, isFnDashboard, value, timeZone }) => {
   const styles = useStyles2(getLabelStyles);
 
   if (hideText) {
@@ -289,7 +289,7 @@ export const TimePickerButtonLabel = memo<LabelProps>(({ hideText, value, timeZo
   return (
     <span className={styles.container} aria-live="polite" aria-atomic="true">
       <span>{formattedRange(value, timeZone)}</span>
-      <span className={styles.utc}>{rangeUtil.describeTimeRangeAbbreviation(value, timeZone)}</span>
+      {!isFnDashboard && <span className={styles.utc}>{rangeUtil.describeTimeRangeAbbreviation(value, timeZone)}</span>}
     </span>
   );
 });
