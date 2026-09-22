@@ -1,11 +1,17 @@
-import type { FieldConfigSource } from '@grafana/data';
-import type { FnPanelOptionsUpdate } from 'app/core/reducers/fn-slice';
+import type { DataQuery, FieldConfigSource } from '@grafana/data';
+import type { FnPanelOptionsUpdate, FnPanelQueryPreviewUpdate } from 'app/core/reducers/fn-slice';
+
+export interface FnPanelQueryPreviewTarget extends DataQuery {
+  rawSql?: string;
+}
 
 export interface FnPanelOptionsPreviewTarget {
   description?: string;
   fieldConfig?: FieldConfigSource;
   id: number;
   options?: Record<string, unknown>;
+  refresh?: () => void;
+  targets?: FnPanelQueryPreviewTarget[];
   render: () => void;
   title: string;
   type: string;
@@ -338,4 +344,13 @@ export function applyFnPanelOptionsPreview(panel: FnPanelOptionsPreviewTarget, u
   if (frameOptionsChanged && !fieldConfigChanged && !optionsChanged) {
     panel.render();
   }
+}
+
+export function applyFnPanelQueryPreview(panel: FnPanelOptionsPreviewTarget, update: FnPanelQueryPreviewUpdate): void {
+  if (!panel.refresh || typeof panel.targets?.[0]?.rawSql !== 'string') {
+    return;
+  }
+
+  panel.targets = panel.targets.map((target, index) => (index === 0 ? { ...target, rawSql: update.rawSql } : target));
+  panel.refresh();
 }

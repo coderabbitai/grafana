@@ -231,3 +231,57 @@ describe('applyFnPanelOptionsPreview', () => {
     expect(panel.updateOptions).not.toHaveBeenCalled();
   });
 });
+
+describe('applyFnPanelQueryPreview', () => {
+  it('replaces only the first query and refreshes the live panel', async () => {
+    const { applyFnPanelQueryPreview } = await import('./DashboardPageFnPanelOptions');
+    const panel = getPanel('table');
+    panel.targets = [
+      { refId: 'A', rawSql: 'SELECT old' },
+      { refId: 'B', rawSql: 'SELECT unchanged' },
+    ];
+    panel.refresh = jest.fn();
+
+    applyFnPanelQueryPreview(panel, {
+      panelId: panel.id,
+      rawSql: 'SELECT preview',
+      revision: 2,
+    });
+
+    expect(panel.targets).toEqual([
+      { refId: 'A', rawSql: 'SELECT preview' },
+      { refId: 'B', rawSql: 'SELECT unchanged' },
+    ]);
+    expect(panel.refresh).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not replace a non-SQL first query target', async () => {
+    const { applyFnPanelQueryPreview } = await import('./DashboardPageFnPanelOptions');
+    const panel = getPanel('table');
+    panel.targets = [{ refId: 'A' }, { refId: 'B', rawSql: 'SELECT unchanged' }];
+    panel.refresh = jest.fn();
+
+    applyFnPanelQueryPreview(panel, {
+      panelId: panel.id,
+      rawSql: 'SELECT preview',
+      revision: 1,
+    });
+
+    expect(panel.targets).toEqual([{ refId: 'A' }, { refId: 'B', rawSql: 'SELECT unchanged' }]);
+    expect(panel.refresh).not.toHaveBeenCalled();
+  });
+
+  it('does nothing when a panel cannot execute a query preview', async () => {
+    const { applyFnPanelQueryPreview } = await import('./DashboardPageFnPanelOptions');
+    const panel = getPanel('table');
+
+    expect(() =>
+      applyFnPanelQueryPreview(panel, {
+        panelId: panel.id,
+        rawSql: 'SELECT preview',
+        revision: 1,
+      })
+    ).not.toThrow();
+    expect(panel.render).not.toHaveBeenCalled();
+  });
+});

@@ -10,6 +10,12 @@ export interface FnPanelOptionsUpdate {
   readonly revision: number;
 }
 
+export interface FnPanelQueryPreviewUpdate {
+  readonly panelId: number;
+  readonly rawSql: string;
+  readonly revision: number;
+}
+
 export interface FnState {
   uid: string;
   slug: string;
@@ -38,6 +44,7 @@ export interface FnState {
     eventListener: (<T>(event: { type: string; data: T }) => void) | null;
   };
   panelOptionsUpdate?: FnPanelOptionsUpdate;
+  panelQueryPreviewUpdate?: FnPanelQueryPreviewUpdate;
   /**
    * Monotonic host-owned revision that requests a one-shot refresh of this
    * dashboard without remounting the microfrontend.
@@ -65,6 +72,7 @@ export type FnPropMappedFromState = Extract<
   | 'enablePanelDelete'
   | 'enablePanelLayoutEdit'
   | 'panelOptionsUpdate'
+  | 'panelQueryPreviewUpdate'
   | 'refreshRevision'
   | 'portalContainerID'
 >;
@@ -85,6 +93,7 @@ export const fnStateProps: FnStateProp[] = [
   'hiddenVariables',
   'pageTitle',
   'panelOptionsUpdate',
+  'panelQueryPreviewUpdate',
   'refreshRevision',
   'portalContainerID',
   'queryParams',
@@ -115,6 +124,7 @@ export const INITIAL_FN_STATE: FnState = {
     eventListener: null,
   },
   panelOptionsUpdate: undefined,
+  panelQueryPreviewUpdate: undefined,
   refreshRevision: 0,
   portalContainerID: 'grafana-portal',
 } as const;
