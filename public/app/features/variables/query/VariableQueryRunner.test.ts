@@ -1,5 +1,5 @@
-import { of, throwError } from 'rxjs';
-import { delay } from 'rxjs/operators';
+import { firstValueFrom, of, Subject, throwError } from 'rxjs';
+import { delay, filter, finalize } from 'rxjs/operators';
 
 import {
   DataSourceApi,
@@ -242,6 +242,40 @@ describe('VariableQueryRunner', () => {
   });
 
   describe('cancellation cases', () => {
+    it('keeps a parent variable request alive when a same-named child variable opens and closes', async () => {
+      const { identifier, datasource, runner, queryRunner, variable, getVariable } = getTestContext();
+      const childIdentifier = { ...identifier, rootStateKey: 'child' };
+      const parentResponse = new Subject<{ series: []; state: LoadingState }>();
+      const childResponse = new Subject<{ series: []; state: LoadingState }>();
+      const parentUnsubscribed = jest.fn();
+      const childUnsubscribed = jest.fn();
+      getVariable.mockImplementation((id) => ({ ...variable, rootStateKey: id.rootStateKey }));
+      queryRunner.runRequest = jest
+        .fn()
+        .mockReturnValueOnce(parentResponse.pipe(finalize(parentUnsubscribed)))
+        .mockReturnValueOnce(childResponse.pipe(finalize(childUnsubscribed)));
+      const results: UpdateOptionsResults[] = [];
+      const subscription = runner.getResponse(identifier).subscribe((result) => results.push(result));
+
+      runner.queueRequest({ identifier, datasource });
+      runner.queueRequest({ identifier: childIdentifier, datasource });
+      expect(parentUnsubscribed).not.toHaveBeenCalled();
+      runner.cancelRequest(childIdentifier);
+      expect(childUnsubscribed).toHaveBeenCalledTimes(1);
+      expect(parentUnsubscribed).not.toHaveBeenCalled();
+      const completed = firstValueFrom(
+        runner.getResponse(identifier).pipe(filter((r) => r.state === LoadingState.Done))
+      );
+      parentResponse.next({ series: [], state: LoadingState.Done });
+      await completed;
+      expect(results).toEqual([
+        { identifier, state: LoadingState.Loading },
+        { identifier, state: LoadingState.Done },
+      ]);
+      subscription.unsubscribe();
+      runner.destroy();
+    });
+
     describe('long running request is cancelled', () => {
       it('then it should work as expected', (done) => {
         const { identifier, datasource, runner, queryRunner } = getTestContext();

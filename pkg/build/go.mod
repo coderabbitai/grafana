@@ -39,14 +39,14 @@ require (
 	golang.org/x/crypto v0.54.0 // indirect; @grafana/grafana-backend-group
 	golang.org/x/mod v0.38.0 // @grafana/grafana-backend-group
 	golang.org/x/net v0.57.0 // indirect; @grafana/oss-big-tent @grafana/partner-datasources
-	golang.org/x/oauth2 v0.27.0 // @grafana/identity-access-team
+	golang.org/x/oauth2 v0.34.0 // @grafana/identity-access-team
 	golang.org/x/sync v0.22.0 // indirect; @grafana/alerting-backend
 	golang.org/x/text v0.40.0 // indirect; @grafana/grafana-backend-group
 	golang.org/x/time v0.6.0 // indirect; @grafana/grafana-backend-group
 	golang.org/x/tools v0.48.0 // indirect; @grafana/grafana-as-code
 	google.golang.org/api v0.195.0 // @grafana/grafana-backend-group
-	google.golang.org/grpc v1.66.0 // indirect; @grafana/plugins-platform-backend
-	google.golang.org/protobuf v1.34.2 // indirect; @grafana/plugins-platform-backend
+	google.golang.org/grpc v1.79.3 // indirect; @grafana/plugins-platform-backend
+	google.golang.org/protobuf v1.36.10 // indirect; @grafana/plugins-platform-backend
 	gopkg.in/yaml.v3 v3.0.1 // @grafana/alerting-backend
 )
 
@@ -54,7 +54,7 @@ require (
 	cloud.google.com/go v0.115.1 // indirect
 	cloud.google.com/go/auth v0.9.1 // indirect
 	cloud.google.com/go/auth/oauth2adapt v0.2.4 // indirect
-	cloud.google.com/go/compute/metadata v0.5.0 // indirect
+	cloud.google.com/go/compute/metadata v0.9.0 // indirect
 	cloud.google.com/go/iam v1.1.13 // indirect
 	github.com/Microsoft/go-winio v0.6.1 // indirect
 	github.com/bmatcuk/doublestar v1.1.1 // indirect
@@ -88,8 +88,8 @@ require (
 	go.starlark.net v0.0.0-20230525235612-a134d8f9ddca // indirect
 	golang.org/x/sys v0.47.0 // indirect
 	google.golang.org/genproto v0.0.0-20240823204242-4ba0660f739c // indirect; @grafana/grafana-backend-group
-	google.golang.org/genproto/googleapis/api v0.0.0-20240827150818-7e3bb234dfed // indirect
-	google.golang.org/genproto/googleapis/rpc v0.0.0-20240827150818-7e3bb234dfed // indirect
+	google.golang.org/genproto/googleapis/api v0.0.0-20251202230838-ff82c1b0f217 // indirect
+	google.golang.org/genproto/googleapis/rpc v0.0.0-20251202230838-ff82c1b0f217 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
 )
 

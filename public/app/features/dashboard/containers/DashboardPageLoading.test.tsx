@@ -9,9 +9,15 @@ import { mfeLocationService } from 'app/fn-app/fn-dashboard-page/render-fn-dashb
 import { FNDashboardProps } from 'app/fn-app/types';
 import { mfeDispatch, mfeGetStoreState, removeGrafanaStoreAndDashboard } from 'app/store/configureMfeStore';
 
+import { templateVarsChangedInUrl } from '../../variables/state/actions';
+
 import { UnthemedDashboardPage, Props } from './DashboardPage';
 
-jest.unmock('@grafana/runtime');
+jest.mock('@grafana/runtime', () => {
+  const runtime = jest.requireActual<typeof import('@grafana/runtime')>('@grafana/runtime');
+  const { createBrowserHistory } = jest.requireActual<typeof import('history')>('history');
+  return { ...runtime, locationService: new runtime.HistoryWrapper(createBrowserHistory()) };
+});
 jest.unmock('@grafana/data');
 jest.unmock('@grafana/ui');
 
@@ -48,7 +54,7 @@ jest.mock('app/features/live/dashboard/dashboardWatcher', () => ({ dashboardWatc
 jest.mock('app/features/scopes', () => ({}));
 jest.mock('app/features/variables/state/actions', () => ({
   cancelVariables: jest.fn(),
-  templateVarsChangedInUrl: jest.fn(),
+  templateVarsChangedInUrl: jest.fn(() => ({ type: 'test/variables-changed' })),
 }));
 jest.mock('../state/actions', () => ({ cleanUpDashboardAndVariables: jest.fn() }));
 jest.mock('../state/initDashboard', () => ({ initDashboard: jest.fn() }));
@@ -61,16 +67,175 @@ jest.mock('../components/Inspector/PanelInspector', () => ({ PanelInspector: () 
 jest.mock('../components/PanelEditor/PanelEditor', () => ({ PanelEditor: () => null }));
 jest.mock('../components/SubMenu/SubMenu', () => ({ SubMenu: () => null }));
 jest.mock('../dashgrid/DashboardGrid', () => ({ DashboardGrid: () => null }));
-jest.mock('../services/TimeSrv', () => ({ getTimeSrv: jest.fn() }));
+jest.mock('../services/TimeSrv', () => ({ getTimeSrv: () => ({ init: jest.fn() }) }));
+jest.mock('../services/DashboardSrv', () => ({
+  getDashboardSrv: () => ({ getCurrent: () => undefined, setCurrent: jest.fn() }),
+}));
 jest.mock('../utils/panel', () => ({ calculateNewPanelGridPos: jest.fn() }));
 jest.mock('app/core/components/Page/Page', () => ({
   Page: ({ children }: { children: React.ReactNode }) => <>{children}</>,
 }));
 
 describe('MFE loading callback lifecycle', () => {
+  beforeEach(() => {
+    // The real toolbar loads this decorative asset; no API transport is stubbed.
+    jest.spyOn(global, 'fetch').mockImplementation(async (input) => {
+      if (input !== 'public/img/icons/unicons/ellipsis-v.svg') {
+        throw new Error(`Unexpected fixture fetch: ${String(input)}`);
+      }
+      return new Response('<svg xmlns="http://www.w3.org/2000/svg"></svg>');
+    });
+  });
   afterEach(() => {
     cleanup();
     jest.restoreAllMocks();
+  });
+
+  it('refreshes only the owning portal when query pagination changes history', async () => {
+    jest.spyOn(UnthemedDashboardPage.prototype, 'initDashboard').mockImplementation(() => {});
+    jest.spyOn(UnthemedDashboardPage.prototype, 'closeDashboard').mockImplementation(() => {});
+    const uids = ['qualityMetrics', 'commentDrillDown'];
+    const history = mfeLocationService.getHistory();
+    const listen = history.listen.bind(history);
+    const unsubscribes: jest.Mock[] = [];
+    jest.spyOn(history, 'listen').mockImplementation((listener) => {
+      const unsubscribe = jest.fn(listen(listener));
+      unsubscribes.push(unsubscribe);
+      return unsubscribe;
+    });
+    const portals = uids.map((uid) => {
+      const node = document.createElement('div');
+      node.id = `${uid}-pagination`;
+      document.body.append(node);
+      return node;
+    });
+    const view = render(
+      <FNDashboard
+        name="pagination"
+        isLoading={() => {}}
+        setErrors={() => {}}
+        metadata={{ teams: [], eventListener: null }}
+        pageTitle="Pagination"
+      />
+    );
+    const update = createMfe.updateFnApp();
+    const childQuery = { 'var-offset_comments': '0', 'var-page_size_comments': '10', 'var-org': 'trusted-child' };
+    const props = (uid: string, index: number): FNDashboardProps => ({
+      ...INITIAL_FN_STATE,
+      uid,
+      name: 'pagination',
+      mode: 'light' as FNDashboardProps['mode'],
+      portalContainerID: portals[index].id,
+      metadata: { teams: [], eventListener: null },
+      isLoading: () => {},
+      setErrors: () => {},
+      queryParams: index === 0 ? { 'var-offset_tools': '20', 'var-org': 'trusted-parent' } : childQuery,
+    });
+    try {
+      for (const [index, uid] of uids.entries()) {
+        await act(async () => {
+          await update(props(uid, index), window);
+        });
+        act(() => {
+          mfeGetStoreState().fnGlobalReducer.grafanaStores[uid].dispatch({
+            type: 'test/result',
+            model: { uid, meta: {}, annotations: { list: [] }, links: [] },
+          });
+        });
+      }
+      jest.mocked(templateVarsChangedInUrl).mockClear();
+      act(() => {
+        mfeLocationService.partial({ 'var-page_index_comments': 1, 'var-offset_comments': 10 }, true);
+      });
+      expect(templateVarsChangedInUrl).toHaveBeenCalledTimes(1);
+      expect(templateVarsChangedInUrl).toHaveBeenLastCalledWith('commentDrillDown', {
+        'var-offset_comments': { value: '10' },
+        'var-page_index_comments': { value: '1' },
+      });
+      // Loading/result callbacks rerender the host with a fresh object before
+      // it has echoed the child's locally changed pagination into its props.
+      await act(async () => {
+        await update({ ...props('commentDrillDown', 1), queryParams: { ...childQuery } }, window);
+      });
+      expect(templateVarsChangedInUrl).toHaveBeenCalledTimes(1);
+      expect(mfeLocationService.getSearchObject()['var-offset_comments']).toBe('10');
+      act(() => {
+        mfeLocationService.partial({ 'var-page_index_comments': 2, 'var-offset_comments': 20 }, true);
+      });
+      expect(templateVarsChangedInUrl).toHaveBeenCalledTimes(2);
+      expect(templateVarsChangedInUrl).toHaveBeenLastCalledWith('commentDrillDown', {
+        'var-offset_comments': { value: '20' },
+        'var-page_index_comments': { value: '2' },
+      });
+      expect(mfeGetStoreState().fnGlobalReducer.dashboards.qualityMetrics.queryParams).toEqual({
+        'var-offset_tools': '20',
+        'var-org': 'trusted-parent',
+      });
+      expect(childQuery).toEqual({
+        'var-offset_comments': '0',
+        'var-page_size_comments': '10',
+        'var-org': 'trusted-child',
+      });
+      jest.mocked(templateVarsChangedInUrl).mockClear();
+      await act(async () => {
+        await update(
+          {
+            ...props('commentDrillDown', 1),
+            queryParams: {
+              ...childQuery,
+              'var-offset_comments': '20',
+              'var-page_index_comments': '2',
+            },
+          },
+          window
+        );
+      });
+      expect(templateVarsChangedInUrl).not.toHaveBeenCalled();
+      await act(async () => {
+        await update(
+          {
+            ...props('commentDrillDown', 1),
+            queryParams: {
+              ...childQuery,
+              'var-offset_comments': '0',
+              'var-severity': 'major',
+              'var-org': 'trusted-new-scope',
+            },
+          },
+          window
+        );
+      });
+      expect(templateVarsChangedInUrl).toHaveBeenCalledWith(
+        'commentDrillDown',
+        expect.objectContaining({
+          'var-offset_comments': expect.objectContaining({ value: '0' }),
+          'var-org': expect.objectContaining({ value: 'trusted-new-scope' }),
+        })
+      );
+      await act(async () => {
+        await update({ ...props('commentDrillDown', 1), queryParams: { ...childQuery } }, window);
+      });
+      expect(mfeLocationService.getSearchObject()['var-offset_comments']).toBe('0');
+      expect(mfeLocationService.getSearchObject()['var-org']).toBe('trusted-child');
+      view.unmount();
+      expect(unsubscribes.length).toBeGreaterThanOrEqual(2);
+      for (const unsubscribe of unsubscribes) {
+        expect(unsubscribe).toHaveBeenCalledTimes(1);
+      }
+      jest.mocked(templateVarsChangedInUrl).mockClear();
+      act(() => {
+        mfeLocationService.partial({ 'var-offset_comments': 20 }, true);
+      });
+      expect(templateVarsChangedInUrl).not.toHaveBeenCalled();
+    } finally {
+      view.unmount();
+      act(() => {
+        for (const uid of uids) {
+          mfeDispatch(removeGrafanaStoreAndDashboard(uid));
+        }
+      });
+      portals.forEach((node) => node.remove());
+    }
   });
 
   it('keeps real MFE stores and shared location responsive through open, result, close and reopen', async () => {

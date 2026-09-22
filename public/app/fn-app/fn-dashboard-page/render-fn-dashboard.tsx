@@ -1,8 +1,11 @@
-import { merge, isFunction } from 'lodash';
-import { useEffect, FC, useMemo } from 'react';
+import { merge, isFunction, isEqual } from 'lodash';
+import { useEffect, FC, useMemo, useState } from 'react';
 
+import { urlUtil } from '@grafana/data';
 import { locationService as locationSrv, HistoryWrapper } from '@grafana/runtime';
 import DashboardPage, { DashboardPageProps } from 'app/features/dashboard/containers/DashboardPage';
+import { findTemplateVarChanges } from 'app/features/variables/utils';
+import { mfeGetStoreState } from 'app/store/configureMfeStore';
 import { DashboardRoutes, StoreState, useSelector } from 'app/types';
 
 import { FNDashboardProps } from '../types';
@@ -28,6 +31,44 @@ const DEFAULT_DASHBOARD_PAGE_PROPS: Pick<DashboardPageProps, 'history' | 'route'
 
 export const RenderFNDashboard: FC<FNDashboardProps> = (props) => {
   const { queryParams, controlsContainer, setErrors, hiddenVariables, isLoading } = props;
+  const [historyUpdate, setHistoryUpdate] = useState<{
+    source: typeof queryParams;
+    queryParams: typeof queryParams;
+  }>();
+  // Host loading callbacks can recreate unchanged props before echoing local
+  // navigation. Only a semantic host change supersedes the local update.
+  const effectiveQueryParams =
+    historyUpdate && isEqual(historyUpdate.source, queryParams) ? historyUpdate.queryParams : queryParams;
+
+  useEffect(() => {
+    mfeLocationService.fnPathnameChange(window.location.pathname, effectiveQueryParams);
+    setHistoryUpdate((previous) => (previous && !isEqual(previous.source, queryParams) ? undefined : previous));
+  }, [effectiveQueryParams, queryParams]);
+
+  useEffect(() => {
+    let previousSearch = mfeLocationService.getSearchObject();
+    return mfeLocationService.getHistory().listen(() => {
+      const search = mfeLocationService.getSearchObject();
+      const changes = findTemplateVarChanges(search, previousSearch);
+      previousSearch = search;
+      if (mfeGetStoreState().fnGlobalReducer.renderingDashboardUID !== props.uid || !changes) {
+        return;
+      }
+      setHistoryUpdate((previous) => {
+        const next = { ...(previous && isEqual(previous.source, queryParams) ? previous.queryParams : queryParams) };
+        // Apply only this navigation's variable delta. The shared URL also
+        // contains other portals' state; host routing/scope props stay intact.
+        for (const [key, change] of Object.entries(changes)) {
+          if (change.removed) {
+            delete next[key];
+          } else {
+            next[key] = change.value;
+          }
+        }
+        return { source: queryParams, queryParams: next };
+      });
+    });
+  }, [props.uid, queryParams]);
 
   const firstError = useSelector((state: StoreState) => {
     const { appNotifications } = state;
@@ -49,28 +90,26 @@ export const RenderFNDashboard: FC<FNDashboardProps> = (props) => {
     setErrors(firstError ? { [firstError.timestamp]: firstError.text } : {});
   }, [firstError, setErrors]);
 
-  useEffect(() => {
-    mfeLocationService.fnPathnameChange(window.location.pathname, queryParams);
-  }, [queryParams]);
-
   const dashboardPageProps: DashboardPageProps = useMemo(
     () =>
       merge({}, DEFAULT_DASHBOARD_PAGE_PROPS, {
         ...DEFAULT_DASHBOARD_PAGE_PROPS,
         match: {
           params: {
-            ...props.queryParams,
+            ...effectiveQueryParams,
             uid: props.uid,
             slug: props.slug || '',
           },
         },
-        location: mfeLocationService.getLocation(),
-        queryParams,
+        // fnPathnameChange mutates the shared history location in place.
+        // Keep each portal's previous search immutable for componentDidUpdate.
+        location: { ...mfeLocationService.getLocation(), search: urlUtil.toUrlParams(effectiveQueryParams) },
+        queryParams: effectiveQueryParams,
         hiddenVariables,
         controlsContainer,
         isLoading,
       }),
-    [controlsContainer, hiddenVariables, isLoading, props, queryParams]
+    [controlsContainer, hiddenVariables, isLoading, props, effectiveQueryParams]
   );
 
   return <DashboardPage {...dashboardPageProps} />;

@@ -23,6 +23,7 @@ func ProvideHealthService(server DiagnosticsServer) (grpc_health_v1.HealthServer
 }
 
 type healthServer struct {
+	grpc_health_v1.UnimplementedHealthServer
 	srv DiagnosticsServer
 }
 
