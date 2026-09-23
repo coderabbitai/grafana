@@ -14,7 +14,7 @@ import { GrafanaContext, GrafanaContextType } from 'app/core/context/GrafanaCont
 import { createErrorNotification } from 'app/core/copy/appNotification';
 import { getKioskMode } from 'app/core/navigation/kiosk';
 import { GrafanaRouteComponentProps } from 'app/core/navigation/types';
-import { FnGlobalState, FnPanelOptionsUpdate } from 'app/core/reducers/fn-slice';
+import { FnGlobalState, FnPanelOptionsUpdate, FnPanelQueryPreviewUpdate } from 'app/core/reducers/fn-slice';
 import { getNavModel } from 'app/core/selectors/navModel';
 import { PanelModel } from 'app/features/dashboard/state';
 import { dashboardWatcher } from 'app/features/live/dashboard/dashboardWatcher';
@@ -45,7 +45,12 @@ import { cleanUpDashboardAndVariables } from '../state/actions';
 import { initDashboard } from '../state/initDashboard';
 import { calculateNewPanelGridPos } from '../utils/panel';
 
-import { applyFnPanelOptionsPreview } from './DashboardPageFnPanelOptions';
+import {
+  applyFnPanelOptionsPreview,
+  applyFnPanelQueryPreview,
+  type FnPanelQueryPreviewOwner,
+  resolveFnPanelQueryPreview,
+} from './DashboardPageFnPanelOptions';
 
 export { applyFnPanelOptionsPreview } from './DashboardPageFnPanelOptions';
 
@@ -79,7 +84,12 @@ export type MapStateToDashboardPageProps = MapStateToProps<
     navIndex: StoreState['navIndex'];
   } & Pick<
       FnGlobalState,
-      'FNDashboard' | 'controlsContainer' | 'dashboardAccessMode' | 'enablePanelLayoutEdit' | 'panelOptionsUpdate'
+      | 'FNDashboard'
+      | 'controlsContainer'
+      | 'dashboardAccessMode'
+      | 'enablePanelLayoutEdit'
+      | 'panelOptionsUpdate'
+      | 'panelQueryPreviewUpdate'
     > & {
       dashboardEventListener: FnGlobalState['metadata']['eventListener'];
     },
@@ -107,6 +117,7 @@ export const mapStateToProps: MapStateToDashboardPageProps = (state) => ({
   dashboardAccessMode: state.fnGlobalState.dashboardAccessMode,
   enablePanelLayoutEdit: state.fnGlobalState.enablePanelLayoutEdit,
   panelOptionsUpdate: state.fnGlobalState.panelOptionsUpdate,
+  panelQueryPreviewUpdate: state.fnGlobalState.panelQueryPreviewUpdate,
   dashboardEventListener: state.fnGlobalState.metadata?.eventListener ?? null,
 });
 
@@ -225,6 +236,20 @@ export class UnthemedDashboardPage extends PureComponent<Props, State> {
       this.applyFnPanelOptionsUpdate(this.props.panelOptionsUpdate);
     }
 
+    if (FNDashboard && this.props.panelQueryPreviewUpdate) {
+      const update = this.props.panelQueryPreviewUpdate;
+      const { apply, owner } = resolveFnPanelQueryPreview(
+        this.fnPanelQueryPreviewOwner,
+        update,
+        dashboard.uid,
+        prevProps.dashboard !== dashboard
+      );
+      this.fnPanelQueryPreviewOwner = owner;
+      if (apply) {
+        this.applyFnPanelQueryPreviewUpdate(update);
+      }
+    }
+
     if (!FNDashboard) {
       const routeReloadCounter = (this.props.history.location?.state as any)?.routeReloadCounter;
 
@@ -284,6 +309,20 @@ export class UnthemedDashboardPage extends PureComponent<Props, State> {
       this.props.notifyApp(createErrorNotification(`Panel not found`));
       locationService.partial({ editPanel: null, viewPanel: null });
     }
+  }
+
+  private fnPanelQueryPreviewOwner?: FnPanelQueryPreviewOwner;
+
+  applyFnPanelQueryPreviewUpdate(update: FnPanelQueryPreviewUpdate) {
+    const panel = this.props.dashboard?.getPanelById(update.panelId);
+    if (!panel) {
+      FnLoggerService.warn('Unable to apply FN panel query preview because the panel was not found', {
+        panelId: update.panelId,
+      });
+      return;
+    }
+
+    applyFnPanelQueryPreview(panel, update);
   }
 
   applyFnPanelOptionsUpdate(update: FnPanelOptionsUpdate) {
