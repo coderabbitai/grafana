@@ -45,7 +45,12 @@ import { cleanUpDashboardAndVariables } from '../state/actions';
 import { initDashboard } from '../state/initDashboard';
 import { calculateNewPanelGridPos } from '../utils/panel';
 
-import { applyFnPanelOptionsPreview, applyFnPanelQueryPreview } from './DashboardPageFnPanelOptions';
+import {
+  applyFnPanelOptionsPreview,
+  applyFnPanelQueryPreview,
+  type FnPanelQueryPreviewOwner,
+  resolveFnPanelQueryPreview,
+} from './DashboardPageFnPanelOptions';
 
 export { applyFnPanelOptionsPreview } from './DashboardPageFnPanelOptions';
 
@@ -231,14 +236,18 @@ export class UnthemedDashboardPage extends PureComponent<Props, State> {
       this.applyFnPanelOptionsUpdate(this.props.panelOptionsUpdate);
     }
 
-    if (
-      FNDashboard &&
-      this.props.panelQueryPreviewUpdate &&
-      (prevProps.dashboard !== this.props.dashboard ||
-        prevProps.panelQueryPreviewUpdate?.panelId !== this.props.panelQueryPreviewUpdate.panelId ||
-        prevProps.panelQueryPreviewUpdate?.revision !== this.props.panelQueryPreviewUpdate.revision)
-    ) {
-      this.applyFnPanelQueryPreviewUpdate(this.props.panelQueryPreviewUpdate);
+    if (FNDashboard && this.props.panelQueryPreviewUpdate) {
+      const update = this.props.panelQueryPreviewUpdate;
+      const { apply, owner } = resolveFnPanelQueryPreview(
+        this.fnPanelQueryPreviewOwner,
+        update,
+        dashboard.uid,
+        prevProps.dashboard !== dashboard
+      );
+      this.fnPanelQueryPreviewOwner = owner;
+      if (apply) {
+        this.applyFnPanelQueryPreviewUpdate(update);
+      }
     }
 
     if (!FNDashboard) {
@@ -301,6 +310,8 @@ export class UnthemedDashboardPage extends PureComponent<Props, State> {
       locationService.partial({ editPanel: null, viewPanel: null });
     }
   }
+
+  private fnPanelQueryPreviewOwner?: FnPanelQueryPreviewOwner;
 
   applyFnPanelQueryPreviewUpdate(update: FnPanelQueryPreviewUpdate) {
     const panel = this.props.dashboard?.getPanelById(update.panelId);

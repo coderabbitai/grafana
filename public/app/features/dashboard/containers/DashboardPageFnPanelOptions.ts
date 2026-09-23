@@ -2,7 +2,8 @@ import type { DataQuery, FieldConfigSource } from '@grafana/data';
 import type { FnPanelOptionsUpdate, FnPanelQueryPreviewUpdate } from 'app/core/reducers/fn-slice';
 
 export interface FnPanelQueryPreviewTarget extends DataQuery {
-  rawSql?: string;
+  readonly editorMode?: string;
+  readonly rawSql?: string;
 }
 
 export interface FnPanelOptionsPreviewTarget {
@@ -347,10 +348,38 @@ export function applyFnPanelOptionsPreview(panel: FnPanelOptionsPreviewTarget, u
 }
 
 export function applyFnPanelQueryPreview(panel: FnPanelOptionsPreviewTarget, update: FnPanelQueryPreviewUpdate): void {
-  if (!panel.refresh || typeof panel.targets?.[0]?.rawSql !== 'string') {
+  const target = panel.targets?.[0];
+  // A builder-mode SQL target keeps a stale `rawSql` string; only a Raw SQL
+  // target executes it, so only that mode may take the preview.
+  if (!panel.refresh || !panel.targets || typeof target?.rawSql !== 'string' || target.editorMode === 'builder') {
     return;
   }
 
   panel.targets = panel.targets.map((target, index) => (index === 0 ? { ...target, rawSql: update.rawSql } : target));
   panel.refresh();
+}
+
+export interface FnPanelQueryPreviewOwner {
+  readonly panelId: number;
+  readonly revision: number;
+  readonly uid: string;
+}
+
+/**
+ * Decide whether a panel query preview should be applied to `dashboardUid`.
+ *
+ * The first dashboard to receive an update owns it. A retained update is
+ * replayed after a reload only on its owner, so another dashboard with the
+ * same panel id is left untouched.
+ */
+export function resolveFnPanelQueryPreview(
+  owner: FnPanelQueryPreviewOwner | undefined,
+  update: FnPanelQueryPreviewUpdate,
+  dashboardUid: string,
+  dashboardChanged: boolean
+): { apply: boolean; owner: FnPanelQueryPreviewOwner } {
+  if (owner?.panelId !== update.panelId || owner.revision !== update.revision) {
+    return { apply: true, owner: { panelId: update.panelId, revision: update.revision, uid: dashboardUid } };
+  }
+  return { apply: dashboardChanged && owner.uid === dashboardUid, owner };
 }

@@ -285,3 +285,34 @@ describe('applyFnPanelQueryPreview', () => {
     expect(panel.render).not.toHaveBeenCalled();
   });
 });
+
+describe('applyFnPanelQueryPreview editor mode', () => {
+  it('does not replace a builder-mode SQL target that retains rawSql', async () => {
+    const { applyFnPanelQueryPreview } = await import('./DashboardPageFnPanelOptions');
+    const panel = getPanel('table');
+    panel.targets = [{ refId: 'A', editorMode: 'builder', rawSql: 'SELECT built' }];
+    panel.refresh = jest.fn();
+
+    applyFnPanelQueryPreview(panel, { panelId: panel.id, rawSql: 'SELECT preview', revision: 1 });
+
+    expect(panel.targets).toEqual([{ refId: 'A', editorMode: 'builder', rawSql: 'SELECT built' }]);
+    expect(panel.refresh).not.toHaveBeenCalled();
+  });
+});
+
+describe('resolveFnPanelQueryPreview', () => {
+  it('replays a retained update only on the dashboard it was issued against', async () => {
+    const { resolveFnPanelQueryPreview } = await import('./DashboardPageFnPanelOptions');
+    const update = { panelId: 1, rawSql: 'SELECT preview', revision: 1 };
+
+    const first = resolveFnPanelQueryPreview(undefined, update, 'a', true);
+    expect(first).toEqual({ apply: true, owner: { panelId: 1, revision: 1, uid: 'a' } });
+
+    expect(resolveFnPanelQueryPreview(first.owner, update, 'a', true).apply).toBe(true);
+    expect(resolveFnPanelQueryPreview(first.owner, update, 'a', false).apply).toBe(false);
+    expect(resolveFnPanelQueryPreview(first.owner, update, 'b', true).apply).toBe(false);
+
+    const next = resolveFnPanelQueryPreview(first.owner, { ...update, revision: 2 }, 'b', false);
+    expect(next).toEqual({ apply: true, owner: { panelId: 1, revision: 2, uid: 'b' } });
+  });
+});
