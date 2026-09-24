@@ -39,6 +39,7 @@ import { profiler } from 'app/core/profiler';
 import { applyPanelTimeOverrides } from 'app/features/dashboard/utils/panel';
 import { getDatasourceSrv } from 'app/features/plugins/datasource_srv';
 import { applyFilterFromTable } from 'app/features/variables/adhoc/actions';
+import { FnLoggerService } from 'app/fn_logger';
 import { onUpdatePanelSnapshotData } from 'app/plugins/datasource/grafana/utils';
 import { changeSeriesColorConfigFactory } from 'app/plugins/panel/timeseries/overrides/colorSeriesConfigFactory';
 import { dispatch } from 'app/store/store';
@@ -55,6 +56,11 @@ import { loadSnapshotData } from '../utils/loadSnapshotData';
 import { PanelHeaderMenuWrapper } from './PanelHeader/PanelHeaderMenuWrapper';
 import { PanelLoadTimeMonitor } from './PanelLoadTimeMonitor';
 import { seriesVisibilityConfigFactory } from './SeriesVisibilityConfigFactory';
+import {
+  canEditSeriesColor,
+  FN_PANEL_COLOR_CHANGE_DEBOUNCE_MS,
+  FN_PANEL_COLOR_CHANGED_EVENT,
+} from './fnSeriesColorEdit';
 import { liveTimer } from './liveTimer';
 import { PanelOptionsLogger } from './panelOptionsLogger';
 
@@ -74,6 +80,10 @@ export interface Props {
   timezone?: string;
   hideMenu?: boolean;
   isFnDashboard?: boolean;
+  /** Host opt-in for the legend series colour picker. */
+  enablePanelColorEdit?: boolean;
+  /** Channel the host listens on for `panelColorChanged`. */
+  panelColorListener?: <T>(event: { type: string; data: T }) => void;
 }
 
 export interface State {
@@ -116,7 +126,7 @@ export class PanelStateWrapperDisConnected extends PureComponent<Props, State> {
         eventBus,
         app: this.getPanelContextApp(),
         sync: this.getSync,
-        onSeriesColorChange: this.onSeriesColorChange,
+        onSeriesColorChange: this.getSeriesColorChangeHandler(props),
         onToggleSeriesVisibility: this.onSeriesVisibilityChange,
         onAnnotationCreate: this.onAnnotationCreate,
         onAnnotationUpdate: this.onAnnotationUpdate,
@@ -172,9 +182,53 @@ export class PanelStateWrapperDisConnected extends PureComponent<Props, State> {
     return onUpdatePanelSnapshotData(this.props.panel, frames);
   };
 
+  /**
+   * The legend colour pill is only offered when the host can persist the
+   * result. `usePanelContext` treats a missing `onSeriesColorChange` as
+   * "read-only" and renders a plain swatch, so withholding the handler hides
+   * the picker instead of opening a tray whose change would be lost. Built-in
+   * dashboards take that path: they neither opt in nor subscribe, and both are
+   * required so an opt-in without a listener cannot strand a colour either.
+   */
+  getSeriesColorChangeHandler(props: Props): ((label: string, color: string) => void) | undefined {
+    return canEditSeriesColor(props) ? this.onSeriesColorChange : undefined;
+  }
+
   onSeriesColorChange = (label: string, color: string) => {
     this.onFieldConfigChange(changeSeriesColorConfigFactory(label, color, this.props.panel.fieldConfig));
+    this.reportFnColorChange();
   };
+
+  /**
+   * `updateFieldConfig` only mutates the in-memory `PanelModel`, so the new
+   * colour rendered but the host never learned of it and had nothing to save.
+   * Reporting the dashboard save model — the same payload
+   * `dashboardLayoutChanged` sends — lets the host persist it through the
+   * draft it already owns.
+   */
+  emitFnColorChange = () => {
+    const { enablePanelColorEdit, panelColorListener, dashboard, panel } = this.props;
+    if (!enablePanelColorEdit || !panelColorListener) {
+      return;
+    }
+
+    const dashboardJson = dashboard.getSaveModelClone();
+    if (!dashboardJson) {
+      return;
+    }
+
+    try {
+      panelColorListener({ type: FN_PANEL_COLOR_CHANGED_EVENT, data: dashboardJson });
+    } catch (error) {
+      FnLoggerService.warn('FN panel colour listener failed', { error, panelId: panel.id });
+    }
+  };
+
+  /**
+   * The spectrum tab reports a colour on every pointer move, so the report is
+   * debounced to keep one draft write per colour the user settles on.
+   */
+  reportFnColorChange = debounce(this.emitFnColorChange, FN_PANEL_COLOR_CHANGE_DEBOUNCE_MS);
 
   onSeriesVisibilityChange = (label: string, mode: SeriesVisibilityChangeMode) => {
     this.onFieldConfigChange(
@@ -266,6 +320,8 @@ export class PanelStateWrapperDisConnected extends PureComponent<Props, State> {
   componentWillUnmount() {
     this.subs.unsubscribe();
     liveTimer.remove(this);
+    // A pending colour report would otherwise read a torn-down dashboard.
+    this.reportFnColorChange.cancel();
   }
 
   liveTimeChanged(liveTime: TimeRange) {
@@ -286,12 +342,14 @@ export class PanelStateWrapperDisConnected extends PureComponent<Props, State> {
     const { context } = this.state;
 
     const app = this.getPanelContextApp();
+    const onSeriesColorChange = this.getSeriesColorChangeHandler(this.props);
 
-    if (context.app !== app) {
+    if (context.app !== app || context.onSeriesColorChange !== onSeriesColorChange) {
       this.setState({
         context: {
           ...context,
           app,
+          onSeriesColorChange,
         },
       });
     }
@@ -650,7 +708,9 @@ function mapStateToProps() {
      */
     enablePanelEdit: state.fnGlobalState.enablePanelEdit,
     enablePanelDelete: state.fnGlobalState.enablePanelDelete,
+    enablePanelColorEdit: state.fnGlobalState.enablePanelColorEdit,
     panelEditListener: state.fnGlobalState.metadata?.eventListener ?? undefined,
+    panelColorListener: state.fnGlobalState.metadata?.eventListener ?? undefined,
   });
 }
 
