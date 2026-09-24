@@ -39,6 +39,14 @@ export interface FnState {
    */
   enablePanelDelete: boolean;
   enablePanelLayoutEdit: boolean;
+  /**
+   * When true, legend colour pills open the series colour picker and the
+   * resulting `fieldConfig` is reported to the host as a
+   * `panelFieldConfigChanged` event so it can be persisted. Built-in
+   * dashboards leave this off, which hides the picker entirely rather than
+   * offering an edit the host cannot save.
+   */
+  enablePanelColorEdit: boolean;
   metadata: {
     teams: string[];
     eventListener: (<T>(event: { type: string; data: T }) => void) | null;
@@ -71,6 +79,7 @@ export type FnPropMappedFromState = Extract<
   | 'enablePanelEdit'
   | 'enablePanelDelete'
   | 'enablePanelLayoutEdit'
+  | 'enablePanelColorEdit'
   | 'panelOptionsUpdate'
   | 'panelQueryPreviewUpdate'
   | 'refreshRevision'
@@ -90,6 +99,7 @@ export const fnStateProps: FnStateProp[] = [
   'enablePanelEdit',
   'enablePanelDelete',
   'enablePanelLayoutEdit',
+  'enablePanelColorEdit',
   'hiddenVariables',
   'pageTitle',
   'panelOptionsUpdate',
@@ -119,6 +129,7 @@ export const INITIAL_FN_STATE: FnState = {
   enablePanelEdit: false,
   enablePanelDelete: false,
   enablePanelLayoutEdit: false,
+  enablePanelColorEdit: false,
   metadata: {
     teams: [],
     eventListener: null,
