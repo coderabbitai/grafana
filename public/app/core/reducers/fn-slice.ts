@@ -41,12 +41,12 @@ export interface FnState {
   enablePanelLayoutEdit: boolean;
   /**
    * When true, legend colour pills open the series colour picker and the
-   * resulting `fieldConfig` is reported to the host as a
-   * `panelFieldConfigChanged` event so it can be persisted. Built-in
-   * dashboards leave this off, which hides the picker entirely rather than
-   * offering an edit the host cannot save.
+   * resulting dashboard is reported to the host as a `panelColorChanged`
+   * event so it can be persisted. Built-in dashboards leave this off, which
+   * hides the picker entirely rather than offering an edit the host cannot
+   * save.
    */
-  enablePanelColorEdit: boolean;
+  readonly enablePanelColorEdit: boolean;
   metadata: {
     teams: string[];
     eventListener: (<T>(event: { type: string; data: T }) => void) | null;

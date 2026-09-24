@@ -187,7 +187,8 @@ export class PanelStateWrapperDisConnected extends PureComponent<Props, State> {
    * result. `usePanelContext` treats a missing `onSeriesColorChange` as
    * "read-only" and renders a plain swatch, so withholding the handler hides
    * the picker instead of opening a tray whose change would be lost. Built-in
-   * dashboards (`enablePanelColorEdit` off) take that path.
+   * dashboards take that path: they neither opt in nor subscribe, and both are
+   * required so an opt-in without a listener cannot strand a colour either.
    */
   getSeriesColorChangeHandler(props: Props): ((label: string, color: string) => void) | undefined {
     return canEditSeriesColor(props) ? this.onSeriesColorChange : undefined;

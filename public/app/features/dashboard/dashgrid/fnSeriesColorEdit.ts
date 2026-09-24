@@ -11,19 +11,22 @@ export const FN_PANEL_COLOR_CHANGE_DEBOUNCE_MS = 400;
 export interface FnSeriesColorEditAccess {
   readonly isFnDashboard?: boolean;
   readonly enablePanelColorEdit?: boolean;
+  /** Present only when the host subscribed to `panelColorChanged`. */
+  readonly panelColorListener?: unknown;
 }
 
 /**
  * Whether the legend colour pill should open the series colour picker.
  *
- * Only a host that opted in can persist the result, so a dashboard embedded
- * without `enablePanelColorEdit` (every built-in dashboard) must not offer the
- * tray at all. Standalone Grafana is unaffected and keeps the picker.
+ * Only a host that opted in *and* is listening can persist the result, so an
+ * embedded dashboard missing either (every built-in dashboard) must not offer
+ * the tray at all -- a picker whose change is dropped is the bug this guards.
+ * Standalone Grafana is unaffected and keeps the picker.
  */
 export function canEditSeriesColor(access: FnSeriesColorEditAccess): boolean {
   if (!access.isFnDashboard) {
     return true;
   }
 
-  return access.enablePanelColorEdit === true;
+  return access.enablePanelColorEdit === true && access.panelColorListener != null;
 }
