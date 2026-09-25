@@ -70,6 +70,28 @@ describe('PanelDataErrorView', () => {
 
     expect(screen.getByText('Query returned nothing')).toBeInTheDocument();
   });
+
+  it('keeps long no-data messages inside the panel', () => {
+    renderWithProps({
+      fieldConfig: {
+        overrides: [],
+        defaults: {
+          noValue: 'A-continuous-no-data-message-that-is-wider-than-the-panel',
+        },
+      },
+    });
+
+    const message = screen.getByTestId('data-testid Panel data error message');
+    const wrapper = message.parentElement;
+
+    expect(message).toHaveStyle({
+      maxHeight: '100%',
+      maxWidth: '100%',
+      overflow: 'hidden',
+      overflowWrap: 'anywhere',
+    });
+    expect(wrapper).toHaveStyle({ minHeight: '0', minWidth: '0', overflow: 'hidden' });
+  });
 });
 
 function renderWithProps(overrides?: Partial<PanelDataErrorViewProps>) {
