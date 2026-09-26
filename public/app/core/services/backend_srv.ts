@@ -92,7 +92,7 @@ export class BackendSrv implements BackendService {
 
     this.initGrafanaDeviceID();
 
-    new FetchQueueWorker(this.fetchQueue, this.responseQueue, getConfig());
+    new FetchQueueWorker(this.fetchQueue, this.responseQueue, getConfig(), () => this.grafanaPrefix);
   }
 
   private async initGrafanaDeviceID() {
