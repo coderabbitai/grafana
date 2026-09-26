@@ -1,7 +1,7 @@
 import { Component } from 'react';
 import { Unsubscribable } from 'rxjs';
 
-import { dateMath, TimeRange, TimeZone } from '@grafana/data';
+import { dateMath, rangeUtil, TimeRange, TimeZone } from '@grafana/data';
 import { config, TimeRangeUpdatedEvent } from '@grafana/runtime';
 import { defaultIntervals, getWeekStart, RefreshPicker } from '@grafana/ui';
 import { TimePickerWithHistory } from 'app/core/components/TimePicker/TimePickerWithHistory';
@@ -9,6 +9,7 @@ import { appEvents } from 'app/core/core';
 import { t } from 'app/core/internationalization';
 import { AutoRefreshInterval } from 'app/core/services/context_srv';
 import { getTimeSrv } from 'app/features/dashboard/services/TimeSrv';
+import { mfeDispatch, mfeGetStoreState, updateRenderingDashboardUID } from 'app/store/configureMfeStore';
 
 import { ShiftTimeEvent, ShiftTimeEventDirection, ZoomOutEvent } from '../../../../types/events';
 import { DashboardModel } from '../../state';
@@ -40,6 +41,21 @@ export class DashNavTimeControls extends Component<Props> {
   };
 
   onRefresh = () => {
+    if (this.props.isFnDashboard) {
+      const { dashboard } = this.props;
+      const previousOwner = mfeGetStoreState().fnGlobalReducer.renderingDashboardUID;
+      try {
+        // Bind the synchronous thunk dispatch to this toolbar's dashboard, not
+        // a singleton left pointing at a different (or closed) portal. Restore
+        // immediately: the thunk retains its own dispatch/getState after await.
+        mfeDispatch(updateRenderingDashboardUID(dashboard.uid));
+        return dashboard.timeRangeUpdated(
+          rangeUtil.convertRawToRange(dashboard.time, dashboard.getTimezone(), dashboard.fiscalYearStartMonth)
+        );
+      } finally {
+        mfeDispatch(updateRenderingDashboardUID(previousOwner));
+      }
+    }
     getTimeSrv().refreshTimeModel();
     return Promise.resolve();
   };
@@ -92,7 +108,7 @@ export class DashNavTimeControls extends Component<Props> {
     if (this.props.onToolbarRefreshClick) {
       this.props.onToolbarRefreshClick();
     }
-    this.onRefresh();
+    return this.onRefresh();
   };
 
   render() {
