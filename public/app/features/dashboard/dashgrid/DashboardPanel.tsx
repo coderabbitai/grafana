@@ -21,6 +21,7 @@ export interface OwnProps {
   width: number;
   height: number;
   lazy?: boolean;
+  preload?: boolean;
   timezone?: string;
   hideMenu?: boolean;
 }
@@ -114,6 +115,7 @@ export class DashboardPanelUnconnected extends PureComponent<Props> {
         isViewing={isViewing}
         isEditing={isEditing}
         isInView={isInView}
+        preloadInitialQuery={this.props.preload}
         isDraggable={isDraggable}
         width={width}
         height={height}
@@ -125,10 +127,16 @@ export class DashboardPanelUnconnected extends PureComponent<Props> {
   };
 
   render() {
-    const { width, height, lazy } = this.props;
+    const { width, height, lazy, preload } = this.props;
 
     return lazy ? (
-      <LazyLoader width={width} height={height} onChange={this.onVisibilityChange} onLoad={this.onPanelLoad}>
+      <LazyLoader
+        width={width}
+        height={height}
+        preload={preload}
+        onChange={this.onVisibilityChange}
+        onLoad={this.onPanelLoad}
+      >
         {this.renderPanel}
       </LazyLoader>
     ) : (

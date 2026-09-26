@@ -73,6 +73,8 @@ export interface Props {
   isViewing: boolean;
   isEditing: boolean;
   isInView: boolean;
+  /** Permit only the initial query off-screen; later refreshes remain lazy. */
+  preloadInitialQuery?: boolean;
   isDraggable?: boolean;
   width: number;
   height: number;
@@ -421,10 +423,12 @@ export class PanelStateWrapperDisConnected extends PureComponent<Props, State> {
     this.setState({ isFirstLoad, errorMessage, data, liveTime: undefined });
   }
 
+  private hasRequestedQuery = false;
+
   onRefresh = () => {
     const { dashboard, panel, isInView, width } = this.props;
 
-    if (!dashboard.snapshot && !isInView) {
+    if (!dashboard.snapshot && !isInView && (!this.props.preloadInitialQuery || this.hasRequestedQuery)) {
       panel.refreshWhenInView = true;
       return;
     }
@@ -438,6 +442,7 @@ export class PanelStateWrapperDisConnected extends PureComponent<Props, State> {
       }
 
       panel.refreshWhenInView = false;
+      this.hasRequestedQuery = true;
       panel.runAllPanelQueries({
         dashboardUID: dashboard.uid,
         dashboardTimezone: dashboard.getTimezone(),

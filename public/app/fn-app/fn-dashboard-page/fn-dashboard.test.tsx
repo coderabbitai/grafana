@@ -44,7 +44,10 @@ jest.mock('app/store/configureStore', () => {
           dashboard: (state = { getModel: () => null }, action: { type: string; model?: unknown }) =>
             action.type === 'test/model' ? { getModel: () => action.model } : state,
         },
-        middleware: (defaults) => defaults({ serializableCheck: false }),
+        // Keep mutation detection, but do not turn machine contention into a
+        // lifecycle test failure through Redux's development timing warning.
+        middleware: (defaults) =>
+          defaults({ serializableCheck: false, immutableCheck: { warnAfter: Number.POSITIVE_INFINITY } }),
       }),
   };
 });
@@ -183,6 +186,30 @@ describe('FNDashboard', () => {
     view.rerender(<FNDashboard {...props} />);
     expect(init).not.toHaveBeenCalled();
     expect(parent.destroy).not.toHaveBeenCalled();
+  });
+
+  it('applies late preload updates only to the matching dashboard store', () => {
+    const props = {
+      name: 'dashboard',
+      uid: dashboardUIDs[0],
+      isLoading: jest.fn(),
+      pageTitle: 'Dashboard',
+      setErrors: jest.fn(),
+      metadata: { teams: [], eventListener: null },
+      fnError: null,
+      preloadPanels: false,
+    };
+    const view = render(<FNDashboard {...props} />);
+    act(() => mountDashboard(dashboardUIDs[1]));
+    const state = (uid: string) => mfeGetStoreState().fnGlobalReducer.grafanaStores[uid].getState().fnGlobalState;
+    const parent = screen.getByTestId('dashboard-quality-metrics');
+    expect(state(dashboardUIDs[0]).preloadPanels).toBe(false);
+    view.rerender(<FNDashboard {...{ ...props, preloadPanels: true }} />);
+    expect(state(dashboardUIDs[0]).preloadPanels).toBe(true);
+    expect(state(dashboardUIDs[1]).preloadPanels).toBe(false);
+    view.rerender(<FNDashboard {...props} />);
+    expect(state(dashboardUIDs[0]).preloadPanels).toBe(false);
+    expect(screen.getByTestId('dashboard-quality-metrics')).toBe(parent);
   });
 
   function makeModel(): TimeModel & { destroy: jest.Mock } {

@@ -22,6 +22,8 @@ export interface FnState {
   version: number;
   controlsContainer: string | null;
   dashboardAccessMode: 'standard' | 'custom';
+  /** Host opt-in for eager canned-panel loading; never grants query access. */
+  preloadPanels?: boolean;
   pageTitle: string;
   queryParams: AnyObject;
   hiddenVariables: string[];
@@ -76,6 +78,7 @@ export type FnPropMappedFromState = Extract<
   | 'version'
   | 'controlsContainer'
   | 'dashboardAccessMode'
+  | 'preloadPanels'
   | 'enablePanelEdit'
   | 'enablePanelDelete'
   | 'enablePanelLayoutEdit'
@@ -96,6 +99,7 @@ export type FnPropsMappedFromState = Pick<FnGlobalState, FnPropMappedFromState>;
 export const fnStateProps: FnStateProp[] = [
   'controlsContainer',
   'dashboardAccessMode',
+  'preloadPanels',
   'enablePanelEdit',
   'enablePanelDelete',
   'enablePanelLayoutEdit',
@@ -123,6 +127,7 @@ export const INITIAL_FN_STATE: FnState = {
   version: 1,
   controlsContainer: null,
   dashboardAccessMode: 'standard',
+  preloadPanels: false,
   pageTitle: '',
   queryParams: {},
   hiddenVariables: [],
