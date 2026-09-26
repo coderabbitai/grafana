@@ -1,4 +1,4 @@
-import { Observable, of, lastValueFrom } from 'rxjs';
+import { Observable, of, lastValueFrom, NEVER } from 'rxjs';
 import { fromFetch } from 'rxjs/fetch';
 import { delay } from 'rxjs/operators';
 
@@ -90,7 +90,25 @@ jest.mock('app/core/utils/auth', () => ({
   hasSessionExpiry: () => true,
 }));
 
+// Backend transport tests do not exercise dashboard persistence. Loading that
+// adapter also initializes the complete dashboard scene/store module graph.
+jest.mock('app/features/dashboard/api/dashboard_api', () => ({ getDashboardAPI: jest.fn() }));
+
 describe('backendSrv', () => {
+  it.each([false, true])('dispatches dashboard queries with host proxy mode %s', (hostProxied) => {
+    const { backendSrv, fromFetchMock } = getTestContext();
+    fromFetchMock.mockReturnValue(NEVER);
+    backendSrv.setGrafanaPrefix(hostProxied);
+    const subscriptions = Array.from({ length: 22 }, (_, panel) =>
+      backendSrv.fetch({ url: '/api/ds/query', method: 'POST', data: { panel } }).subscribe()
+    );
+    try {
+      expect(fromFetchMock).toHaveBeenCalledTimes(hostProxied ? 22 : 5);
+    } finally {
+      subscriptions.forEach((subscription) => subscription.unsubscribe());
+    }
+  });
+
   describe('parseRequestOptions', () => {
     it.each`
       retry        | url                                      | headers                           | orgId        | noBackendCache | expected

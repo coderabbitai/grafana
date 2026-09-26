@@ -13,9 +13,12 @@ interface WorkerEntry {
 }
 
 export class FetchQueueWorker {
-  constructor(fetchQueue: FetchQueue, responseQueue: ResponseQueue, config: GrafanaBootConfig) {
-    const maxParallelRequests = config?.http2Enabled ? 1000 : 5; // for tests that don't mock GrafanaBootConfig the config param will be undefined
-
+  constructor(
+    fetchQueue: FetchQueue,
+    responseQueue: ResponseQueue,
+    config: GrafanaBootConfig,
+    isHostProxied: () => boolean = () => false
+  ) {
     // This will create an implicit live subscription for as long as this class lives.
     // But as FetchQueueWorker is used by the singleton backendSrv that also lives for as long as Grafana app lives
     // I think this ok. We could add some disposable pattern later if the need arises.
@@ -26,6 +29,11 @@ export class FetchQueueWorker {
         // Using concatMap instead of mergeMap so that the order with apiRequests first is preserved
         // https://rxjs.dev/api/operators/concatMap
         concatMap(({ state, noOfInProgress }) => {
+          // The embedded app sends queries through the host's authenticated proxy,
+          // not Grafana's server transport. Its minimal boot config has no HTTP/2
+          // flag. Do not serialize those queries behind the standalone HTTP/1 cap.
+          // Read the mode here: the singleton is constructed before MFE startup.
+          const maxParallelRequests = config?.http2Enabled || isHostProxied() ? 1000 : 5;
           const apiRequests = Object.keys(state)
             .filter((k) => state[k].state === FetchStatus.Pending && !isDataQuery(state[k].options.url))
             .reduce<WorkerEntry[]>((all, key) => {
