@@ -48,7 +48,16 @@ describe('LazyLoader preload', () => {
     expect(screen.queryByText('off-screen panel') !== null).toBe(preload);
     const element = container.firstElementChild!;
     const changeVisibility = (isIntersecting: boolean) => {
-      act(() => LazyLoader.callbacks[element.id]({ target: element, isIntersecting } as IntersectionObserverEntry));
+      const entry: IntersectionObserverEntry = {
+        target: element,
+        isIntersecting,
+        intersectionRatio: isIntersecting ? 1 : 0,
+        time: 0,
+        boundingClientRect: element.getBoundingClientRect(),
+        intersectionRect: element.getBoundingClientRect(),
+        rootBounds: null,
+      };
+      act(() => LazyLoader.callbacks[element.id](entry));
     };
     changeVisibility(true);
     expect(screen.getByText('visible panel')).toBeInTheDocument();

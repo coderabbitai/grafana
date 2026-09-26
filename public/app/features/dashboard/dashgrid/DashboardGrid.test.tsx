@@ -165,11 +165,16 @@ describe('DashboardGrid', () => {
   });
   afterAll(() => fetchSpy.mockRestore());
 
-  it.each([
-    { FNDashboard: true, dashboardAccessMode: 'standard' as const, preloadPanels: true, lazy: false },
-    { FNDashboard: true, dashboardAccessMode: 'standard' as const, preloadPanels: false, lazy: true },
-    { FNDashboard: true, dashboardAccessMode: 'custom' as const, preloadPanels: true, lazy: true },
-    { FNDashboard: false, dashboardAccessMode: 'standard' as const, preloadPanels: true, lazy: true },
+  it.each<{
+    readonly FNDashboard: boolean;
+    readonly dashboardAccessMode: 'standard' | 'custom';
+    readonly preloadPanels: boolean;
+    readonly lazy: boolean;
+  }>([
+    { FNDashboard: true, dashboardAccessMode: 'standard', preloadPanels: true, lazy: false },
+    { FNDashboard: true, dashboardAccessMode: 'standard', preloadPanels: false, lazy: true },
+    { FNDashboard: true, dashboardAccessMode: 'custom', preloadPanels: true, lazy: true },
+    { FNDashboard: false, dashboardAccessMode: 'standard', preloadPanels: true, lazy: true },
   ])('only preloads explicitly opted-in embedded standard dashboards: %j', async ({ lazy, ...fnState }) => {
     jest.mocked(LazyLoader).mockClear();
     setup(

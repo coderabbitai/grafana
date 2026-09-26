@@ -23,7 +23,7 @@ export interface FnState {
   controlsContainer: string | null;
   dashboardAccessMode: 'standard' | 'custom';
   /** Host opt-in for eager canned-panel loading; never grants query access. */
-  preloadPanels?: boolean;
+  readonly preloadPanels?: boolean;
   pageTitle: string;
   queryParams: AnyObject;
   hiddenVariables: string[];
