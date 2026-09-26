@@ -1,25 +1,40 @@
 import { act, render, screen } from '@testing-library/react';
+import { ReactNode } from 'react';
 import { Provider } from 'react-redux';
 import { Router } from 'react-router-dom';
 import { useEffectOnce } from 'react-use';
 import { getGrafanaContextMock } from 'test/mocks/getGrafanaContextMock';
 
-import { TextBoxVariableModel } from '@grafana/data';
+import { GrafanaThemeType, TextBoxVariableModel } from '@grafana/data';
 import { locationService } from '@grafana/runtime';
 import { Dashboard } from '@grafana/schema';
 import appEvents from 'app/core/app_events';
 import { GRID_CELL_VMARGIN, GRID_COLUMN_COUNT } from 'app/core/constants';
 import { GrafanaContext } from 'app/core/context/GrafanaContext';
+import { INITIAL_FN_STATE } from 'app/core/reducers/fn-slice';
 import { GetVariables } from 'app/features/variables/state/selectors';
 import { VariablesChanged } from 'app/features/variables/types';
 import { configureStore } from 'app/store/configureStore';
-import { DashboardMeta } from 'app/types';
+import { DashboardMeta, StoreState } from 'app/types';
 
 import { DashboardModel, PanelModel } from '../state';
 import { createDashboardModelFixture } from '../state/__fixtures__/dashboardFixtures';
 
 import { Component, DashboardGrid, Props } from './DashboardGrid';
-import { Props as LazyLoaderProps } from './LazyLoader';
+import { LazyLoader, Props as LazyLoaderProps } from './LazyLoader';
+
+// A bundled panel's package mock omits SceneDataLayerBase; this suite exercises
+// the real dashboard graph, not that plugin's isolated scene stub.
+jest.unmock('@grafana/scenes');
+jest.unmock('@grafana/data');
+jest.unmock('@grafana/ui');
+
+// JSDOM has no layout; provide the viewport the grid needs to mount its panels.
+jest.mock('react-virtualized-auto-sizer', () => ({
+  __esModule: true,
+  default: ({ children }: { children: (size: { width: number; height: number }) => ReactNode }) =>
+    children({ width: 1000, height: 800 }),
+}));
 
 jest.mock('@grafana/runtime', () => ({
   ...jest.requireActual('@grafana/runtime'),
@@ -32,18 +47,33 @@ jest.mock('@grafana/runtime', () => ({
 }));
 
 jest.mock('app/features/dashboard/dashgrid/LazyLoader', () => {
-  const LazyLoader = ({ children, onLoad }: Pick<LazyLoaderProps, 'children' | 'onLoad'>) => {
+  const LazyLoader = jest.fn(({ children, onLoad }: Pick<LazyLoaderProps, 'children' | 'onLoad'>) => {
     useEffectOnce(() => {
       onLoad?.();
     });
     return <>{typeof children === 'function' ? children({ isInView: true }) : children}</>;
-  };
+  });
   return { LazyLoader };
 });
 
-function setup(props: Props) {
+function setup(props: Props, initialState: Partial<StoreState> = {}) {
   const context = getGrafanaContextMock();
-  const store = configureStore({});
+  const store = configureStore({
+    fnGlobalState: {
+      ...INITIAL_FN_STATE,
+      FNDashboard: props.isFnDashboard ?? false,
+      mode: GrafanaThemeType.Light,
+      portalContainerID: props.portalContainerID ?? INITIAL_FN_STATE.portalContainerID,
+    },
+    ...initialState,
+  });
+  const container = document.createElement('div');
+  container.id = props.portalContainerID ?? '';
+  Object.defineProperties(container, {
+    clientWidth: { value: 1000 },
+    clientHeight: { value: 800 },
+  });
+  document.body.appendChild(container);
 
   return render(
     <GrafanaContext.Provider value={context}>
@@ -52,7 +82,8 @@ function setup(props: Props) {
           <DashboardGrid {...props} />
         </Router>
       </Provider>
-    </GrafanaContext.Provider>
+    </GrafanaContext.Provider>,
+    { container }
   );
 }
 
@@ -122,6 +153,52 @@ function getTestDashboard(
 }
 
 describe('DashboardGrid', () => {
+  let fetchSpy: jest.SpyInstance;
+  beforeAll(() => {
+    fetchSpy = jest.spyOn(globalThis, 'fetch').mockImplementation(async (input) => {
+      const url = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;
+      if (!url.endsWith('.svg')) {
+        throw new Error(`Unexpected grid test fetch: ${url}`);
+      }
+      return new Response('<svg xmlns="http://www.w3.org/2000/svg" />');
+    });
+  });
+  afterAll(() => fetchSpy.mockRestore());
+
+  it.each<{
+    readonly FNDashboard: boolean;
+    readonly dashboardAccessMode: 'standard' | 'custom';
+    readonly preloadPanels: boolean;
+    readonly lazy: boolean;
+  }>([
+    { FNDashboard: true, dashboardAccessMode: 'standard', preloadPanels: true, lazy: false },
+    { FNDashboard: true, dashboardAccessMode: 'standard', preloadPanels: false, lazy: true },
+    { FNDashboard: true, dashboardAccessMode: 'custom', preloadPanels: true, lazy: true },
+    { FNDashboard: false, dashboardAccessMode: 'standard', preloadPanels: true, lazy: true },
+  ])('only preloads explicitly opted-in embedded standard dashboards: %j', async ({ lazy, ...fnState }) => {
+    jest.mocked(LazyLoader).mockClear();
+    setup(
+      { editPanel: null, viewPanel: null, isEditable: false, dashboard: getTestDashboard() },
+      { fnGlobalState: { ...INITIAL_FN_STATE, mode: GrafanaThemeType.Light, ...fnState } }
+    );
+    expect(await screen.findByText('My gauge')).toBeInTheDocument();
+    expect(jest.mocked(LazyLoader).mock.calls.length).toBeGreaterThan(0);
+    expect(jest.mocked(LazyLoader).mock.calls.every(([props]) => Boolean(props.preload) === !lazy)).toBe(true);
+  });
+
+  it.each([undefined, false, true])('passes preload=%s to the existing panel loading path', (preloadPanels) => {
+    const dashboard = getTestDashboard();
+    const grid = new Component({
+      editPanel: null,
+      viewPanel: null,
+      isEditable: false,
+      dashboard,
+      preloadPanels,
+    });
+    const rendered = grid.renderPanel(getRequiredPanel(dashboard, 4), 800, 300, false);
+    expect(rendered.props.preload).toBe(preloadPanels);
+  });
+
   it('Should render panels', async () => {
     const props: Props = {
       editPanel: null,

@@ -1,4 +1,4 @@
-import { useId, useRef, useState } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
 import { useEffectOnce } from 'react-use';
 
 export interface Props {
@@ -7,17 +7,21 @@ export interface Props {
   height?: number;
   onLoad?: () => void;
   onChange?: (isInView: boolean) => void;
+  /** Mount initially, while retaining actual viewport visibility for refreshes. */
+  preload?: boolean;
 }
 
-export function LazyLoader({ children, width, height, onLoad, onChange }: Props) {
+export function LazyLoader({ children, width, height, onLoad, onChange, preload = false }: Props) {
   const id = useId();
   const [loaded, setLoaded] = useState(false);
+  const hasLoaded = useRef(false);
   const [isInView, setIsInView] = useState(false);
   const wrapperRef = useRef<HTMLDivElement>(null);
 
   useEffectOnce(() => {
     LazyLoader.addCallback(id, (entry) => {
-      if (!loaded && entry.isIntersecting) {
+      if (!hasLoaded.current && entry.isIntersecting) {
+        hasLoaded.current = true;
         setLoaded(true);
         onLoad?.();
       }
@@ -40,6 +44,16 @@ export function LazyLoader({ children, width, height, onLoad, onChange }: Props)
       }
     };
   });
+
+  useEffect(() => {
+    // Host settings may reach an existing dashboard store after its first render.
+    // Do not remount or reload panels that already entered the viewport.
+    if (preload && !hasLoaded.current) {
+      hasLoaded.current = true;
+      setLoaded(true);
+      onLoad?.();
+    }
+  }, [preload, onLoad]);
 
   return (
     <div id={id} ref={wrapperRef} style={{ width, height }}>

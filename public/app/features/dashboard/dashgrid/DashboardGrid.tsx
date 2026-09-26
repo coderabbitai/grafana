@@ -27,6 +27,7 @@ export interface Props {
   viewPanel: PanelModel | null;
   hidePanelMenus?: boolean;
   isFnDashboard?: boolean;
+  preloadPanels?: boolean;
   onLayoutUpdate?: () => void;
   portalContainerID?: string;
 }
@@ -453,6 +454,7 @@ export class Component extends PureComponent<Props, State> {
         width={width}
         height={height}
         hideMenu={this.props.hidePanelMenus}
+        preload={this.props.preloadPanels}
       />
     );
   }
@@ -624,6 +626,10 @@ GrafanaGridItem.displayName = 'GridItemWithDimensions';
 function mapStateToProps() {
   return (state: StoreState) => ({
     isFnDashboard: state.fnGlobalState.FNDashboard,
+    preloadPanels:
+      state.fnGlobalState.FNDashboard &&
+      state.fnGlobalState.dashboardAccessMode === 'standard' &&
+      state.fnGlobalState.preloadPanels === true,
     portalContainerID: state.fnGlobalState.portalContainerID,
   });
 }

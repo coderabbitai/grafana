@@ -1,10 +1,13 @@
-import { act, fireEvent, render, screen } from '@testing-library/react';
+import { act, render, screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { Provider } from 'react-redux';
 import configureMockStore from 'redux-mock-store';
 import { ReplaySubject } from 'rxjs';
 
 import { EventBusSrv, getDefaultTimeRange, LoadingState, PanelData, PanelPlugin } from '@grafana/data';
 import { selectors } from '@grafana/e2e-selectors';
+import { RefreshEvent } from '@grafana/runtime';
+import { INITIAL_FN_STATE } from 'app/core/reducers/fn-slice';
 
 import { PanelQueryRunner } from '../../query/state/PanelQueryRunner';
 import { setTimeSrv, TimeSrv } from '../services/TimeSrv';
@@ -12,24 +15,30 @@ import { DashboardModel, PanelModel } from '../state';
 
 import { PanelStateWrapper, Props } from './PanelStateWrapper';
 
+jest.unmock('@grafana/scenes');
+jest.unmock('@grafana/data');
+jest.unmock('@grafana/ui');
+jest.unmock('@grafana/runtime');
+
 jest.mock('app/core/profiler', () => ({
   profiler: {
     renderingCompleted: jest.fn(),
   },
 }));
 
-function setupTestContext(options: Partial<Props>) {
+function setupTestContext(options: Partial<Props>, initializePanel = false) {
   const mockStore = configureMockStore();
-  const store = mockStore({ dashboard: { panels: [] } });
+  const store = mockStore({ dashboard: { panels: [] }, fnGlobalState: { ...INITIAL_FN_STATE, FNDashboard: false } });
   const subject: ReplaySubject<PanelData> = new ReplaySubject<PanelData>();
   const panelQueryRunner = {
+    getLastResult: () => undefined,
     getData: () => subject,
     run: () => {
       subject.next({ state: LoadingState.Done, series: [], timeRange: getDefaultTimeRange() });
     },
   } as unknown as PanelQueryRunner;
   const timeSrv = {
-    timeRange: jest.fn(),
+    timeRange: jest.fn(() => getDefaultTimeRange()),
   } as unknown as TimeSrv;
   setTimeSrv(timeSrv);
 
@@ -44,7 +53,8 @@ function setupTestContext(options: Partial<Props>) {
       getDisplayTitle: jest.fn(),
     }),
     dashboard: {
-      panelInitialized: jest.fn(),
+      panelInitialized: initializePanel ? DashboardModel.prototype.panelInitialized : jest.fn(),
+      otherPanelInFullscreen: () => false,
       getTimezone: () => 'browser',
       events: new EventBusSrv(),
       canAddAnnotations: jest.fn(),
@@ -73,12 +83,70 @@ function setupTestContext(options: Partial<Props>) {
     </Provider>
   );
 
-  // Needed so mocks work
-  props.panel.refreshWhenInView = false;
+  // Manual-event tests do not run the dashboard's initial refresh.
+  if (!initializePanel) {
+    props.panel.refreshWhenInView = false;
+  }
   return { rerender, props, subject, store };
 }
 
 describe('PanelStateWrapper', () => {
+  let fetchSpy: jest.SpyInstance;
+  beforeAll(() => {
+    fetchSpy = jest.spyOn(globalThis, 'fetch').mockImplementation(async (input) => {
+      const url = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;
+      if (!url.endsWith('.svg')) {
+        throw new Error(`Unexpected panel test fetch: ${url}`);
+      }
+      return new Response('<svg xmlns="http://www.w3.org/2000/svg" />');
+    });
+  });
+  afterAll(() => fetchSpy.mockRestore());
+
+  it('preloads on dashboard initialization without querying again when the panel becomes visible', async () => {
+    const run = jest.spyOn(PanelModel.prototype, 'runAllPanelQueries').mockImplementation(() => {});
+    try {
+      const { rerender, props, store, subject } = setupTestContext({ preloadInitialQuery: true }, true);
+      expect(run).toHaveBeenCalledTimes(1);
+      act(() => {
+        subject.next({ state: LoadingState.Done, series: [], timeRange: getDefaultTimeRange() });
+      });
+      await act(async () => {
+        rerender(
+          <Provider store={store}>
+            <PanelStateWrapper {...props} isInView={true} />
+          </Provider>
+        );
+      });
+      expect(screen.getByText(/plugin panel to render/i)).toBeInTheDocument();
+      expect(run).toHaveBeenCalledTimes(1);
+    } finally {
+      run.mockRestore();
+    }
+  });
+
+  it.each([false, true])('allows only the first off-screen query with preload=%s', (preloadInitialQuery) => {
+    const { rerender, props, store } = setupTestContext({ preloadInitialQuery });
+    const run = jest.spyOn(props.panel, 'runAllPanelQueries').mockImplementation(() => {});
+    const refresh = () => act(() => props.panel.events.publish(new RefreshEvent()));
+    refresh();
+    expect(run).toHaveBeenCalledTimes(preloadInitialQuery ? 1 : 0);
+    refresh();
+    refresh();
+    expect(run).toHaveBeenCalledTimes(preloadInitialQuery ? 1 : 0);
+    expect(props.panel.refreshWhenInView).toBe(true);
+    rerender(
+      <Provider store={store}>
+        <PanelStateWrapper {...props} isInView={true} />
+      </Provider>
+    );
+    expect(run).toHaveBeenCalledTimes(preloadInitialQuery ? 2 : 1);
+    expect(props.panel.refreshWhenInView).toBe(false);
+    rerender(<></>);
+    refresh();
+    expect(run).toHaveBeenCalledTimes(preloadInitialQuery ? 2 : 1);
+  });
+
   describe('when the user scrolls by a panel so fast that it starts loading data but scrolls out of view', () => {
     it('then it should load the panel successfully when scrolled into view again', () => {
       const { rerender, props, subject, store } = setupTestContext({});
@@ -132,9 +200,12 @@ describe('PanelStateWrapper', () => {
         const button = screen.getByTestId(selectors.components.Panels.Panel.status('error'));
         expect(button).toBeInTheDocument();
         await act(async () => {
-          fireEvent.focus(button);
+          await userEvent.hover(button);
         });
         expect(await screen.findByText(scenario.expectedMessage)).toBeInTheDocument();
+        await act(async () => {
+          await userEvent.unhover(button);
+        });
       });
     });
   });
