@@ -50,6 +50,19 @@ function setGrafanaStore(state: WritableDraft<MfeGlobalState>, uid: string, init
 const reducers: SliceCaseReducers<MfeGlobalState> = {
   updatePartialMfeStates: (state, action: UpdateFNGlobalStateAction) => {
     const { uid, ...partialState } = action.payload;
+    // A host portal has one dashboard owner. Custom dashboards keep the DOM
+    // container while switching between published and draft UIDs; retaining
+    // both stores would render both dashboards into that same container.
+    // Only explicit container updates transfer ownership, not async refresh
+    // completions or other UID-only state patches.
+    if (uid && partialState.portalContainerID) {
+      for (const [previousUid, dashboard] of Object.entries(state.dashboards)) {
+        if (previousUid !== uid && dashboard.portalContainerID === partialState.portalContainerID) {
+          delete state.dashboards[previousUid];
+          delete state.grafanaStores[previousUid];
+        }
+      }
+    }
     setGrafanaStore(state, uid, partialState);
     const fnState = state.dashboards[uid];
     state.FNDashboard = true;

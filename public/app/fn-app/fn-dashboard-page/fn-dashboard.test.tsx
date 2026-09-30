@@ -106,8 +106,10 @@ describe('FNDashboard', () => {
   afterEach(() => {
     cleanup();
     act(() => {
-      for (const uid of dashboardUIDs) {
+      for (const uid of Object.keys(mfeGetStoreState().fnGlobalReducer.dashboards)) {
         mfeDispatch(removeGrafanaStoreAndDashboard(uid));
+      }
+      for (const uid of dashboardUIDs) {
         document.getElementById(`${uid}-portal`)?.remove();
       }
       mfeDispatch(updateRenderingDashboardUID(''));
@@ -138,6 +140,50 @@ describe('FNDashboard', () => {
       1
     );
     expect(consoleError.mock.calls.flat().join(' ')).not.toContain('Cannot update a component');
+  });
+
+  it('replaces the dashboard owning a stable portal through draft creation and save', () => {
+    const publishedUid = dashboardUIDs[0];
+    const draftUid = 'custom-dashboard-draft';
+    const portalContainerID = `${publishedUid}-portal`;
+    render(
+      <FNDashboard
+        name="dashboard"
+        isLoading={jest.fn()}
+        pageTitle="Dashboard"
+        setErrors={jest.fn()}
+        metadata={{ teams: [], eventListener: null }}
+        fnError={null}
+      />
+    );
+
+    for (const uid of [draftUid, publishedUid, draftUid, publishedUid]) {
+      const previousUid = uid === draftUid ? publishedUid : draftUid;
+      act(() => mfeDispatch(updatePartialMfeStates({ uid, portalContainerID })));
+
+      expect(document.getElementById(portalContainerID)!.querySelectorAll('.page-dashboard')).toHaveLength(1);
+      expect(screen.getByTestId(`dashboard-${uid}`)).toBeInTheDocument();
+      expect(screen.queryByTestId(`dashboard-${previousUid}`)).not.toBeInTheDocument();
+      expect(mfeGetStoreState().fnGlobalReducer.grafanaStores[previousUid]).toBeUndefined();
+      expect(mfeGetStoreState().fnGlobalReducer.renderingDashboardUID).toBe(uid);
+    }
+  });
+
+  it('preserves the existing store on same-UID updates and unrelated portals on replacement', () => {
+    mountDashboard(dashboardUIDs[1]);
+    const parentStore = mfeGetStoreState().fnGlobalReducer.grafanaStores[dashboardUIDs[0]];
+    const drawerStore = mfeGetStoreState().fnGlobalReducer.grafanaStores[dashboardUIDs[1]];
+    mfeDispatch(updatePartialMfeStates({ uid: dashboardUIDs[0], refreshRevision: 3 }));
+    mfeDispatch(updatePartialMfeStates({ uid: dashboardUIDs[0], portalContainerID: `${dashboardUIDs[0]}-portal` }));
+    expect(mfeGetStoreState().fnGlobalReducer.grafanaStores[dashboardUIDs[0]]).toBe(parentStore);
+    expect(mfeGetStoreState().fnGlobalReducer.dashboards[dashboardUIDs[0]].refreshRevision).toBe(3);
+
+    mfeDispatch(updatePartialMfeStates({ uid: 'draft', portalContainerID: `${dashboardUIDs[0]}-portal` }));
+    expect(mfeGetStoreState().fnGlobalReducer.grafanaStores[dashboardUIDs[1]]).toBe(drawerStore);
+    expect(mfeGetStoreState().fnGlobalReducer.dashboards[dashboardUIDs[1]].portalContainerID).toBe(
+      `${dashboardUIDs[1]}-portal`
+    );
+    expect(mfeGetStoreState().fnGlobalReducer.grafanaStores[dashboardUIDs[0]]).toBeUndefined();
   });
 
   it('restores the preserved parent time owner after drawer removal without refreshing it', () => {
